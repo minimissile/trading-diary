@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { AssetStats, HealthResult, ImportedAsset } from '../../shared/contracts';
+import type {
+  AssetStats,
+  HealthResult,
+  ImportedAsset,
+  UpdateState,
+} from '../../shared/contracts';
 
 function formatBytes(value: number): string {
   return new Intl.NumberFormat('zh-CN', {
@@ -13,8 +18,10 @@ export function App(): React.JSX.Element {
   const [health, setHealth] = useState<HealthResult | null>(null);
   const [stats, setStats] = useState<AssetStats | null>(null);
   const [lastAsset, setLastAsset] = useState<ImportedAsset | null>(null);
+  const [updateState, setUpdateState] = useState<UpdateState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [updateBusy, setUpdateBusy] = useState(false);
 
   const refresh = useCallback(async (): Promise<void> => {
     const [nextHealth, nextStats] = await Promise.all([
@@ -43,6 +50,27 @@ export function App(): React.JSX.Element {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const unsubscribe = window.desktop.updater.onStateChanged((state) => {
+      if (active) setUpdateState(state);
+    });
+
+    void window.desktop.updater
+      .getState()
+      .then((state) => {
+        if (active) setUpdateState(state);
+      })
+      .catch((reason: unknown) => {
+        if (active) setError(reason instanceof Error ? reason.message : '更新状态读取失败');
+      });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
   const importImage = async (): Promise<void> => {
     setBusy(true);
     setError(null);
@@ -56,6 +84,22 @@ export function App(): React.JSX.Element {
       setError(reason instanceof Error ? reason.message : '图片导入失败');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const runUpdateAction = async (
+    action: () => Promise<UpdateState | void>,
+    fallbackMessage: string,
+  ): Promise<void> => {
+    setUpdateBusy(true);
+    setError(null);
+    try {
+      const state = await action();
+      if (state) setUpdateState(state);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : fallbackMessage);
+    } finally {
+      setUpdateBusy(false);
     }
   };
 
@@ -89,6 +133,63 @@ export function App(): React.JSX.Element {
           <span>图片</span>
           <strong>{stats?.count ?? '—'}</strong>
         </article>
+      </section>
+
+      <section className="updater" aria-label="应用更新" aria-live="polite">
+        <div>
+          <h2>应用更新</h2>
+          <p>{updateState?.message ?? '正在读取更新状态'}</p>
+          <span>
+            当前版本 {updateState?.currentVersion ?? '—'}
+            {updateState?.availableVersion
+              ? ` · 可用版本 ${updateState.availableVersion}`
+              : null}
+          </span>
+          {updateState?.phase === 'downloading' ? (
+            <progress max="100" value={updateState.downloadPercent ?? 0}>
+              {updateState.downloadPercent ?? 0}%
+            </progress>
+          ) : null}
+        </div>
+
+        <div className="updater__actions">
+          <button
+            type="button"
+            disabled={
+              updateBusy ||
+              !updateState ||
+              updateState.phase === 'disabled' ||
+              updateState.phase === 'downloading'
+            }
+            onClick={() =>
+              void runUpdateAction(() => window.desktop.updater.check(), '检查更新失败')
+            }
+          >
+            {updateState?.phase === 'checking' ? '检查中…' : '检查更新'}
+          </button>
+          {updateState?.phase === 'available' ? (
+            <button
+              type="button"
+              disabled={updateBusy}
+              onClick={() =>
+                void runUpdateAction(() => window.desktop.updater.download(), '下载更新失败')
+              }
+            >
+              下载更新
+            </button>
+          ) : null}
+          {updateState?.phase === 'downloaded' ? (
+            <button
+              type="button"
+              disabled={updateBusy}
+              onClick={() =>
+                void runUpdateAction(() => window.desktop.updater.install(), '安装更新失败')
+              }
+            >
+              退出并安装
+            </button>
+          ) : null}
+        </div>
       </section>
 
       <section className="workspace">

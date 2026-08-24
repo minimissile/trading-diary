@@ -1,6 +1,7 @@
 import { dialog, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import { ipcChannels } from '../shared/contracts';
 import type { ServiceHost } from './service/service-host';
+import type { UpdateManager } from './updater/update-manager';
 
 function assertTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow): void {
   if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame) {
@@ -8,7 +9,11 @@ function assertTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow): 
   }
 }
 
-export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost): () => void {
+export function registerIpcHandlers(
+  window: BrowserWindow,
+  service: ServiceHost,
+  updater: UpdateManager,
+): () => void {
   ipcMain.handle(ipcChannels.health, async (event) => {
     assertTrustedSender(event, window);
     return service.request('system.health', {});
@@ -34,9 +39,38 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost)
     return service.request('assets.import', { sourcePath });
   });
 
+  ipcMain.handle(ipcChannels.getUpdateState, (event) => {
+    assertTrustedSender(event, window);
+    return updater.getState();
+  });
+
+  ipcMain.handle(ipcChannels.checkForUpdates, (event) => {
+    assertTrustedSender(event, window);
+    return updater.check();
+  });
+
+  ipcMain.handle(ipcChannels.downloadUpdate, (event) => {
+    assertTrustedSender(event, window);
+    return updater.download();
+  });
+
+  ipcMain.handle(ipcChannels.installUpdate, (event) => {
+    assertTrustedSender(event, window);
+    updater.install();
+  });
+
+  const unsubscribeUpdater = updater.subscribe((state) => {
+    if (!window.isDestroyed()) window.webContents.send(ipcChannels.updateState, state);
+  });
+
   return () => {
+    unsubscribeUpdater();
     ipcMain.removeHandler(ipcChannels.health);
     ipcMain.removeHandler(ipcChannels.assetStats);
     ipcMain.removeHandler(ipcChannels.importImage);
+    ipcMain.removeHandler(ipcChannels.getUpdateState);
+    ipcMain.removeHandler(ipcChannels.checkForUpdates);
+    ipcMain.removeHandler(ipcChannels.downloadUpdate);
+    ipcMain.removeHandler(ipcChannels.installUpdate);
   };
 }

@@ -7,7 +7,7 @@ export default defineConfig({
       // 原生扩展必须保持外部依赖，electron-builder 才能打包对应平台的二进制文件。
       // 使用 ?modulePath 导入的后台服务模块会由 electron-vite 5 自动构建为独立入口。
       rollupOptions: {
-        external: ['sharp'],
+        external: ['electron-updater', 'sharp'],
       },
     },
   },

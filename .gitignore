@@ -61,6 +61,7 @@ typings/
 # dotenv 环境变量文件
 .env
 .env.test
+electron-builder.env
 
 # Parcel 缓存（https://parceljs.org/）
 .cache

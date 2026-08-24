@@ -4,6 +4,11 @@ export const ipcChannels = {
   health: 'desktop:health',
   assetStats: 'desktop:assets:stats',
   importImage: 'desktop:assets:import-image',
+  updateState: 'desktop:update:state',
+  getUpdateState: 'desktop:update:get-state',
+  checkForUpdates: 'desktop:update:check',
+  downloadUpdate: 'desktop:update:download',
+  installUpdate: 'desktop:update:install',
 } as const;
 
 export const assetHashSchema = z.string().regex(/^[a-f0-9]{64}$/u);
@@ -30,6 +35,25 @@ export interface ImportedAsset {
   originalBytes: number;
   previewUrl: string;
   duplicate: boolean;
+}
+
+export type UpdatePhase =
+  | 'disabled'
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'not-available'
+  | 'downloading'
+  | 'downloaded'
+  | 'error';
+
+/** 自动更新模块对渲染进程公开的稳定状态，避免暴露 electron-updater 对象。 */
+export interface UpdateState {
+  phase: UpdatePhase;
+  currentVersion: string;
+  availableVersion: string | null;
+  downloadPercent: number | null;
+  message: string | null;
 }
 
 export interface ServiceContract {
@@ -108,5 +132,12 @@ export interface DesktopApi {
   assets: {
     stats: () => Promise<AssetStats>;
     importImage: () => Promise<ImportedAsset | null>;
+  };
+  updater: {
+    getState: () => Promise<UpdateState>;
+    check: () => Promise<UpdateState>;
+    download: () => Promise<UpdateState>;
+    install: () => Promise<void>;
+    onStateChanged: (listener: (state: UpdateState) => void) => () => void;
   };
 }
