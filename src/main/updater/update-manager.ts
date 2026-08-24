@@ -7,7 +7,7 @@ import electronUpdater, {
   type UpdateDownloadedEvent,
   type UpdateInfo,
 } from 'electron-updater';
-import type { UpdateState } from '../../shared/contracts';
+import type { UpdateState } from '../../shared/api.types';
 
 const STARTUP_CHECK_DELAY_MS = 10_000;
 const { autoUpdater } = electronUpdater;

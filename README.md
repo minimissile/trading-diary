@@ -24,21 +24,21 @@ trading-diary/
 │   │   ├── protocols.ts              # app:// 和 app-asset:// 自定义协议
 │   │   ├── updater/
 │   │   │   └── update-manager.ts     # 自动更新检查、下载和安装状态机
-│   │   └── service/
-│   │       └── service-host.ts       # Utility Process 启停与请求管理
+│   │   └── service-host.ts           # Utility Process 启停与请求管理
 │   ├── preload/
 │   │   └── index.ts                  # 向渲染进程暴露最小类型化 API
 │   ├── renderer/                     # React 渲染进程
 │   │   ├── index.html                # HTML 入口与内容安全策略
 │   │   ├── src.tsx                   # React 挂载入口
 │   │   ├── global.d.ts               # window.desktop 全局类型声明
-│   │   ├── router/
-│   │   │   ├── index.tsx             # HashRouter 与集中路由表
-│   │   │   └── paths.ts              # 统一维护客户端路径常量
-│   │   └── ui/
-│   │       ├── App.tsx               # 工程冒烟验证页
-│   │       ├── NotFoundPage.tsx       # 未匹配路由的中文兜底页
-│   │       └── styles.css             # 验证页基础样式
+│   │   ├── components/               # 可复用 UI 组件
+│   │   ├── pages/                    # 路由级页面
+│   │   ├── lib/                      # 渲染进程工具函数
+│   │   ├── styles/
+│   │   │   └── global.css            # 全局样式
+│   │   └── router/
+│   │       ├── index.tsx             # HashRouter 与集中路由表
+│   │       └── paths.ts              # 统一维护客户端路径常量
 │   ├── service/                      # 独立后台服务进程
 │   │   ├── index.ts                  # Utility Process 消息入口
 │   │   ├── app-service.ts            # 后台服务请求分发
@@ -50,7 +50,10 @@ trading-diary/
 │   │       ├── database.ts           # SQLite 连接与数据访问
 │   │       └── migrations.ts         # 数据库结构迁移
 │   └── shared/
-│       ├── contracts.ts              # IPC 与后台服务共享类型契约
+│       ├── ipc-channels.ts           # IPC channel 常量
+│       ├── api.types.ts              # preload / renderer 共享 API 类型
+│       ├── service.types.ts          # 后台服务消息与请求类型
+│       ├── service.schemas.ts        # 后台服务 Zod 校验 schema
 │       └── electron-vite.d.ts        # electron-vite 模块类型补充
 ├── tests/
 │   ├── database.test.ts              # 数据库迁移与聚合测试

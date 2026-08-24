@@ -1,6 +1,6 @@
 import { dialog, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
-import { ipcChannels } from '../shared/contracts';
-import type { ServiceHost } from './service/service-host';
+import { ipcChannels } from '../shared/ipc-channels';
+import type { ServiceHost } from './service-host';
 import type { UpdateManager } from './updater/update-manager';
 
 function assertTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow): void {

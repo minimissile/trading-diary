@@ -1,5 +1,5 @@
 import path from 'node:path';
-import type { ServiceRequest } from '../shared/contracts';
+import type { ServiceRequest } from '../shared/service.types';
 import { ImageStore } from './assets/image-store';
 import { AppDatabase } from './database/database';
 

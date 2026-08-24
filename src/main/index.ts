@@ -1,7 +1,7 @@
 import { app, BrowserWindow, protocol } from 'electron';
 import { registerIpcHandlers } from './ipc';
 import { registerProtocolHandlers } from './protocols';
-import { ServiceHost } from './service/service-host';
+import { ServiceHost } from './service-host';
 import { UpdateManager } from './updater/update-manager';
 import { createMainWindow } from './window';
 

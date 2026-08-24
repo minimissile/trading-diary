@@ -1,5 +1,5 @@
-import type { MainToServiceMessage, ServiceToMainMessage } from '../shared/contracts';
-import { serviceRequestSchema } from '../shared/contracts';
+import { serviceRequestSchema } from '../shared/service.schemas';
+import type { MainToServiceMessage, ServiceToMainMessage } from '../shared/service.types';
 import { AppService } from './app-service';
 
 const parentPort = process.parentPort;

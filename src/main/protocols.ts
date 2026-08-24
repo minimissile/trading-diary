@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { net, protocol } from 'electron';
-import type { ServiceHost } from './service/service-host';
+import type { ServiceHost } from './service-host';
 
 const contentTypes: Readonly<Record<string, string>> = {
   '.css': 'text/css; charset=utf-8',

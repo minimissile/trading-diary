@@ -1,13 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { utilityProcess, type UtilityProcess } from 'electron';
-import serviceModulePath from '../../service/index?modulePath';
+import serviceModulePath from '../service/index?modulePath';
 import type {
   MainToServiceMessage,
   ServiceContract,
   ServiceMethod,
   ServiceResponse,
   ServiceToMainMessage,
-} from '../../shared/contracts';
+} from '../shared/service.types';
 
 const START_TIMEOUT_MS = 15_000;
 const REQUEST_TIMEOUT_MS = 30_000;

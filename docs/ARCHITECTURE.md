@@ -12,7 +12,7 @@ React 渲染进程
 ```
 
 渲染进程不会获得 Node.js、文件系统、数据库或任意网络访问权限。preload 只暴露
-`src/shared/contracts.ts` 声明的 API。主进程 IPC 会验证请求是否来自主窗口的主 frame，
+`src/shared/api.types.ts` 声明的 API。主进程 IPC 会验证请求是否来自主窗口的主 frame，
 通过后才把类型化请求转发给后台服务。
 
 生产环境通过受限的 `app://renderer/` 协议加载渲染文件，因此可以持续禁用 Electron 传统的
@@ -59,6 +59,8 @@ userData/
 Sharp 原生二进制会从 ASAR 解包，并针对目标 Electron 运行时重新构建。在 macOS 上，只有隔离的
 Utility Process 使用 Electron Plugin Helper，以便加载 Sharp 原生库。
 
-签名、公证、发布地址和自动更新端点暂不配置，因为这些配置依赖项目方的 Apple/Windows 证书和发布
-基础设施。`npm run package` 在 macOS 上使用 ad-hoc 签名生成可运行的本地目录包；正式发布命令继续
-使用构建环境注入的凭据。
+自动更新由主进程的 `UpdateManager` 管理，渲染进程只能通过 preload 暴露的类型化接口检查、下载
+和安装更新。正式构建从 `electron-builder.env` 或 CI 环境变量读取 Generic Provider 地址，并生成
+`app-update.yml`；未配置地址的本地包会安全地禁用更新。签名与公证凭据继续由构建环境注入，不写入
+仓库。`npm run package` 在 macOS 上使用 ad-hoc 签名生成可运行的本地目录包，不能作为线上更新包。
+完整发布流程见 [自动更新配置](AUTO_UPDATE.md)。

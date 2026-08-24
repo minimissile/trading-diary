@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { ipcChannels, type DesktopApi, type UpdateState } from '../shared/contracts';
+import type { DesktopApi, UpdateState } from '../shared/api.types';
+import { ipcChannels } from '../shared/ipc-channels';
 
 const desktopApi: DesktopApi = {
   system: {

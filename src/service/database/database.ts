@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import type { AssetStats } from '../../shared/contracts';
+import type { AssetStats } from '../../shared/api.types';
 import { migrations } from './migrations';
 
 export interface AssetRecord {

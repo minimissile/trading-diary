@@ -3,7 +3,7 @@ import { createReadStream } from 'node:fs';
 import { access, copyFile, mkdir, rename, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
-import type { AssetStats, ImportedAsset } from '../../shared/contracts';
+import type { AssetStats, ImportedAsset } from '../../shared/api.types';
 import type { AppDatabase } from '../database/database';
 
 const PREVIEW_MAX_EDGE = 640;
