@@ -9,15 +9,13 @@ const releaseNotesFile = path.join(__dirname, 'release-notes.md');
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
   extends: './electron-builder.yml',
+  ...(fs.existsSync(releaseNotesFile) ? { releaseInfo: { releaseNotesFile } } : {}),
   publish: [
     {
       provider: 'github',
       owner: githubOwner,
       repo: githubRepo,
       releaseType,
-      ...(fs.existsSync(releaseNotesFile)
-        ? { releaseInfo: { releaseNotesFile } }
-        : {}),
     },
   ],
 };
