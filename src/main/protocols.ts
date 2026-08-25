@@ -34,8 +34,7 @@ export function registerProtocolHandlers(service: ServiceHost): () => void {
       return new Response(new Uint8Array(body), {
         headers: {
           'Content-Type': contentType,
-          'Cache-Control':
-            relativePath === 'index.html' ? 'no-cache' : 'public, max-age=31536000, immutable',
+          'Cache-Control': relativePath === 'index.html' ? 'no-cache' : 'public, max-age=31536000, immutable',
         },
       });
     } catch {

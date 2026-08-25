@@ -22,20 +22,16 @@
  * @param updater 更新管理器
  * @returns 注销已注册处理程序与订阅的清理函数
  */
-export function registerIpcHandlers(
-  window: BrowserWindow,
-  service: ServiceHost,
-  updater: UpdateManager,
-): () => void {
+export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost, updater: UpdateManager): () => void {
   // ...
 }
 ```
 
-| 标签 | 何时使用 |
-|------|----------|
+| 标签               | 何时使用                                   |
+| ------------------ | ------------------------------------------ |
 | `@param 名称 说明` | 每个参数一行；说明描述职责或约束，不写类型 |
-| `@returns 说明` | 返回值含义非函数名所能表达时 |
-| `@throws 说明` | 函数会主动 `throw`，且调用方需要知晓时 |
+| `@returns 说明`    | 返回值含义非函数名所能表达时               |
+| `@throws 说明`     | 函数会主动 `throw`，且调用方需要知晓时     |
 
 参数名与函数签名保持一致；无参数时可省略 `@param`，无返回值时可省略 `@returns`。
 
@@ -141,7 +137,7 @@ allowLoadingUnsignedLibraries: process.platform === 'darwin',
 
 ## 格式要求
 
-- 块注释使用 `/**` 开头、` */` 结尾，内部每行以 ` * ` 开头（单行注释除外）。
+- 块注释使用 `/**` 开头、` */` 结尾，内部每行以 `*` 开头（单行注释除外）。
 - `@param`、`@returns`、`@throws` 与摘要之间不空行。
 - 注释与下方代码之间保留一个空行（Prettier 默认行为）。
 

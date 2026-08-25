@@ -96,10 +96,7 @@ export class ImageStore {
           commitTemporaryFile(previewTemporary, previewPath),
         ]);
       } catch (error) {
-        await Promise.all([
-          rm(originalTemporary, { force: true }),
-          rm(previewTemporary, { force: true }),
-        ]);
+        await Promise.all([rm(originalTemporary, { force: true }), rm(previewTemporary, { force: true })]);
         throw error;
       }
     }

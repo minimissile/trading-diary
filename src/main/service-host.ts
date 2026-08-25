@@ -35,12 +35,8 @@ export class ServiceHost {
     });
 
     this.child = child;
-    child.stdout?.on('data', (chunk: Buffer) =>
-      console.info('[service]', chunk.toString().trimEnd()),
-    );
-    child.stderr?.on('data', (chunk: Buffer) =>
-      console.error('[service]', chunk.toString().trimEnd()),
-    );
+    child.stdout?.on('data', (chunk: Buffer) => console.info('[service]', chunk.toString().trimEnd()));
+    child.stderr?.on('data', (chunk: Buffer) => console.error('[service]', chunk.toString().trimEnd()));
     child.on('message', (message: ServiceToMainMessage) => this.handleMessage(message));
     child.on('exit', (code) => this.handleExit(code));
 
@@ -53,10 +49,7 @@ export class ServiceHost {
         callback();
       };
 
-      const timeout = setTimeout(
-        () => finish(() => reject(new Error('后台服务启动超时'))),
-        START_TIMEOUT_MS,
-      );
+      const timeout = setTimeout(() => finish(() => reject(new Error('后台服务启动超时'))), START_TIMEOUT_MS);
 
       const onMessage = (message: ServiceToMainMessage): void => {
         if (message.type === 'service:ready') {
@@ -82,10 +75,7 @@ export class ServiceHost {
     });
   }
 
-  async request<M extends ServiceMethod>(
-    method: M,
-    params: ServiceContract[M]['params'],
-  ): Promise<ServiceContract[M]['result']> {
+  async request<M extends ServiceMethod>(method: M, params: ServiceContract[M]['params']): Promise<ServiceContract[M]['result']> {
     if (!this.child || !this.ready) throw new Error('后台服务尚未就绪');
 
     const id = randomUUID();

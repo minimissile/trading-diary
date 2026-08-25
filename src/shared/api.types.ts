@@ -23,14 +23,7 @@ export interface ImportedAsset {
 }
 
 export type UpdatePhase =
-  | 'disabled'
-  | 'idle'
-  | 'checking'
-  | 'available'
-  | 'not-available'
-  | 'downloading'
-  | 'downloaded'
-  | 'error';
+  'disabled' | 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
 
 /** 自动更新模块对渲染进程公开的稳定状态，避免暴露 electron-updater 对象。 */
 export interface UpdateState {

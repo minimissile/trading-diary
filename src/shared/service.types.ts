@@ -30,13 +30,10 @@ export type ServiceRequest<M extends ServiceMethod = ServiceMethod> = {
 }[M];
 
 export type ServiceResponse =
-  | { id: string; ok: true; data: unknown }
-  | { id: string; ok: false; error: { code: string; message: string } };
+  { id: string; ok: true; data: unknown } | { id: string; ok: false; error: { code: string; message: string } };
 
 export type MainToServiceMessage =
-  | { type: 'service:init'; dataDir: string }
-  | { type: 'service:request'; request: ServiceRequest }
-  | { type: 'service:shutdown' };
+  { type: 'service:init'; dataDir: string } | { type: 'service:request'; request: ServiceRequest } | { type: 'service:shutdown' };
 
 export type ServiceToMainMessage =
   | { type: 'service:ready' }

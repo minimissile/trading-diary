@@ -9,13 +9,7 @@ interface UpdaterPanelProps {
   onInstall: () => void;
 }
 
-export function UpdaterPanel({
-  updateState,
-  updateBusy,
-  onCheck,
-  onDownload,
-  onInstall,
-}: UpdaterPanelProps): React.JSX.Element {
+export function UpdaterPanel({ updateState, updateBusy, onCheck, onDownload, onInstall }: UpdaterPanelProps): React.JSX.Element {
   return (
     <section className="updater" aria-label="应用更新" aria-live="polite">
       <div>
@@ -26,23 +20,13 @@ export function UpdaterPanel({
           {updateState?.availableVersion ? ` · 可用版本 ${updateState.availableVersion}` : null}
         </span>
         {updateState?.phase === 'downloading' ? (
-          <Progress
-            className="updater__progress"
-            percent={updateState.downloadPercent ?? 0}
-            size="small"
-            status="active"
-          />
+          <Progress className="updater__progress" percent={updateState.downloadPercent ?? 0} size="small" status="active" />
         ) : null}
       </div>
 
       <div className="updater__actions">
         <Button
-          disabled={
-            updateBusy ||
-            !updateState ||
-            updateState.phase === 'disabled' ||
-            updateState.phase === 'downloading'
-          }
+          disabled={updateBusy || !updateState || updateState.phase === 'disabled' || updateState.phase === 'downloading'}
           onClick={onCheck}
           loading={updateState?.phase === 'checking'}
         >

@@ -15,10 +15,7 @@ export function HomePage(): React.JSX.Element {
   const [updateBusy, setUpdateBusy] = useState(false);
 
   const refresh = useCallback(async (): Promise<void> => {
-    const [nextHealth, nextStats] = await Promise.all([
-      window.desktop.system.health(),
-      window.desktop.assets.stats(),
-    ]);
+    const [nextHealth, nextStats] = await Promise.all([window.desktop.system.health(), window.desktop.assets.stats()]);
     setHealth(nextHealth);
     setStats(nextStats);
   }, []);
@@ -78,10 +75,7 @@ export function HomePage(): React.JSX.Element {
     }
   };
 
-  const runUpdateAction = async (
-    action: () => Promise<UpdateState | void>,
-    fallbackMessage: string,
-  ): Promise<void> => {
+  const runUpdateAction = async (action: () => Promise<UpdateState | void>, fallbackMessage: string): Promise<void> => {
     setUpdateBusy(true);
     setError(null);
     try {
@@ -102,20 +96,10 @@ export function HomePage(): React.JSX.Element {
         updateState={updateState}
         updateBusy={updateBusy}
         onCheck={() => void runUpdateAction(() => window.desktop.updater.check(), '检查更新失败')}
-        onDownload={() =>
-          void runUpdateAction(() => window.desktop.updater.download(), '下载更新失败')
-        }
-        onInstall={() =>
-          void runUpdateAction(() => window.desktop.updater.install(), '安装更新失败')
-        }
+        onDownload={() => void runUpdateAction(() => window.desktop.updater.download(), '下载更新失败')}
+        onInstall={() => void runUpdateAction(() => window.desktop.updater.install(), '安装更新失败')}
       />
-      <AssetWorkspace
-        stats={stats}
-        lastAsset={lastAsset}
-        busy={busy}
-        error={error}
-        onImport={() => void importImage()}
-      />
+      <AssetWorkspace stats={stats} lastAsset={lastAsset} busy={busy} error={error} onImport={() => void importImage()} />
     </main>
   );
 }

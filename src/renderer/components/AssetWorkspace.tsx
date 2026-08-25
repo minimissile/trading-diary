@@ -10,13 +10,7 @@ interface AssetWorkspaceProps {
   onImport: () => void;
 }
 
-export function AssetWorkspace({
-  stats,
-  lastAsset,
-  busy,
-  error,
-  onImport,
-}: AssetWorkspaceProps): React.JSX.Element {
+export function AssetWorkspace({ stats, lastAsset, busy, error, onImport }: AssetWorkspaceProps): React.JSX.Element {
   return (
     <section className="workspace">
       <div>
@@ -36,8 +30,7 @@ export function AssetWorkspace({
           <>
             <img src={lastAsset.previewUrl} alt="最近导入的图片预览" />
             <p>
-              {lastAsset.width ?? '?'} × {lastAsset.height ?? '?'} ·{' '}
-              {lastAsset.duplicate ? '已去重' : '已入库'}
+              {lastAsset.width ?? '?'} × {lastAsset.height ?? '?'} · {lastAsset.duplicate ? '已去重' : '已入库'}
             </p>
           </>
         ) : (
