@@ -36,6 +36,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run test",
+    "release": "node scripts/release.mjs",
     "postinstall": "electron-builder install-app-deps"
   },
   "keywords": [],

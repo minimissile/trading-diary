@@ -105,6 +105,7 @@ npm run build
 npm run package
 npm run dist:mac
 npm run dist:win
+npm run release            # 一键发布（推荐）
 npm run dist:mac:publish   # 本地构建并上传到 GitHub Releases
 ```
 

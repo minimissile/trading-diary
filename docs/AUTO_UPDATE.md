@@ -22,7 +22,51 @@ Windows 与 macOS 自动更新。不需要自建更新服务器；发布资产�
 
 ## 发布方式
 
-### 方式 A：GitHub Actions（推荐）
+### 方式 A：一键发布脚本（推荐）
+
+项目内置 `scripts/release.mjs`，自动完成版本递增、整理 Git 提交为更新说明、提交打 tag，
+并触发 GitHub Actions 构建 macOS / Windows 双平台产物。
+
+**首次准备：**
+
+```bash
+cp electron-builder.env.example electron-builder.env
+# 可选：GH_TOKEN（--local 本机发布时需要）
+# 可选：OPENROUTER_API_KEY（启用 AI 生成更新说明，见 https://openrouter.ai/keys）
+```
+
+**最常用命令：**
+
+```bash
+# 1. 先 commit 所有待发布改动
+# 2. 一键发布
+npm run release
+```
+
+脚本会自动：
+
+1. 将 `package.json` 版本 patch +1（也可用 `minor` / `major` / `--version 2.0.0`）
+2. 自上一个 `v*` tag 提取 commit；配置了 `OPENROUTER_API_KEY` 时由 AI 决定 **patch / minor / major** 并生成更新说明，否则本地按 SemVer 推断
+3. 写入 `release-notes.md` 与 `CHANGELOG.md`
+4. 运行 `npm run check`
+5. 提交、`git tag -a vX.Y.Z`
+6. 推送后 GitHub Actions（`.github/workflows/release.yml`）构建并上传到 Releases
+
+**其他用法：**
+
+```bash
+npm run release -- --dry-run              # 预览版本号与更新说明（本地整理，不消耗 token）
+npm run release -- --dry-run --ai         # 预览 AI 生成的更新说明
+npm run release -- patch --no-ai --push   # 强制本地整理，不用大模型
+npm run release -- minor --push --yes     # minor 递增
+npm run release -- --local --push --yes   # 本机构建当前平台并上传（需 GH_TOKEN）
+npm run release -- --skip-check --push    # 跳过 check（不推荐）
+```
+
+本地模式（`--local`）在本机直接 `dist:mac:publish` 或 `dist:win:publish`；
+CI 模式（默认）只推送 tag，由 Actions 在 macOS / Windows _runner 上分别构建，覆盖双平台。
+
+### 方式 B：GitHub Actions（手动打 tag）
 
 推送版本 tag 后自动构建并发布到 Releases：
 
@@ -39,7 +83,7 @@ git push origin main --tags
 - 在 `windows-latest` 上构建 Windows 产物
 - 使用 `GITHUB_TOKEN` 上传到同一 GitHub Release
 
-### 方式 B：本地发布
+### 方式 C：本地手动发布
 
 ```bash
 cp electron-builder.env.example electron-builder.env
