@@ -15,7 +15,9 @@ module.exports = {
       owner: githubOwner,
       repo: githubRepo,
       releaseType,
-      ...(fs.existsSync(releaseNotesFile) ? { releaseNotesFile } : {}),
+      ...(fs.existsSync(releaseNotesFile)
+        ? { releaseInfo: { releaseNotesFile } }
+        : {}),
     },
   ],
 };
