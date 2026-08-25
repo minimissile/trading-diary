@@ -1,5 +1,3 @@
-# 更新日志
-
 ## 1.1.0 (2026-08-25)
 
 ### 新功能
@@ -22,4 +20,3 @@
 
 - Add auto-update pipeline, routing UI, and release configuration.
 - Initial commit: Electron desktop runtime for Trading Diary.
-

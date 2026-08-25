@@ -14,6 +14,7 @@ export default tseslint.config(
       'electron-builder.config.cjs',
       'eslint.config.mjs',
       'prettier.config.mjs',
+      'scripts/**',
     ],
   },
   eslint.configs.recommended,
@@ -39,10 +40,7 @@ export default tseslint.config(
   {
     files: ['src/renderer/**/*.{ts,tsx}'],
     rules: {
-      '@typescript-eslint/no-misused-promises': [
-        'error',
-        { checksVoidReturn: { attributes: false } },
-      ],
+      '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: { attributes: false } }],
     },
   },
   eslintConfigPrettier,

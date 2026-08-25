@@ -1,7 +1,7 @@
 {
   "name": "trading-diary",
   "productName": "交易日记",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "面向本地优先场景的交易日记桌面客户端",
   "main": "./out/main/index.js",
   "private": true,
