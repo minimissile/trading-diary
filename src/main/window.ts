@@ -18,7 +18,10 @@ export function createMainWindow(): BrowserWindow {
     },
   });
 
-  window.once('ready-to-show', () => window.show());
+  window.once('ready-to-show', () => {
+    window.maximize();
+    window.show();
+  });
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
   if (process.env.ELECTRON_RENDERER_URL) {

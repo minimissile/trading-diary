@@ -35,8 +35,12 @@ export class ServiceHost {
     });
 
     this.child = child;
-    child.stdout?.on('data', (chunk: Buffer) => console.info('[service]', chunk.toString().trimEnd()));
-    child.stderr?.on('data', (chunk: Buffer) => console.error('[service]', chunk.toString().trimEnd()));
+    child.stdout?.on('data', (chunk: Buffer) =>
+      console.info('[service]', chunk.toString().trimEnd()),
+    );
+    child.stderr?.on('data', (chunk: Buffer) =>
+      console.error('[service]', chunk.toString().trimEnd()),
+    );
     child.on('message', (message: ServiceToMainMessage) => this.handleMessage(message));
     child.on('exit', (code) => this.handleExit(code));
 

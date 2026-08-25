@@ -1,4 +1,5 @@
 import eslint from '@eslint/js';
+import eslintConfigPrettier from 'eslint-config-prettier/flat';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
@@ -12,6 +13,7 @@ export default tseslint.config(
       'node_modules/**',
       'electron-builder.config.cjs',
       'eslint.config.mjs',
+      'prettier.config.mjs',
     ],
   },
   eslint.configs.recommended,
@@ -43,4 +45,5 @@ export default tseslint.config(
       ],
     },
   },
+  eslintConfigPrettier,
 );

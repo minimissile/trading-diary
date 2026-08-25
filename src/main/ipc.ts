@@ -9,11 +9,13 @@ function assertTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow): 
   }
 }
 
-export function registerIpcHandlers(
-  window: BrowserWindow,
-  service: ServiceHost,
-  updater: UpdateManager,
-): () => void {
+/**
+ * 注册 IPC 处理程序。
+ * @param window 主窗口
+ * @param service 服务主机
+ * @param updater 更新管理器
+ */
+export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost, updater: UpdateManager): () => void {
   ipcMain.handle(ipcChannels.health, async (event) => {
     assertTrustedSender(event, window);
     return service.request('system.health', {});
@@ -29,9 +31,7 @@ export function registerIpcHandlers(
     const selection = await dialog.showOpenDialog(window, {
       title: '导入图片',
       properties: ['openFile'],
-      filters: [
-        { name: '图片', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'tif', 'tiff', 'avif'] },
-      ],
+      filters: [{ name: '图片', extensions: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'tif', 'tiff', 'avif'] }],
     });
 
     const sourcePath = selection.filePaths[0];

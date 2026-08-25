@@ -64,7 +64,9 @@ export class AppDatabase {
   }
 
   sqliteVersion(): string {
-    const row = this.db.prepare('SELECT sqlite_version() AS version').get() as unknown as SqliteVersionRow;
+    const row = this.db
+      .prepare('SELECT sqlite_version() AS version')
+      .get() as unknown as SqliteVersionRow;
     return row.version;
   }
 
@@ -81,12 +83,14 @@ export class AppDatabase {
 
   insertAsset(asset: AssetRecord): void {
     this.db
-      .prepare(`
+      .prepare(
+        `
         INSERT OR IGNORE INTO assets (
           hash, original_name, media_type, original_bytes, preview_bytes,
           width, height, original_path, preview_path, created_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `)
+      `,
+      )
       .run(
         asset.hash,
         asset.originalName,
@@ -103,13 +107,15 @@ export class AppDatabase {
 
   assetStats(): AssetStats {
     const row = this.db
-      .prepare(`
+      .prepare(
+        `
         SELECT
           COUNT(*) AS count,
           COALESCE(SUM(original_bytes), 0) AS originalBytes,
           COALESCE(SUM(preview_bytes), 0) AS previewBytes
         FROM assets
-      `)
+      `,
+      )
       .get() as unknown as AssetStats;
 
     return row;
@@ -124,7 +130,9 @@ export class AppDatabase {
   }
 
   private applyMigrations(): void {
-    const appliedRows = this.db.prepare('SELECT version FROM schema_migrations').all() as unknown as VersionRow[];
+    const appliedRows = this.db
+      .prepare('SELECT version FROM schema_migrations')
+      .all() as unknown as VersionRow[];
     const applied = new Set(appliedRows.map((row) => row.version));
     const insertMigration = this.db.prepare(
       'INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)',

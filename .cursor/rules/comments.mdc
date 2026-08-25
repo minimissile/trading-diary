@@ -1,0 +1,44 @@
+---
+description: TypeScript/TSX 注释规范（JSDoc、简体中文）
+globs: src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# 注释规范
+
+编写或修改 `src/` 下 TypeScript / TSX 时遵守 [docs/COMMENTS.md](../../docs/COMMENTS.md)。
+
+## 要点
+
+- 语言：简体中文；格式：JSDoc `/** */`
+- **export** 的函数、类、接口、类型、组件必须注释
+- 首句简述职责，以句号结尾；不在 JSDoc 中重复 TypeScript 类型
+- `@param 名称 说明` — 每个参数附带中文说明，不写 `{Type}`
+- 按需使用 `@returns`、`@throws`；返回值/异常含义已 obvious 时可省略
+- 行内 `//` 只解释非显而易见的业务规则、安全边界或平台特例
+- 避免复述代码、逐步操作说明、以及无信息量的注释
+
+## 示例
+
+```typescript
+/**
+ * 注册 IPC 处理程序。
+ * @param window 主窗口
+ * @param service 服务主机
+ * @param updater 更新管理器
+ * @returns 注销已注册处理程序与订阅的清理函数
+ */
+export function registerIpcHandlers(
+  window: BrowserWindow,
+  service: ServiceHost,
+  updater: UpdateManager,
+): () => void {}
+```
+
+```typescript
+/** 自动更新模块对渲染进程公开的稳定状态，避免暴露 electron-updater 对象。 */
+export interface UpdateState {
+  phase: UpdatePhase;
+  // ...
+}
+```

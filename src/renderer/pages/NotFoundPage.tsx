@@ -1,6 +1,7 @@
 import { Button } from 'antd';
 import { useNavigate } from 'react-router';
 import { routePaths } from '../router/paths';
+import React from 'react';
 
 export function NotFoundPage(): React.JSX.Element {
   const navigate = useNavigate();

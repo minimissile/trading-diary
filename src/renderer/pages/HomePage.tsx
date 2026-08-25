@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type {
-  AssetStats,
-  HealthResult,
-  ImportedAsset,
-  UpdateState,
-} from '../../shared/api.types';
+import type { AssetStats, HealthResult, ImportedAsset, UpdateState } from '../../shared/api.types';
 import { AssetWorkspace } from '../components/AssetWorkspace';
 import { MetricsGrid } from '../components/MetricsGrid';
 import { RuntimeHeader } from '../components/RuntimeHeader';
