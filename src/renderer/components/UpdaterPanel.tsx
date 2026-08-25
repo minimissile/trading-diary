@@ -7,9 +7,17 @@ interface UpdaterPanelProps {
   onCheck: () => void;
   onDownload: () => void;
   onInstall: () => void;
+  onOpenRelease: () => void;
 }
 
-export function UpdaterPanel({ updateState, updateBusy, onCheck, onDownload, onInstall }: UpdaterPanelProps): React.JSX.Element {
+export function UpdaterPanel({
+  updateState,
+  updateBusy,
+  onCheck,
+  onDownload,
+  onInstall,
+  onOpenRelease,
+}: UpdaterPanelProps): React.JSX.Element {
   return (
     <section className="updater" aria-label="应用更新" aria-live="polite">
       <div>
@@ -33,8 +41,12 @@ export function UpdaterPanel({ updateState, updateBusy, onCheck, onDownload, onI
           检查更新
         </Button>
         {updateState?.phase === 'available' ? (
-          <Button type="primary" disabled={updateBusy} onClick={onDownload}>
-            下载更新
+          <Button
+            type="primary"
+            disabled={updateBusy}
+            onClick={updateState.deliveryMode === 'manual' ? onOpenRelease : onDownload}
+          >
+            {updateState.deliveryMode === 'manual' ? '前往 GitHub 下载' : '下载更新'}
           </Button>
         ) : null}
         {updateState?.phase === 'downloaded' ? (

@@ -1,4 +1,11 @@
-import { dialog, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
+import { dialog, ipcMain, Notification, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
+import type {
+  CreateTradeAlertInput,
+  CreateTradeReviewInput,
+  CreateTradingPlanInput,
+  TradeAlertStatus,
+  TradingPlanStatus,
+} from '../shared/api.types';
 import { ipcChannels } from '../shared/ipc-channels';
 import type { ServiceHost } from './service-host';
 import type { UpdateManager } from './updater/update-manager';
@@ -39,6 +46,71 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     return service.request('assets.import', { sourcePath });
   });
 
+  ipcMain.handle(ipcChannels.workspaceSnapshot, (event) => {
+    assertTrustedSender(event, window);
+    return service.request('workspace.snapshot', {});
+  });
+
+  ipcMain.handle(ipcChannels.listPlans, (event) => {
+    assertTrustedSender(event, window);
+    return service.request('plans.list', {});
+  });
+
+  ipcMain.handle(ipcChannels.createPlan, (event, input: CreateTradingPlanInput) => {
+    assertTrustedSender(event, window);
+    return service.request('plans.create', input);
+  });
+
+  ipcMain.handle(ipcChannels.setPlanStatus, (event, input: { id: string; status: TradingPlanStatus }) => {
+    assertTrustedSender(event, window);
+    return service.request('plans.setStatus', input);
+  });
+
+  ipcMain.handle(ipcChannels.listAlerts, (event) => {
+    assertTrustedSender(event, window);
+    return service.request('alerts.list', {});
+  });
+
+  ipcMain.handle(ipcChannels.createAlert, (event, input: CreateTradeAlertInput) => {
+    assertTrustedSender(event, window);
+    return service.request('alerts.create', input);
+  });
+
+  ipcMain.handle(ipcChannels.setAlertStatus, (event, input: { id: string; status: TradeAlertStatus }) => {
+    assertTrustedSender(event, window);
+    return service.request('alerts.setStatus', input);
+  });
+
+  ipcMain.handle(ipcChannels.evaluateAlertPrice, async (event, input: { symbol: string; price: number }) => {
+    assertTrustedSender(event, window);
+    const result = await service.request('alerts.evaluatePrice', input);
+    if (Notification.isSupported()) {
+      for (const alert of result.newlyTriggered) {
+        const notification = new Notification({
+          title: `${alert.symbol} · 提醒已触发`,
+          body: `${alert.title}｜最新价 ${result.price}，目标价 ${alert.targetPrice}`,
+        });
+        notification.on('click', () => {
+          if (window.isMinimized()) window.restore();
+          window.show();
+          window.focus();
+        });
+        notification.show();
+      }
+    }
+    return result;
+  });
+
+  ipcMain.handle(ipcChannels.listReviews, (event) => {
+    assertTrustedSender(event, window);
+    return service.request('reviews.list', {});
+  });
+
+  ipcMain.handle(ipcChannels.createReview, (event, input: CreateTradeReviewInput) => {
+    assertTrustedSender(event, window);
+    return service.request('reviews.create', input);
+  });
+
   ipcMain.handle(ipcChannels.getUpdateState, (event) => {
     assertTrustedSender(event, window);
     return updater.getState();
@@ -59,6 +131,11 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     updater.install();
   });
 
+  ipcMain.handle(ipcChannels.openUpdateRelease, (event) => {
+    assertTrustedSender(event, window);
+    return updater.openReleasePage();
+  });
+
   const unsubscribeUpdater = updater.subscribe((state) => {
     if (!window.isDestroyed()) window.webContents.send(ipcChannels.updateState, state);
   });
@@ -68,9 +145,20 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     ipcMain.removeHandler(ipcChannels.health);
     ipcMain.removeHandler(ipcChannels.assetStats);
     ipcMain.removeHandler(ipcChannels.importImage);
+    ipcMain.removeHandler(ipcChannels.workspaceSnapshot);
+    ipcMain.removeHandler(ipcChannels.listPlans);
+    ipcMain.removeHandler(ipcChannels.createPlan);
+    ipcMain.removeHandler(ipcChannels.setPlanStatus);
+    ipcMain.removeHandler(ipcChannels.listAlerts);
+    ipcMain.removeHandler(ipcChannels.createAlert);
+    ipcMain.removeHandler(ipcChannels.setAlertStatus);
+    ipcMain.removeHandler(ipcChannels.evaluateAlertPrice);
+    ipcMain.removeHandler(ipcChannels.listReviews);
+    ipcMain.removeHandler(ipcChannels.createReview);
     ipcMain.removeHandler(ipcChannels.getUpdateState);
     ipcMain.removeHandler(ipcChannels.checkForUpdates);
     ipcMain.removeHandler(ipcChannels.downloadUpdate);
     ipcMain.removeHandler(ipcChannels.installUpdate);
+    ipcMain.removeHandler(ipcChannels.openUpdateRelease);
   };
 }

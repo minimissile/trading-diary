@@ -5,3 +5,4 @@ node_modules
 package-lock.json
 .local-data
 *.tsbuildinfo
+src/renderer/styles/antd-theme.css

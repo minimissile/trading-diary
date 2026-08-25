@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { app } from 'electron';
+import { app, shell } from 'electron';
 import electronUpdater, {
   type AppUpdater,
   type ProgressInfo,
@@ -8,6 +8,7 @@ import electronUpdater, {
   type UpdateInfo,
 } from 'electron-updater';
 import type { UpdateState } from '../../shared/api.types';
+import { getReleasePageUrl, getUpdateDeliveryMode } from './update-policy';
 
 const STARTUP_CHECK_DELAY_MS = 10_000;
 const { autoUpdater } = electronUpdater;
@@ -15,15 +16,17 @@ const { autoUpdater } = electronUpdater;
 type StateListener = (state: UpdateState) => void;
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : '自动更新发生未知错误';
+  return error instanceof Error ? error.message : '客户端更新发生未知错误';
 }
 
 /**
- * 管理 electron-updater 生命周期，并向 IPC 层提供与框架无关的更新状态。
+ * 管理跨平台更新生命周期，并向 IPC 层提供与框架无关的更新状态。
+ * macOS 只检查版本并打开 GitHub Release，Windows 执行应用内下载和安装。
  * 开发环境或未写入 app-update.yml 的本地包会保持禁用，不会访问网络。
  */
 export class UpdateManager {
   private readonly updater: AppUpdater;
+  private readonly deliveryMode = getUpdateDeliveryMode(process.platform);
   private readonly listeners = new Set<StateListener>();
   private state: UpdateState;
   private enabled = false;
@@ -36,10 +39,11 @@ export class UpdateManager {
     this.updater = updater;
     this.state = {
       phase: 'disabled',
+      deliveryMode: this.deliveryMode,
       currentVersion: app.getVersion(),
       availableVersion: null,
       downloadPercent: null,
-      message: '自动更新尚未初始化',
+      message: '客户端更新尚未初始化',
     };
   }
 
@@ -62,7 +66,13 @@ export class UpdateManager {
     this.updater.autoDownload = false;
     this.updater.autoInstallOnAppQuit = false;
     this.registerUpdaterEvents();
-    this.setState({ phase: 'idle', message: '自动更新已就绪（GitHub Releases）' });
+    this.setState({
+      phase: 'idle',
+      message:
+        this.deliveryMode === 'manual'
+          ? '更新检查已就绪；macOS 新版本通过 GitHub Releases 手动安装'
+          : '自动更新已就绪（GitHub Releases）',
+    });
 
     this.startupTimer = setTimeout(() => {
       void this.check().catch((error: unknown) => {
@@ -98,6 +108,9 @@ export class UpdateManager {
 
   download(): Promise<UpdateState> {
     if (!this.enabled) return Promise.resolve(this.getState());
+    if (this.deliveryMode === 'manual') {
+      return Promise.reject(new Error('macOS 使用 GitHub Releases 手动更新，不支持应用内下载'));
+    }
     if (this.downloadPromise) return this.downloadPromise;
     if (this.state.phase !== 'available') {
       return Promise.reject(new Error('当前没有可下载的新版本'));
@@ -110,12 +123,26 @@ export class UpdateManager {
   }
 
   install(): void {
+    if (this.deliveryMode === 'manual') {
+      throw new Error('macOS 使用 GitHub Releases 手动更新，不支持应用内安装');
+    }
     if (this.state.phase !== 'downloaded') {
       throw new Error('更新尚未下载完成');
     }
 
     // v6 API：非静默安装，Windows 安装完成后强制重新启动应用。
     this.updater.quitAndInstall(false, true);
+  }
+
+  async openReleasePage(): Promise<void> {
+    if (this.deliveryMode !== 'manual') {
+      throw new Error('当前平台使用应用内自动更新');
+    }
+    if (this.state.phase !== 'available' || !this.state.availableVersion) {
+      throw new Error('当前没有可手动安装的新版本');
+    }
+
+    await shell.openExternal(getReleasePageUrl(this.state.availableVersion));
   }
 
   private async performCheck(): Promise<UpdateState> {
@@ -158,7 +185,10 @@ export class UpdateManager {
         phase: 'available',
         availableVersion: info.version,
         downloadPercent: null,
-        message: `发现新版本 ${info.version}`,
+        message:
+          this.deliveryMode === 'manual'
+            ? `发现新版本 ${info.version}，请前往 GitHub Releases 下载 DMG 手动安装`
+            : `发现新版本 ${info.version}`,
       });
     });
 
@@ -198,7 +228,7 @@ export class UpdateManager {
     this.setState({
       phase: 'error',
       downloadPercent: null,
-      message: `自动更新失败：${errorMessage(error)}`,
+      message: `客户端更新失败：${errorMessage(error)}`,
     });
   }
 

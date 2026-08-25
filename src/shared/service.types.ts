@@ -1,4 +1,18 @@
-import type { AssetStats, HealthResult, ImportedAsset } from './api.types';
+import type {
+  AssetStats,
+  CreateTradeAlertInput,
+  CreateTradeReviewInput,
+  CreateTradingPlanInput,
+  HealthResult,
+  ImportedAsset,
+  QuoteEvaluationResult,
+  TradeAlert,
+  TradeAlertStatus,
+  TradeReview,
+  TradingPlan,
+  TradingPlanStatus,
+  WorkspaceSnapshot,
+} from './api.types';
 
 export interface ServiceContract {
   'system.health': {
@@ -16,6 +30,46 @@ export interface ServiceContract {
   'assets.resolve': {
     params: { hash: string; variant: 'original' | 'preview' };
     result: { filePath: string | null };
+  };
+  'workspace.snapshot': {
+    params: Record<string, never>;
+    result: WorkspaceSnapshot;
+  };
+  'plans.list': {
+    params: Record<string, never>;
+    result: TradingPlan[];
+  };
+  'plans.create': {
+    params: CreateTradingPlanInput;
+    result: TradingPlan;
+  };
+  'plans.setStatus': {
+    params: { id: string; status: TradingPlanStatus };
+    result: TradingPlan;
+  };
+  'alerts.list': {
+    params: Record<string, never>;
+    result: TradeAlert[];
+  };
+  'alerts.create': {
+    params: CreateTradeAlertInput;
+    result: TradeAlert;
+  };
+  'alerts.setStatus': {
+    params: { id: string; status: TradeAlertStatus };
+    result: TradeAlert;
+  };
+  'alerts.evaluatePrice': {
+    params: { symbol: string; price: number };
+    result: QuoteEvaluationResult;
+  };
+  'reviews.list': {
+    params: Record<string, never>;
+    result: TradeReview[];
+  };
+  'reviews.create': {
+    params: CreateTradeReviewInput;
+    result: TradeReview;
   };
 }
 

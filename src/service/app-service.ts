@@ -35,6 +35,26 @@ export class AppService {
         return {
           filePath: await this.images.resolve(request.params.hash, request.params.variant),
         };
+      case 'workspace.snapshot':
+        return this.database.workspaceSnapshot();
+      case 'plans.list':
+        return this.database.listTradingPlans();
+      case 'plans.create':
+        return this.database.createTradingPlan(request.params);
+      case 'plans.setStatus':
+        return this.database.setTradingPlanStatus(request.params.id, request.params.status);
+      case 'alerts.list':
+        return this.database.listTradeAlerts();
+      case 'alerts.create':
+        return this.database.createTradeAlert(request.params);
+      case 'alerts.setStatus':
+        return this.database.setTradeAlertStatus(request.params.id, request.params.status);
+      case 'alerts.evaluatePrice':
+        return this.database.evaluatePrice(request.params.symbol, request.params.price);
+      case 'reviews.list':
+        return this.database.listTradeReviews();
+      case 'reviews.create':
+        return this.database.createTradeReview(request.params);
     }
   }
 }

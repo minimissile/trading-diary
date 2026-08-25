@@ -29,7 +29,9 @@ const DEFAULT_OPENROUTER_MODEL = '~deepseek/deepseek-v4-flash-latest';
 const OPENROUTER_MODEL_FALLBACKS = [
   '~deepseek/deepseek-v4-flash-latest',
   'deepseek/deepseek-v4-flash-0731',
-  'google/gemini-2.5-flash',
+  'qwen/qwen-plus',
+  'qwen/qwen3-32b',
+  'deepseek/deepseek-chat-v3-0324',
 ];
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -90,6 +92,7 @@ function parseArgs(argv) {
     push: true,
     yes: true,
     ai: null,
+    pushOnly: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -104,6 +107,7 @@ function parseArgs(argv) {
     else if (arg === '--yes' || arg === '-y') args.yes = true;
     else if (arg === '--ai') args.ai = true;
     else if (arg === '--no-ai') args.ai = false;
+    else if (arg === '--push-only') args.pushOnly = true;
     else if (arg === '--version') args.version = argv[++index];
     else if (['patch', 'minor', 'major'].includes(arg)) {
       args.bump = arg;
@@ -132,6 +136,7 @@ function printHelp() {
   --local             本机构建当前平台并上传到 GitHub Releases
   --no-push           不推送到 origin（默认会推送）
   --no-ai             不用大模型，本地整理 commit
+  --push-only         仅推送已有 commit 与 tag（用于推送失败后重试）
   --dry-run           预览变更，不实际执行
   --skip-check        跳过 npm run check
   -h, --help          显示帮助
@@ -303,6 +308,10 @@ function ensureNotesHeader(notes, version) {
   return `${header}\n\n${trimmed}\n`;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function resolveModelCandidates() {
   const preferred = process.env.OPENROUTER_MODEL?.trim();
   const candidates = preferred
@@ -317,6 +326,10 @@ function isRetryableOpenRouterError(status, detail) {
   return /not available in your region|region|country|blocked/i.test(detail);
 }
 
+function isJsonModeError(status, detail) {
+  return status === 400 || status === 422 || /response_format|json_object|structured output/i.test(detail);
+}
+
 async function callOpenRouter({ system, user, json = false }) {
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
   if (!apiKey) {
@@ -327,51 +340,73 @@ async function callOpenRouter({ system, user, json = false }) {
   let lastError = null;
 
   for (const model of models) {
-    const body = {
-      model,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-      temperature: 0.2,
-    };
+    const jsonModes = json ? [true, false] : [false];
 
-    if (json) body.response_format = { type: 'json_object' };
+    for (const useJson of jsonModes) {
+      const body = {
+        model,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user },
+        ],
+        temperature: 0.2,
+      };
 
-    const response = await fetch(OPENROUTER_API_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://github.com/minimissile/trading-diary',
-        'X-Title': 'Trading Diary Release',
-      },
-      body: JSON.stringify(body),
-    });
+      if (useJson) body.response_format = { type: 'json_object' };
 
-    if (response.ok) {
-      if (model !== models[0]) {
-        console.log(`OpenRouter 已切换至可用模型：${model}`);
+      const response = await fetch(OPENROUTER_API_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://github.com/minimissile/trading-diary',
+          'X-Title': 'Trading Diary Release',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (response.ok) {
+        if (model !== models[0] || (json && !useJson)) {
+          console.log(`OpenRouter 已切换至可用配置：${model}${useJson ? '' : '（非 JSON 模式）'}`);
+        }
+
+        const payload = await response.json();
+        const content = payload.choices?.[0]?.message?.content?.trim();
+        if (!content) throw new Error('OpenRouter 返回空内容');
+        return content;
       }
 
-      const payload = await response.json();
-      const content = payload.choices?.[0]?.message?.content?.trim();
-      if (!content) throw new Error('OpenRouter 返回空内容');
-      return content;
+      const detail = await response.text();
+      lastError = new Error(`OpenRouter 请求失败 (${response.status}, ${model})：${detail}`);
+
+      if (useJson && isJsonModeError(response.status, detail)) {
+        console.warn(`模型 ${model} 不支持 JSON 模式，改用普通模式…`);
+        continue;
+      }
+
+      if (isRetryableOpenRouterError(response.status, detail)) {
+        console.warn(`模型 ${model} 不可用，尝试下一个…`);
+        break;
+      }
+
+      throw lastError;
     }
-
-    const detail = await response.text();
-    lastError = new Error(`OpenRouter 请求失败 (${response.status}, ${model})：${detail}`);
-
-    if (isRetryableOpenRouterError(response.status, detail)) {
-      console.warn(`模型 ${model} 不可用，尝试下一个…`);
-      continue;
-    }
-
-    throw lastError;
   }
 
   throw lastError ?? new Error('OpenRouter 无可用模型');
+}
+
+async function pushWithRetry(label, command, attempts = 3) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      run(command, { inherit: true });
+      return;
+    } catch (error) {
+      if (attempt === attempts) throw error;
+      console.warn(`${label}失败（${attempt}/${attempts}），10 秒后重试…`);
+      await sleep(10_000);
+    }
+  }
 }
 
 async function generateReleasePlanWithAi(currentVersion, lastTag, commits) {
@@ -408,7 +443,11 @@ Git 提交：
 ${commitList}`;
 
   const raw = await callOpenRouter({ system, user, json: true });
-  const parsed = JSON.parse(raw);
+  const jsonText = raw
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  const parsed = JSON.parse(jsonText);
 
   if (!['patch', 'minor', 'major'].includes(parsed.bump)) {
     throw new Error(`AI 返回无效 bump：${parsed.bump}`);
@@ -614,6 +653,21 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   loadEnvFile();
 
+  if (args.pushOnly) {
+    const version = readPackageVersion();
+    const tag = `v${version}`;
+    if (!tagExists(tag)) {
+      throw new Error(`本地不存在 tag ${tag}，请先完成发布或手动打 tag`);
+    }
+
+    console.log(`推送已有发布：${tag}`);
+    await pushWithRetry('推送分支', 'git push origin HEAD');
+    await pushWithRetry('推送 tag', `git push origin ${tag}`);
+    console.log('\n✅ 推送完成');
+    console.log('GitHub Actions：https://github.com/minimissile/trading-diary/actions');
+    return;
+  }
+
   const currentVersion = readPackageVersion();
   const lastTag = getLastTag();
   const commits = collectCommits(lastTag);
@@ -688,9 +742,20 @@ async function main() {
 
   const shouldPush = args.yes ? args.push !== false : await confirmPush(args.push);
   if (shouldPush) {
-    console.log('推送到 origin…');
-    run('git push origin HEAD', { inherit: true });
-    run(`git push origin ${tag}`, { inherit: true });
+    try {
+      console.log('推送到 origin…');
+      await pushWithRetry('推送分支', 'git push origin HEAD');
+      await pushWithRetry('推送 tag', `git push origin ${tag}`);
+    } catch (error) {
+      console.error('\n⚠️ 本地发布已完成（commit + tag），但推送 GitHub 失败。');
+      console.error(error.message);
+      console.log('\n网络恢复或开启代理/VPN 后执行：');
+      console.log('  npm run release -- --push-only');
+      console.log('或：');
+      console.log('  git push origin HEAD');
+      console.log(`  git push origin ${tag}`);
+      process.exit(1);
+    }
   }
 
   console.log('\n✅ 发布流程完成');
@@ -708,7 +773,7 @@ async function main() {
     console.log('\n下一步：git push origin HEAD && git push origin ' + tag);
   }
 
-  console.log('\n客户端验收：在已安装的旧版本应用中「检查更新 → 下载 → 退出并安装」。');
+  console.log('\n客户端验收：Windows 验证应用内安装；macOS 验证跳转 Release 并手动安装 DMG。');
 }
 
 main().catch((error) => {

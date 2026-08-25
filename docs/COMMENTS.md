@@ -41,7 +41,7 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
 
 ```typescript
 /**
- * 管理 electron-updater 生命周期，并向 IPC 层提供与框架无关的更新状态。
+ * 管理跨平台更新生命周期，并向 IPC 层提供与框架无关的更新状态。
  * 开发环境或未写入 app-update.yml 的本地包会保持禁用，不会访问网络。
  */
 export class UpdateManager {
@@ -61,9 +61,10 @@ export class UpdateManager {
 对外暴露的数据结构需说明语义；字段名已足够清晰时可只注释整体。
 
 ```typescript
-/** 自动更新模块对渲染进程公开的稳定状态，避免暴露 electron-updater 对象。 */
+/** 更新模块对渲染进程公开的稳定状态，避免暴露 electron-updater 对象。 */
 export interface UpdateState {
   phase: UpdatePhase;
+  deliveryMode: UpdateDeliveryMode;
   currentVersion: string;
   availableVersion: string | null;
   downloadPercent: number | null;

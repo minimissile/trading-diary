@@ -8,7 +8,7 @@ export function createMainWindow(): BrowserWindow {
     minWidth: 760,
     minHeight: 520,
     show: false,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#061521',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,

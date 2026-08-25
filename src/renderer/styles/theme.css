@@ -1,0 +1,43 @@
+:root {
+  color-scheme: dark;
+  --td-font-sans: MiSans, 'HarmonyOS Sans SC', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+  --td-font-numeric: 'DIN Alternate', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+
+  --td-color-canvas: #061521;
+  --td-color-surface: #0d2231;
+  --td-color-surface-subtle: #0a1c29;
+  --td-color-ink: #e7f1fa;
+  --td-color-ink-secondary: #9fb0c1;
+  --td-color-ink-tertiary: #6f8396;
+  --td-color-line: #20394b;
+  --td-color-line-strong: #2b4d64;
+  --td-color-accent: #2c8cff;
+  --td-color-accent-soft: #113b68;
+
+  /* 交易方向色遵循中国市场习惯：红涨绿跌。 */
+  --td-color-profit: #ff626f;
+  --td-color-profit-surface: #3d1d29;
+  --td-color-loss: #42cc8b;
+  --td-color-loss-surface: #113d31;
+  --td-color-flat: #6b7280;
+  --td-color-flat-surface: #1b2e3e;
+
+  --td-radius-control: 6px;
+  --td-radius-panel: 10px;
+  --td-shadow-panel: 0 10px 30px rgb(0 7 14 / 18%);
+  --td-shadow-floating: 0 20px 52px rgb(0 4 9 / 48%);
+
+  --td-space-1: 4px;
+  --td-space-2: 8px;
+  --td-space-3: 12px;
+  --td-space-4: 16px;
+  --td-space-5: 20px;
+  --td-space-6: 24px;
+  --td-space-8: 32px;
+  --td-space-12: 48px;
+}
+
+::selection {
+  color: #ffffff;
+  background: #2469bd;
+}

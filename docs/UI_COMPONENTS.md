@@ -42,18 +42,20 @@ src/renderer/
 - 组件样式由 Vite 输出为同源 CSS 文件。
 - 不依赖运行时 CSS-in-JS 注入 `<style>` 标签。
 - 禁用按钮水波纹效果，避免为动画动态创建样式。
-- CSP 继续限制 `style-src` 为 `'self'`；仅允许组件定位、尺寸和进度等所需的行内 style 属性。
+- CSP 继续限制 `style-src` 为同源样式；Ant Design 少量浮层和动画运行时样式使用固定的应用内 nonce，组件定位、尺寸和进度等属性样式单独通过 `style-src-attr` 放行。
 
-当前没有建立产品视觉主题，因此不预设品牌色或组件级 Token。确定产品方向后，只在
-`AppProviders.tsx` 集中增加 Token；如果主题超出默认静态 CSS，应使用
-`@ant-design/static-style-extract` 生成对应静态样式，不应在页面里覆盖 Ant Design 内部 DOM 类名。
+项目已建立“专业金融编辑台”浅色主题。Ant Design Token 统一维护在
+`src/renderer/theme/theme-config.json`，并通过 `@ant-design/static-style-extract` 生成静态样式。
+应用级变量、交易方向色和扩展方式详见 [UI 主题配置](UI_THEME.md)。页面不得覆盖 Ant Design 内部
+DOM 类名。
 
 ## 开发约定
 
 - 通用交互优先使用 Ant Design 组件，不再编写同用途的原生 Button、Modal、Form 等实现。
 - 用户可见的组件文案使用中文，日期相关页面继续复用全局 `zh_CN` 和 `dayjs/locale/zh-cn`。
 - Message、Modal、Notification 使用 `App.useApp()` 返回的实例，不使用静态方法。
-- 组件主题与全局配置统一放在 `AppProviders.tsx`，页面不得创建重复的顶层 ConfigProvider。
+- 组件主题统一放在 `theme/`，全局上下文统一放在 `AppProviders.tsx`，页面不得创建重复的顶层
+  ConfigProvider。
 - 大数据表格优先启用 Table 的虚拟滚动并设置明确的横向、纵向滚动尺寸。
 - 业务组件继续放在 `components/`，不要把页面状态或 IPC 调用封装进基础 UI 适配层。
 - 避免依赖 `.ant-*` 内部节点层级；优先使用 Token、`classNames` 和 `styles` 语义化接口。

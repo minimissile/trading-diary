@@ -30,7 +30,11 @@ artifactName: trading-diary-${version}-${arch}-${os}.${ext}
 
 mac:
   category: public.app-category.finance
+  # 无 Developer ID 阶段使用 ad-hoc 签名，版本更新通过 DMG 手动覆盖安装。
+  identity: '-'
   hardenedRuntime: true
+  entitlements: resources/entitlements.mac.plist
+  entitlementsInherit: resources/entitlements.mac.inherit.plist
   target:
     - target: dmg
       arch:
@@ -40,7 +44,6 @@ mac:
       arch:
         - arm64
         - x64
-
 win:
   executableName: JiaoYiRiJi
   target:

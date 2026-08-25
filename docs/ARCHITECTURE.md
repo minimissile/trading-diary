@@ -54,11 +54,11 @@ userData/
 
 ## 渲染层 UI 基础设施
 
-渲染进程使用 Ant Design 6，并由 `src/renderer/providers/AppProviders.tsx` 统一提供中文 locale、
-应用级反馈上下文和样式策略。组件库采用 `zeroRuntime` 静态 CSS 模式，以保持 Electron CSP 对动态
-style 标签的限制。页面和业务组件不得直接访问 Node.js 或 Electron API，仍然只能通过 preload
-暴露的 `window.desktop` 接口调用主进程能力。具体选型依据和使用约定见
-[UI 组件库选型](UI_COMPONENTS.md)。
+渲染进程使用 Ant Design 6，并由 `src/renderer/providers/AppProviders.tsx` 统一提供中文 locale 和
+应用级反馈上下文。组件 Token 位于 `src/renderer/theme/`，构建前通过官方静态提取工具生成 CSS，
+以保持 Electron CSP 对动态 style 标签的限制。页面和业务组件不得直接访问 Node.js 或 Electron
+API，仍然只能通过 preload 暴露的 `window.desktop` 接口调用主进程能力。具体选型和主题规范见
+[UI 组件库选型](UI_COMPONENTS.md)与 [UI 主题配置](UI_THEME.md)。
 
 ## 构建与打包
 
@@ -67,9 +67,8 @@ style 标签的限制。页面和业务组件不得直接访问 Node.js 或 Elec
 Sharp 原生二进制会从 ASAR 解包，并针对目标 Electron 运行时重新构建。在 macOS 上，只有隔离的
 Utility Process 使用 Electron Plugin Helper，以便加载 Sharp 原生库。
 
-自动更新由主进程的 `UpdateManager` 管理，渲染进程只能通过 preload 暴露的类型化接口检查、下载
-和安装更新。正式构建通过 electron-builder 的 GitHub Releases Provider 生成 `app-update.yml`，
-客户端从 `minimissile/trading-diary` 的 Releases 拉取更新；推送 `v*` tag 或本地
-`dist:*:publish` 即可发布。签名与公证凭据继续由构建环境注入，不写入仓库。`npm run package`
-在 macOS 上使用 ad-hoc 签名生成可运行的本地目录包，不能作为线上更新包。完整发布流程见
-[自动更新配置](AUTO_UPDATE.md)。
+更新由主进程的 `UpdateManager` 管理，并通过 `update-policy.ts` 按平台分流。Windows 使用
+electron-updater 下载和安装 NSIS 更新；macOS 只检查版本，并由主进程打开受控的 GitHub Release
+下载页，用户手动安装 DMG。正式构建通过 electron-builder 的 GitHub Releases Provider 生成
+`app-update.yml`；推送 `v*` tag 或本地 `dist:*:publish` 即可发布。渲染进程始终只能通过 preload
+暴露的类型化接口访问更新能力。完整发布流程见 [自动更新配置](AUTO_UPDATE.md)。
