@@ -1,3 +1,4 @@
+import { Tag } from 'antd';
 import type { HealthResult } from '../../shared/api.types';
 
 interface RuntimeHeaderProps {
@@ -9,12 +10,12 @@ export function RuntimeHeader({ health }: RuntimeHeaderProps): React.JSX.Element
     <header>
       <div>
         <p className="eyebrow">工程冒烟验证</p>
-        <h1>桌面运行时</h1>
-        <p className="summary">用于验证 React、类型化 IPC、后台进程、SQLite 和图片仓库。</p>
+        <h1>交易日记</h1>
+        <p className="summary">v1.0.1 — 自动更新测试版，用于验证 GitHub Releases 更新流程。</p>
       </div>
-      <span className={health ? 'status status--ready' : 'status'}>
+      <Tag className="runtime-status" color={health ? 'success' : undefined}>
         {health ? '后台已就绪' : '正在连接'}
-      </span>
+      </Tag>
     </header>
   );
 }

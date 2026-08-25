@@ -1,4 +1,4 @@
-# 桌面客户端架构
+# 交易日记架构
 
 ## 运行时边界
 
@@ -52,6 +52,14 @@ userData/
 退避、响应校验都放在后台服务内。远程数据写入前先转换为内部领域命令，避免服务商原始结构泄漏到
 界面或数据库契约中。
 
+## 渲染层 UI 基础设施
+
+渲染进程使用 Ant Design 6，并由 `src/renderer/providers/AppProviders.tsx` 统一提供中文 locale、
+应用级反馈上下文和样式策略。组件库采用 `zeroRuntime` 静态 CSS 模式，以保持 Electron CSP 对动态
+style 标签的限制。页面和业务组件不得直接访问 Node.js 或 Electron API，仍然只能通过 preload
+暴露的 `window.desktop` 接口调用主进程能力。具体选型依据和使用约定见
+[UI 组件库选型](UI_COMPONENTS.md)。
+
 ## 构建与打包
 
 `electron-vite` 负责构建主进程、preload、渲染进程和 Utility Process 入口。`electron-builder`
@@ -60,7 +68,8 @@ Sharp 原生二进制会从 ASAR 解包，并针对目标 Electron 运行时重�
 Utility Process 使用 Electron Plugin Helper，以便加载 Sharp 原生库。
 
 自动更新由主进程的 `UpdateManager` 管理，渲染进程只能通过 preload 暴露的类型化接口检查、下载
-和安装更新。正式构建从 `electron-builder.env` 或 CI 环境变量读取 Generic Provider 地址，并生成
-`app-update.yml`；未配置地址的本地包会安全地禁用更新。签名与公证凭据继续由构建环境注入，不写入
-仓库。`npm run package` 在 macOS 上使用 ad-hoc 签名生成可运行的本地目录包，不能作为线上更新包。
-完整发布流程见 [自动更新配置](AUTO_UPDATE.md)。
+和安装更新。正式构建通过 electron-builder 的 GitHub Releases Provider 生成 `app-update.yml`，
+客户端从 `minimissile/trading-diary` 的 Releases 拉取更新；推送 `v*` tag 或本地
+`dist:*:publish` 即可发布。签名与公证凭据继续由构建环境注入，不写入仓库。`npm run package`
+在 macOS 上使用 ad-hoc 签名生成可运行的本地目录包，不能作为线上更新包。完整发布流程见
+[自动更新配置](AUTO_UPDATE.md)。

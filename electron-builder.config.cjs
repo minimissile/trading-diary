@@ -1,21 +1,16 @@
-const updateBaseUrl = process.env.UPDATE_BASE_URL?.trim();
-const updateChannel = process.env.UPDATE_CHANNEL?.trim() || 'latest';
+const githubOwner = process.env.GH_OWNER?.trim() || 'minimissile';
+const githubRepo = process.env.GH_REPO?.trim() || 'trading-diary';
+const releaseType = process.env.GH_RELEASE_TYPE?.trim() || 'release';
 
-/**
- * 正式发布时通过环境变量注入更新服务器地址。
- * 未提供地址仍可生成安装包，但不会写入 app-update.yml，客户端会自动禁用更新。
- */
+/** @type {import('electron-builder').Configuration} */
 module.exports = {
   extends: './electron-builder.yml',
-  ...(updateBaseUrl
-    ? {
-        publish: [
-          {
-            provider: 'generic',
-            url: updateBaseUrl,
-            channel: updateChannel,
-          },
-        ],
-      }
-    : {}),
+  publish: [
+    {
+      provider: 'github',
+      owner: githubOwner,
+      repo: githubRepo,
+      releaseType,
+    },
+  ],
 };

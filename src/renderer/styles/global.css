@@ -16,7 +16,6 @@ body {
   min-height: 100vh;
 }
 
-button,
 input {
   font: inherit;
 }
@@ -65,19 +64,9 @@ h2 {
   line-height: 1.65;
 }
 
-.status {
+.runtime-status {
   flex: none;
-  padding: 7px 11px;
-  border: 1px solid #cbd2d9;
-  border-radius: 999px;
-  color: #52606d;
-  font-size: 12px;
-}
-
-.status--ready {
-  border-color: #91c9a8;
-  color: #17633a;
-  background: #edf9f1;
+  margin: 0;
 }
 
 .metrics {
@@ -100,18 +89,7 @@ h2 {
   border-right: 0;
 }
 
-.metrics span,
-.metrics strong {
-  display: block;
-}
-
-.metrics span {
-  margin-bottom: 8px;
-  color: #7b8794;
-  font-size: 12px;
-}
-
-.metrics strong {
+.metrics .ant-statistic-content {
   overflow: hidden;
   font-size: 18px;
   text-overflow: ellipsis;
@@ -149,12 +127,12 @@ h2 {
   color: #52606d;
 }
 
-.updater span {
+.updater__version {
   color: #7b8794;
   font-size: 12px;
 }
 
-.updater progress {
+.updater__progress {
   display: block;
   width: min(360px, 100%);
   margin-top: 12px;
@@ -166,42 +144,13 @@ h2 {
   gap: 8px;
 }
 
-button {
-  padding: 10px 15px;
-  border: 0;
-  border-radius: 7px;
-  color: #ffffff;
-  background: #334e68;
-  cursor: pointer;
-}
-
-button:disabled {
-  opacity: 0.6;
-  cursor: wait;
-}
-
 .route-fallback {
   min-height: 100vh;
   align-content: center;
 }
 
-.route-link {
-  display: inline-block;
-  padding: 10px 15px;
-  border-radius: 7px;
-  color: #ffffff;
-  background: #334e68;
-  text-decoration: none;
-}
-
-.route-link:focus-visible {
-  outline: 3px solid #91c9a8;
-  outline-offset: 3px;
-}
-
-.error {
-  margin: 16px 0 0;
-  color: #a61b1b !important;
+.workspace__error {
+  margin-top: 16px;
 }
 
 .preview {

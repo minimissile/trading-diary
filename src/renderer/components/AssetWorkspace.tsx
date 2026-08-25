@@ -1,3 +1,4 @@
+import { Alert, Button, Empty } from 'antd';
 import type { AssetStats, ImportedAsset } from '../../shared/api.types';
 import { formatBytes } from '../lib/format-bytes';
 
@@ -24,10 +25,10 @@ export function AssetWorkspace({
           原图与缩略图按 SHA-256 分片存放；SQLite 保存元数据。当前原图占用
           {stats ? ` ${formatBytes(stats.originalBytes)}` : ' —'}。
         </p>
-        <button type="button" disabled={busy} onClick={onImport}>
-          {busy ? '处理中…' : '选择一张图片'}
-        </button>
-        {error ? <p className="error">{error}</p> : null}
+        <Button type="primary" loading={busy} onClick={onImport}>
+          选择一张图片
+        </Button>
+        {error ? <Alert className="workspace__error" type="error" title={error} showIcon /> : null}
       </div>
 
       <div className="preview" aria-live="polite">
@@ -40,7 +41,7 @@ export function AssetWorkspace({
             </p>
           </>
         ) : (
-          <p>尚未导入图片</p>
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚未导入图片" />
         )}
       </div>
     </section>

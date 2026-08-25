@@ -1,3 +1,4 @@
+import { Button, Progress } from 'antd';
 import type { UpdateState } from '../../shared/api.types';
 
 interface UpdaterPanelProps {
@@ -20,20 +21,22 @@ export function UpdaterPanel({
       <div>
         <h2>应用更新</h2>
         <p>{updateState?.message ?? '正在读取更新状态'}</p>
-        <span>
+        <span className="updater__version">
           当前版本 {updateState?.currentVersion ?? '—'}
           {updateState?.availableVersion ? ` · 可用版本 ${updateState.availableVersion}` : null}
         </span>
         {updateState?.phase === 'downloading' ? (
-          <progress max="100" value={updateState.downloadPercent ?? 0}>
-            {updateState.downloadPercent ?? 0}%
-          </progress>
+          <Progress
+            className="updater__progress"
+            percent={updateState.downloadPercent ?? 0}
+            size="small"
+            status="active"
+          />
         ) : null}
       </div>
 
       <div className="updater__actions">
-        <button
-          type="button"
+        <Button
           disabled={
             updateBusy ||
             !updateState ||
@@ -41,18 +44,19 @@ export function UpdaterPanel({
             updateState.phase === 'downloading'
           }
           onClick={onCheck}
+          loading={updateState?.phase === 'checking'}
         >
-          {updateState?.phase === 'checking' ? '检查中…' : '检查更新'}
-        </button>
+          检查更新
+        </Button>
         {updateState?.phase === 'available' ? (
-          <button type="button" disabled={updateBusy} onClick={onDownload}>
+          <Button type="primary" disabled={updateBusy} onClick={onDownload}>
             下载更新
-          </button>
+          </Button>
         ) : null}
         {updateState?.phase === 'downloaded' ? (
-          <button type="button" disabled={updateBusy} onClick={onInstall}>
+          <Button type="primary" disabled={updateBusy} onClick={onInstall}>
             退出并安装
-          </button>
+          </Button>
         ) : null}
       </div>
     </section>

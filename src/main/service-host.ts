@@ -27,7 +27,7 @@ export class ServiceHost {
     if (this.child) return;
 
     const child = utilityProcess.fork(serviceModulePath, [], {
-      serviceName: 'Trading Diary 后台服务',
+      serviceName: '交易日记后台服务',
       stdio: 'pipe',
       // Sharp 会加载原生 .node 模块。在 macOS 上启用此项后，Electron 会选择
       // 具备相应签名权限的 Plugin Helper 来运行后台服务。

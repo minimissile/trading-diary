@@ -54,7 +54,7 @@ export class UpdateManager {
 
     const updateConfigPath = path.join(process.resourcesPath, 'app-update.yml');
     if (!fs.existsSync(updateConfigPath)) {
-      this.setState({ phase: 'disabled', message: '当前安装包未配置更新服务' });
+      this.setState({ phase: 'disabled', message: '当前安装包未配置 GitHub 更新源' });
       return;
     }
 
@@ -62,7 +62,7 @@ export class UpdateManager {
     this.updater.autoDownload = false;
     this.updater.autoInstallOnAppQuit = false;
     this.registerUpdaterEvents();
-    this.setState({ phase: 'idle', message: '自动更新已就绪' });
+    this.setState({ phase: 'idle', message: '自动更新已就绪（GitHub Releases）' });
 
     this.startupTimer = setTimeout(() => {
       void this.check().catch((error: unknown) => {

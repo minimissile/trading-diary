@@ -1,3 +1,4 @@
+import { Statistic } from 'antd';
 import type { AssetStats, HealthResult } from '../../shared/api.types';
 
 interface MetricsGridProps {
@@ -9,20 +10,16 @@ export function MetricsGrid({ health, stats }: MetricsGridProps): React.JSX.Elem
   return (
     <section className="metrics" aria-label="运行状态">
       <article>
-        <span>后台进程 PID</span>
-        <strong>{health?.servicePid ?? '—'}</strong>
+        <Statistic title="后台进程 PID" value={health?.servicePid ?? '—'} />
       </article>
       <article>
-        <span>SQLite</span>
-        <strong>{health?.sqliteVersion ?? '—'}</strong>
+        <Statistic title="SQLite" value={health?.sqliteVersion ?? '—'} />
       </article>
       <article>
-        <span>数据库结构</span>
-        <strong>{health ? `v${health.schemaVersion}` : '—'}</strong>
+        <Statistic title="数据库结构" value={health ? `v${health.schemaVersion}` : '—'} />
       </article>
       <article>
-        <span>图片</span>
-        <strong>{stats?.count ?? '—'}</strong>
+        <Statistic title="图片" value={stats?.count ?? '—'} />
       </article>
     </section>
   );

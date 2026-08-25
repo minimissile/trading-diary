@@ -1,9 +1,10 @@
-# Trading Diary 桌面运行时
+# 交易日记
 
 这是一个面向 Windows 和 macOS 的桌面应用工程骨架，包含：
 
 - Electron + electron-vite + React + TypeScript
 - React Router 声明式路由，使用 HashRouter 适配 Electron 本地协议
+- Ant Design 6 中文组件体系，使用静态样式模式适配 Electron CSP
 - 独立的 Node.js Utility Process，用于接入第三方 API 和执行后台任务
 - Electron 内置的 `node:sqlite` 与版本化数据库迁移
 - 基于内容哈希的文件化图片仓库与 WebP 预览图
@@ -33,6 +34,8 @@ trading-diary/
 │   │   ├── global.d.ts               # window.desktop 全局类型声明
 │   │   ├── components/               # 可复用 UI 组件
 │   │   ├── pages/                    # 路由级页面
+│   │   ├── providers/
+│   │   │   └── AppProviders.tsx      # Ant Design 中文配置与应用级上下文
 │   │   ├── lib/                      # 渲染进程工具函数
 │   │   ├── styles/
 │   │   │   └── global.css            # 全局样式
@@ -60,12 +63,13 @@ trading-diary/
 │   └── image-store.test.ts           # 图片存储、预览和去重测试
 ├── docs/
 │   ├── ARCHITECTURE.md               # 进程、存储和打包架构说明
-│   └── AUTO_UPDATE.md                # 自动更新构建、发布与验收说明
+│   ├── AUTO_UPDATE.md                # 自动更新构建、发布与验收说明
+│   └── UI_COMPONENTS.md              # UI 组件库选型与开发约定
 ├── resources/                        # 图标、签名配置等打包资源
 ├── electron.vite.config.ts           # 主进程、preload、渲染进程构建配置
 ├── electron-builder.yml              # Windows 和 macOS 打包配置
-├── electron-builder.config.cjs       # 按环境注入 Generic 更新服务器配置
-├── electron-builder.env.example      # 自动更新构建环境变量示例
+├── electron-builder.config.cjs       # GitHub Releases 发布与更新源配置
+├── electron-builder.env.example      # GH_TOKEN 等发布环境变量示例
 ├── eslint.config.mjs                 # ESLint 规则
 ├── vitest.config.ts                  # Vitest 测试配置
 ├── tsconfig.json                     # TypeScript 项目引用入口
@@ -101,15 +105,18 @@ npm run build
 npm run package
 npm run dist:mac
 npm run dist:win
+npm run dist:mac:publish   # 本地构建并上传到 GitHub Releases
 ```
 
 `npm run package` 用于生成本地目录包。在 macOS 上会使用 ad-hoc 签名，避免修改 Electron
 fuses 后留下无效签名。`dist:*` 是正式发布命令，使用构建环境提供的签名和公证凭据。
 
-正式发布前复制 `electron-builder.env.example` 为 `electron-builder.env`，并填写
-`UPDATE_BASE_URL`。未提供更新地址时仍可构建安装包，但不会生成 `app-update.yml`，客户端会
-明确显示自动更新未配置。自动更新的服务器文件布局、签名要求和验收流程详见
-[自动更新配置](docs/AUTO_UPDATE.md)。
+自动更新通过 **GitHub Releases** 分发，无需自建服务器。推送 `v*` tag 会触发
+`.github/workflows/release.yml` 自动构建发布；也可本地配置 `GH_TOKEN` 后执行
+`dist:*:publish`。详见 [自动更新配置](docs/AUTO_UPDATE.md)。
+
+UI 组件库的方案对比、Ant Design 接入结构和开发约定详见
+[UI 组件库选型](docs/UI_COMPONENTS.md)。
 
 进程边界、本地存储、第三方连接器和打包方案详见
 [架构说明](docs/ARCHITECTURE.md)。
