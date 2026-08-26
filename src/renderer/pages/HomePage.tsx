@@ -20,7 +20,7 @@ import {
 import { App, Button, Progress, Skeleton } from 'antd';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import type { TradeAlert, TradingPlan, WorkspaceSnapshot } from '../../shared/api.types';
+import type { OverlapPoolItemLive, TradeAlert, TradingPlan, WorkspaceSnapshot } from '../../shared/api.types';
 import { PlanCreateModal } from '../components/trading/PlanCreateModal';
 import { formatAlertCondition, formatCurrency, formatPrice } from '../lib/trading-format';
 import { routePaths } from '../router/paths';
@@ -187,13 +187,11 @@ const ruleRows = [
   ['市场环境过滤', '大盘趋势向上，量能正常', '量能较昨日下降 18%'],
 ] as const;
 
-const watchRows = [
-  ['宁德时代', '300750', '241.36', '+1.21%', '突破 240 关注放量', 5],
-  ['沪深300ETF', '510300', '3.512', '-0.79%', '回撤 2.5% 风险线', 4],
-  ['腾讯控股', '0700.HK', '375.60', '-0.53%', '支撑 365 / 压力 400', 5],
-  ['贵州茅台', '600519', '1,618.00', '-0.37%', '支撑 1600 / 压力 1750', 5],
-  ['中国平安', '601318', '55.96', '+0.27%', '支撑 55.8 / 压力 58.5', 3],
-] as const;
+function formatChangePercent(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '—';
+  const prefix = value > 0 ? '+' : '';
+  return `${prefix}${value.toFixed(2)}%`;
+}
 
 export function HomePage(): React.JSX.Element {
   const { message } = App.useApp();
@@ -204,6 +202,8 @@ export function HomePage(): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [queueFilter, setQueueFilter] = useState<QueueCategory>('all');
+  const [overlapPreview, setOverlapPreview] = useState<OverlapPoolItemLive[]>([]);
+  const [overlapLoading, setOverlapLoading] = useState(true);
 
   const load = useCallback(async (): Promise<void> => {
     setError(null);
@@ -228,6 +228,24 @@ export function HomePage(): React.JSX.Element {
       })
       .finally(() => {
         if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void window.desktop.watchlist
+      .getPoolSnapshot('overlap')
+      .then((snapshot) => {
+        if (active && snapshot.poolId === 'overlap') setOverlapPreview(snapshot.items);
+      })
+      .catch(() => {
+        if (active) setOverlapPreview([]);
+      })
+      .finally(() => {
+        if (active) setOverlapLoading(false);
       });
     return () => {
       active = false;
@@ -641,29 +659,51 @@ export function HomePage(): React.JSX.Element {
               <span>标的</span>
               <span>最新价</span>
               <span>涨跌幅</span>
-              <span>状态 / 关键位</span>
+              <span>定位 / 股息率</span>
               <span>关注度</span>
             </div>
-            {watchRows.map(([name, code, price, change, keyLevel, rating]) => (
-              <div className="watch-row" key={code}>
-                <span>
-                  <strong>{name}</strong>
-                  <small>{code}</small>
-                </span>
-                <b>{price}</b>
-                <b className={String(change).startsWith('-') ? 'market-down' : 'market-up'}>{change}</b>
-                <small>{keyLevel}</small>
-                <span className="watch-stars">
-                  {Array.from({ length: 5 }, (_, index) => (
-                    <StarFilled className={index < Number(rating) ? 'active' : ''} key={index} />
-                  ))}
-                </span>
+            {overlapLoading ? (
+              <div className="watch-row watch-row--loading">
+                <Skeleton active paragraph={{ rows: 2 }} title={false} />
               </div>
-            ))}
+            ) : overlapPreview.length === 0 ? (
+              <div className="watch-row watch-row--empty">
+                <small>交集观察池暂不可用，请前往自选观察池查看。</small>
+              </div>
+            ) : (
+              overlapPreview.map((row) => {
+                const change = row.quote?.changePercent;
+                const changeText = formatChangePercent(change);
+                const yieldText =
+                  row.liveYieldPercent !== null && row.liveYieldPercent !== undefined
+                    ? `股息 ${row.liveYieldPercent.toFixed(2)}%`
+                    : row.referenceYieldPercent !== null
+                      ? `参考股息 ${row.referenceYieldPercent.toFixed(2)}%`
+                      : row.positioning;
+                return (
+                  <div className="watch-row" key={row.symbol}>
+                    <span>
+                      <strong>{row.name}</strong>
+                      <small>{row.symbol}</small>
+                    </span>
+                    <b>{row.quote?.price === null || row.quote?.price === undefined ? '—' : formatPrice(row.quote.price)}</b>
+                    <b className={change !== null && change !== undefined && change < 0 ? 'market-down' : 'market-up'}>
+                      {changeText}
+                    </b>
+                    <small>{yieldText}</small>
+                    <span className="watch-stars">
+                      {Array.from({ length: 5 }, (_, index) => (
+                        <StarFilled className={index < 5 ? 'active' : ''} key={index} />
+                      ))}
+                    </span>
+                  </div>
+                );
+              })
+            )}
           </div>
           <div className="watch-footer">
-            <button type="button" onClick={() => void navigate(routePaths.plans)}>
-              编辑观察清单 <RightOutlined />
+            <button type="button" onClick={() => void navigate(routePaths.watchlist)}>
+              打开自选观察池 <RightOutlined />
             </button>
             <button type="button" onClick={() => setNewPlanOpen(true)}>
               添加标的 <PlusOutlined />

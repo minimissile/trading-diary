@@ -9,6 +9,7 @@ import { debugRunStream, previewPrompt } from './llm/debug-service';
 import { createLlmRunner, type LlmRunner } from './llm/llm-runner';
 import { generateReviewAiDraft, generateReviewAiDraftStream } from './reviews/review-ai-service';
 import { marketService } from './market/market-service';
+import { watchlistService } from './watchlist/watchlist-service';
 
 const reviewAiDraftParamsSchema = z
   .object({
@@ -143,6 +144,10 @@ export class AppService {
         );
       case 'market.listNews':
         return marketService.listNews(request.params.symbol, request.params.pageSize);
+      case 'watchlist.listPools':
+        return watchlistService.listPools();
+      case 'watchlist.getPoolSnapshot':
+        return watchlistService.getPoolSnapshot(request.params.poolId);
     }
   }
 

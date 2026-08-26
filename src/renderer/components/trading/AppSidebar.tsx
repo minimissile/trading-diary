@@ -10,12 +10,14 @@ import {
   MenuUnfoldOutlined,
   ProjectOutlined,
   SafetyCertificateOutlined,
+  StarOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
 
 const navItems = [
   { key: 'today', label: '今日指挥台', icon: DashboardOutlined },
   { key: 'plans', label: '计划工作台', icon: ProjectOutlined },
+  { key: 'watchlist', label: '自选观察池', icon: StarOutlined },
   { key: 'alerts', label: '提醒中心', icon: BellOutlined },
   { key: 'settings', label: '成交导入', icon: ImportOutlined },
   { key: 'journal', label: '交易回合', icon: HistoryOutlined },

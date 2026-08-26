@@ -26,7 +26,10 @@ import type {
   MarketQuote,
   MarketSearchHit,
   MarketSnapshotView,
+  WatchlistPoolMeta,
+  WatchlistPoolSnapshot,
 } from './api.types';
+import type { WatchlistPoolId } from './watchlist/types';
 import type { PromptId } from './llm/prompt-id';
 
 export interface ServiceContract {
@@ -145,6 +148,14 @@ export interface ServiceContract {
   'market.listNews': {
     params: { symbol: string; pageSize?: number };
     result: MarketNewsItem[];
+  };
+  'watchlist.listPools': {
+    params: Record<string, never>;
+    result: WatchlistPoolMeta[];
+  };
+  'watchlist.getPoolSnapshot': {
+    params: { poolId: WatchlistPoolId };
+    result: WatchlistPoolSnapshot;
   };
 }
 

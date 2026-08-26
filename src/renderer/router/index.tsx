@@ -4,6 +4,7 @@ import { AlertsPage } from '../pages/AlertsPage';
 import { AnalysisPage } from '../pages/AnalysisPage';
 import { HomePage } from '../pages/HomePage';
 import { JournalPage } from '../pages/JournalPage';
+import { WatchlistPage } from '../pages/WatchlistPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { PlansPage } from '../pages/PlansPage';
 import { SettingsPage } from '../pages/SettingsPage';
@@ -17,6 +18,7 @@ export function AppRouter(): React.JSX.Element {
         <Route element={<AppShell />}>
           <Route path={routePaths.home} element={<HomePage />} />
           <Route path={routePaths.plans} element={<PlansPage />} />
+          <Route path={routePaths.watchlist} element={<WatchlistPage />} />
           <Route path={routePaths.alerts} element={<AlertsPage />} />
           <Route path={routePaths.journal} element={<JournalPage />} />
           <Route path={routePaths.analysis} element={<AnalysisPage />} />

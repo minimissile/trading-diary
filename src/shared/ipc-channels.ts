@@ -37,4 +37,6 @@ export const ipcChannels = {
   marketGetSnapshot: 'desktop:market:get-snapshot',
   marketListDividends: 'desktop:market:list-dividends',
   marketListNews: 'desktop:market:list-news',
+  watchlistListPools: 'desktop:watchlist:list-pools',
+  watchlistGetPoolSnapshot: 'desktop:watchlist:get-pool-snapshot',
 } as const;

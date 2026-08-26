@@ -256,6 +256,18 @@ export interface MarketSnapshotView {
   upcomingDividends: DividendEvent[];
 }
 
+export type {
+  DividendPoolItemLive,
+  DividendStabilityGrade,
+  GrowthPoolItemLive,
+  OverlapPoolItemLive,
+  WatchlistPoolId,
+  WatchlistPoolMeta,
+  WatchlistPoolSnapshot,
+} from './watchlist/types';
+
+import type { WatchlistPoolId, WatchlistPoolMeta, WatchlistPoolSnapshot } from './watchlist/types';
+
 export interface DesktopApi {
   system: {
     health: () => Promise<HealthResult>;
@@ -327,5 +339,9 @@ export interface DesktopApi {
     getSnapshot: (symbol: string) => Promise<MarketSnapshotView>;
     listDividends: (symbol: string, page?: number, pageSize?: number) => Promise<DividendListResult>;
     listNews: (symbol: string, pageSize?: number) => Promise<MarketNewsItem[]>;
+  };
+  watchlist: {
+    listPools: () => Promise<WatchlistPoolMeta[]>;
+    getPoolSnapshot: (poolId: WatchlistPoolId) => Promise<WatchlistPoolSnapshot>;
   };
 }

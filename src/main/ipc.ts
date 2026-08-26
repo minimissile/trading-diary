@@ -255,6 +255,16 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     return service.request('market.listNews', input);
   });
 
+  ipcMain.handle(ipcChannels.watchlistListPools, (event) => {
+    assertTrustedSender(event, window);
+    return service.request('watchlist.listPools', {});
+  });
+
+  ipcMain.handle(ipcChannels.watchlistGetPoolSnapshot, (event, input: { poolId: 'dividend' | 'growth' | 'overlap' }) => {
+    assertTrustedSender(event, window);
+    return service.request('watchlist.getPoolSnapshot', input);
+  });
+
   ipcMain.handle(ipcChannels.getUpdateState, (event) => {
     assertTrustedSender(event, window);
     return updater.getState();
@@ -321,6 +331,8 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     ipcMain.removeHandler(ipcChannels.marketGetSnapshot);
     ipcMain.removeHandler(ipcChannels.marketListDividends);
     ipcMain.removeHandler(ipcChannels.marketListNews);
+    ipcMain.removeHandler(ipcChannels.watchlistListPools);
+    ipcMain.removeHandler(ipcChannels.watchlistGetPoolSnapshot);
     ipcMain.removeHandler(ipcChannels.getUpdateState);
     ipcMain.removeHandler(ipcChannels.checkForUpdates);
     ipcMain.removeHandler(ipcChannels.downloadUpdate);

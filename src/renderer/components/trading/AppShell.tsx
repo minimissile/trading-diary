@@ -8,6 +8,7 @@ import { AppSidebar } from './AppSidebar';
 const routeByNavigationKey: Readonly<Record<string, string>> = {
   today: routePaths.home,
   plans: routePaths.plans,
+  watchlist: routePaths.watchlist,
   alerts: routePaths.alerts,
   journal: routePaths.journal,
   analysis: routePaths.analysis,

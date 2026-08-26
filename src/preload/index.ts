@@ -126,6 +126,10 @@ const desktopApi: DesktopApi = {
       ipcRenderer.invoke(ipcChannels.marketListDividends, { symbol, page, pageSize }),
     listNews: (symbol, pageSize) => ipcRenderer.invoke(ipcChannels.marketListNews, { symbol, pageSize }),
   },
+  watchlist: {
+    listPools: () => ipcRenderer.invoke(ipcChannels.watchlistListPools),
+    getPoolSnapshot: (poolId) => ipcRenderer.invoke(ipcChannels.watchlistGetPoolSnapshot, { poolId }),
+  },
 };
 
 contextBridge.exposeInMainWorld('desktop', desktopApi);
