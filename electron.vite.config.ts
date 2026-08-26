@@ -17,6 +17,20 @@ function copyServiceAssetsPlugin(): Plugin {
   };
 }
 
+/** Vite 开发态会把 CSS 注入为 inline style，需临时放宽 CSP。生产构建仍走外链 CSS。 */
+function devRendererCspPlugin(): Plugin {
+  return {
+    name: 'dev-renderer-csp',
+    apply: 'serve',
+    transformIndexHtml(html) {
+      return html.replace(
+        "style-src 'self' 'nonce-trading-diary-antd'",
+        "style-src 'self' 'unsafe-inline'",
+      );
+    },
+  };
+}
+
 export default defineConfig({
   main: {
     build: {
@@ -36,7 +50,7 @@ export default defineConfig({
     },
   },
   renderer: {
-    plugins: [react()],
+    plugins: [devRendererCspPlugin(), react()],
     build: {
       target: 'chrome150',
     },

@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { contextBridge, ipcRenderer } from 'electron';
 import type { DesktopApi, LlmDebugRunResult, LlmStreamPayload, ReviewAiDraftResult, UpdateState } from '../shared/api.types';
 import { ipcChannels } from '../shared/ipc-channels';
@@ -12,7 +11,7 @@ function startLlmStream<T>(
     onError: (error: { code: string; message: string }) => void;
   },
 ): { streamId: string; cancel: () => void } {
-  const streamId = randomUUID();
+  const streamId = crypto.randomUUID();
   let settled = false;
 
   const cleanup = (): void => {
@@ -129,6 +128,20 @@ const desktopApi: DesktopApi = {
   watchlist: {
     listPools: () => ipcRenderer.invoke(ipcChannels.watchlistListPools),
     getPoolSnapshot: (poolId) => ipcRenderer.invoke(ipcChannels.watchlistGetPoolSnapshot, { poolId }),
+  },
+  portfolio: {
+    listPositions: (accountId) => ipcRenderer.invoke(ipcChannels.portfolioListPositions, { accountId }),
+    getSummary: (accountId, year) => ipcRenderer.invoke(ipcChannels.portfolioGetSummary, { accountId, year }),
+    getDividendCalendar: (accountId, month) =>
+      ipcRenderer.invoke(ipcChannels.portfolioGetDividendCalendar, { accountId, month }),
+    listDividends: (accountId, year, statuses) =>
+      ipcRenderer.invoke(ipcChannels.portfolioListDividends, { accountId, year, statuses }),
+    addLedgerEntry: (input) => ipcRenderer.invoke(ipcChannels.portfolioAddLedgerEntry, input),
+    confirmDividend: (id, confirmed, cashAmount) =>
+      ipcRenderer.invoke(ipcChannels.portfolioConfirmDividend, { id, confirmed, cashAmount }),
+    refreshDividends: (accountId, symbol) =>
+      ipcRenderer.invoke(ipcChannels.portfolioRefreshDividends, { accountId, symbol }),
+    syncMarketQuotes: (accountId) => ipcRenderer.invoke(ipcChannels.portfolioSyncMarketQuotes, { accountId }),
   },
 };
 

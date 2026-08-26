@@ -115,4 +115,61 @@ export const migrations: readonly Migration[] = [
       CREATE INDEX trade_reviews_symbol_idx ON trade_reviews(symbol, created_at DESC);
     `,
   },
+  {
+    version: 3,
+    name: 'portfolio_holdings',
+    sql: `
+      CREATE TABLE portfolio_accounts (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'CNY',
+        is_default INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      ) STRICT;
+
+      CREATE TABLE portfolio_ledger (
+        id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK (kind IN ('stock','etf','lof','otc_fund')),
+        side TEXT NOT NULL CHECK (side IN ('buy','sell','dividend_reinvest')),
+        quantity_micros INTEGER NOT NULL,
+        price_micros INTEGER NOT NULL CHECK (price_micros > 0),
+        fees_cents INTEGER NOT NULL DEFAULT 0,
+        trade_at TEXT NOT NULL,
+        plan_id TEXT,
+        note TEXT NOT NULL DEFAULT '',
+        source TEXT NOT NULL DEFAULT 'manual',
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (account_id) REFERENCES portfolio_accounts(id),
+        FOREIGN KEY (plan_id) REFERENCES trading_plans(id) ON DELETE SET NULL
+      ) STRICT;
+
+      CREATE INDEX portfolio_ledger_symbol_idx ON portfolio_ledger(account_id, symbol, trade_at);
+
+      CREATE TABLE portfolio_dividends (
+        id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK (kind IN ('stock','etf','lof','otc_fund')),
+        ex_dividend_date TEXT NOT NULL,
+        record_date TEXT,
+        pay_date TEXT,
+        cash_per_share_micros INTEGER NOT NULL,
+        eligible_quantity_micros INTEGER NOT NULL,
+        cash_amount_cents INTEGER NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('estimated','confirmed','rejected')),
+        source TEXT NOT NULL CHECK (source IN ('api','manual')),
+        external_event_key TEXT NOT NULL DEFAULT '',
+        confirmed_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (account_id, symbol, ex_dividend_date, external_event_key),
+        FOREIGN KEY (account_id) REFERENCES portfolio_accounts(id)
+      ) STRICT;
+
+      CREATE INDEX portfolio_dividends_year_idx ON portfolio_dividends(account_id, ex_dividend_date);
+    `,
+  },
 ];

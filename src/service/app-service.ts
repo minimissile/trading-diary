@@ -10,6 +10,7 @@ import { createLlmRunner, type LlmRunner } from './llm/llm-runner';
 import { generateReviewAiDraft, generateReviewAiDraftStream } from './reviews/review-ai-service';
 import { marketService } from './market/market-service';
 import { watchlistService } from './watchlist/watchlist-service';
+import { createPortfolioService, type PortfolioService } from './portfolio/portfolio-service';
 
 const reviewAiDraftParamsSchema = z
   .object({
@@ -47,11 +48,13 @@ export class AppService {
   private readonly database: AppDatabase;
   private readonly images: ImageStore;
   private readonly llmRunner: LlmRunner;
+  private readonly portfolioService: PortfolioService;
 
   constructor(dataDir: string) {
     this.database = new AppDatabase(path.join(dataDir, 'database', 'app.sqlite'));
     this.images = new ImageStore(dataDir, this.database);
     this.llmRunner = createLlmRunner(dataDir);
+    this.portfolioService = createPortfolioService(this.database);
   }
 
   close(): void {
@@ -148,6 +151,30 @@ export class AppService {
         return watchlistService.listPools();
       case 'watchlist.getPoolSnapshot':
         return watchlistService.getPoolSnapshot(request.params.poolId);
+      case 'portfolio.listPositions':
+        return this.portfolioService.listPositions(request.params.accountId);
+      case 'portfolio.getSummary':
+        return this.portfolioService.getSummary(request.params.accountId, request.params.year);
+      case 'portfolio.getDividendCalendar':
+        return this.portfolioService.getDividendCalendar(request.params.accountId, request.params.month);
+      case 'portfolio.listDividends':
+        return this.portfolioService.listDividends(
+          request.params.accountId,
+          request.params.year,
+          request.params.statuses,
+        );
+      case 'portfolio.addLedgerEntry':
+        return this.portfolioService.addLedgerEntry(request.params);
+      case 'portfolio.confirmDividend':
+        return this.portfolioService.confirmDividend(
+          request.params.id,
+          request.params.confirmed,
+          request.params.cashAmount,
+        );
+      case 'portfolio.refreshDividends':
+        return this.portfolioService.refreshDividends(request.params.accountId, request.params.symbol);
+      case 'portfolio.syncMarketQuotes':
+        return this.portfolioService.syncMarketQuotes(request.params.accountId);
     }
   }
 

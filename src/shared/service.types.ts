@@ -30,6 +30,15 @@ import type {
   WatchlistPoolSnapshot,
 } from './api.types';
 import type { WatchlistPoolId } from './watchlist/types';
+import type {
+  CreatePortfolioLedgerInput,
+  DividendCalendarDay,
+  DividendRecordStatus,
+  PortfolioDividendRecord,
+  PortfolioPositionView,
+  PortfolioRefreshResult,
+  PortfolioSummaryView,
+} from './portfolio/types';
 import type { PromptId } from './llm/prompt-id';
 
 export interface ServiceContract {
@@ -156,6 +165,38 @@ export interface ServiceContract {
   'watchlist.getPoolSnapshot': {
     params: { poolId: WatchlistPoolId };
     result: WatchlistPoolSnapshot;
+  };
+  'portfolio.listPositions': {
+    params: { accountId?: string };
+    result: PortfolioPositionView[];
+  };
+  'portfolio.getSummary': {
+    params: { accountId?: string; year?: number };
+    result: PortfolioSummaryView;
+  };
+  'portfolio.getDividendCalendar': {
+    params: { accountId?: string; month: string };
+    result: DividendCalendarDay[];
+  };
+  'portfolio.listDividends': {
+    params: { accountId?: string; year?: number; statuses?: DividendRecordStatus[] };
+    result: PortfolioDividendRecord[];
+  };
+  'portfolio.addLedgerEntry': {
+    params: CreatePortfolioLedgerInput;
+    result: PortfolioPositionView[];
+  };
+  'portfolio.confirmDividend': {
+    params: { id: string; confirmed: boolean; cashAmount?: number };
+    result: PortfolioDividendRecord[];
+  };
+  'portfolio.refreshDividends': {
+    params: { accountId?: string; symbol?: string };
+    result: PortfolioRefreshResult;
+  };
+  'portfolio.syncMarketQuotes': {
+    params: { accountId?: string };
+    result: PortfolioPositionView[];
   };
 }
 

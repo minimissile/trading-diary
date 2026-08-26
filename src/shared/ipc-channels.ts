@@ -39,4 +39,12 @@ export const ipcChannels = {
   marketListNews: 'desktop:market:list-news',
   watchlistListPools: 'desktop:watchlist:list-pools',
   watchlistGetPoolSnapshot: 'desktop:watchlist:get-pool-snapshot',
+  portfolioListPositions: 'desktop:portfolio:list-positions',
+  portfolioGetSummary: 'desktop:portfolio:get-summary',
+  portfolioGetDividendCalendar: 'desktop:portfolio:get-dividend-calendar',
+  portfolioListDividends: 'desktop:portfolio:list-dividends',
+  portfolioAddLedgerEntry: 'desktop:portfolio:add-ledger-entry',
+  portfolioConfirmDividend: 'desktop:portfolio:confirm-dividend',
+  portfolioRefreshDividends: 'desktop:portfolio:refresh-dividends',
+  portfolioSyncMarketQuotes: 'desktop:portfolio:sync-market-quotes',
 } as const;

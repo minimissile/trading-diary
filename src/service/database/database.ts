@@ -19,6 +19,7 @@ import type {
   WorkspaceSnapshot,
 } from '../../shared/api.types';
 import { migrations } from './migrations';
+import { PortfolioDatabase } from '../portfolio/portfolio-database';
 
 const PRICE_SCALE = 10_000;
 const QUANTITY_SCALE = 10_000;
@@ -123,6 +124,7 @@ const planTransitions: Readonly<Record<TradingPlanStatus, readonly TradingPlanSt
 
 export class AppDatabase {
   readonly filePath: string;
+  readonly portfolio: PortfolioDatabase;
   private readonly db: DatabaseSync;
 
   constructor(filePath: string) {
@@ -148,6 +150,10 @@ export class AppDatabase {
     `);
 
     this.applyMigrations();
+    this.portfolio = new PortfolioDatabase(this.db);
+    if (this.schemaVersion() >= 3) {
+      this.portfolio.ensureDefaultAccount();
+    }
   }
 
   close(): void {

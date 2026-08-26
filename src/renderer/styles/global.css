@@ -15,8 +15,8 @@ body {
   min-height: 100vh;
   background-color: var(--td-color-canvas);
   background-image:
-    linear-gradient(rgb(47 91 215 / 2.2%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(47 91 215 / 2.2%) 1px, transparent 1px);
+    linear-gradient(rgb(44 140 255 / 4%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(44 140 255 / 4%) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
@@ -25,6 +25,35 @@ body {
   color: var(--td-color-ink);
   background: transparent;
   font-family: var(--td-font-sans);
+}
+
+.renderer-fatal {
+  min-height: 100vh;
+  padding: 48px 32px;
+  color: #e8eef8;
+  background: #061521;
+  font-family: var(--td-font-sans);
+}
+
+.renderer-fatal h1 {
+  margin: 0 0 12px;
+  font-size: 20px;
+}
+
+.renderer-fatal p {
+  margin: 0 0 16px;
+  color: #9fb0c8;
+}
+
+.renderer-fatal pre {
+  overflow: auto;
+  padding: 16px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 6%);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 input {

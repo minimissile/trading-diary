@@ -268,6 +268,18 @@ export type {
 
 import type { WatchlistPoolId, WatchlistPoolMeta, WatchlistPoolSnapshot } from './watchlist/types';
 
+export type {
+  CreatePortfolioLedgerInput,
+  DividendCalendarDay,
+  DividendRecordStatus,
+  MilestoneState,
+  PortfolioDividendRecord,
+  PortfolioLedgerSide,
+  PortfolioPositionView,
+  PortfolioRefreshResult,
+  PortfolioSummaryView,
+} from './portfolio/types';
+
 export interface DesktopApi {
   system: {
     health: () => Promise<HealthResult>;
@@ -343,5 +355,19 @@ export interface DesktopApi {
   watchlist: {
     listPools: () => Promise<WatchlistPoolMeta[]>;
     getPoolSnapshot: (poolId: WatchlistPoolId) => Promise<WatchlistPoolSnapshot>;
+  };
+  portfolio: {
+    listPositions: (accountId?: string) => Promise<import('./portfolio/types').PortfolioPositionView[]>;
+    getSummary: (accountId?: string, year?: number) => Promise<import('./portfolio/types').PortfolioSummaryView>;
+    getDividendCalendar: (accountId: string | undefined, month: string) => Promise<import('./portfolio/types').DividendCalendarDay[]>;
+    listDividends: (
+      accountId?: string,
+      year?: number,
+      statuses?: import('./portfolio/types').DividendRecordStatus[],
+    ) => Promise<import('./portfolio/types').PortfolioDividendRecord[]>;
+    addLedgerEntry: (input: import('./portfolio/types').CreatePortfolioLedgerInput) => Promise<import('./portfolio/types').PortfolioPositionView[]>;
+    confirmDividend: (id: string, confirmed: boolean, cashAmount?: number) => Promise<import('./portfolio/types').PortfolioDividendRecord[]>;
+    refreshDividends: (accountId?: string, symbol?: string) => Promise<import('./portfolio/types').PortfolioRefreshResult>;
+    syncMarketQuotes: (accountId?: string) => Promise<import('./portfolio/types').PortfolioPositionView[]>;
   };
 }

@@ -265,6 +265,58 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     return service.request('watchlist.getPoolSnapshot', input);
   });
 
+  ipcMain.handle(ipcChannels.portfolioListPositions, (event, input: { accountId?: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('portfolio.listPositions', input);
+  });
+
+  ipcMain.handle(ipcChannels.portfolioGetSummary, (event, input: { accountId?: string; year?: number }) => {
+    assertTrustedSender(event, window);
+    return service.request('portfolio.getSummary', input);
+  });
+
+  ipcMain.handle(
+    ipcChannels.portfolioGetDividendCalendar,
+    (event, input: { accountId?: string; month: string }) => {
+      assertTrustedSender(event, window);
+      return service.request('portfolio.getDividendCalendar', input);
+    },
+  );
+
+  ipcMain.handle(
+    ipcChannels.portfolioListDividends,
+    (event, input: { accountId?: string; year?: number; statuses?: ('estimated' | 'confirmed' | 'rejected')[] }) => {
+      assertTrustedSender(event, window);
+      return service.request('portfolio.listDividends', input);
+    },
+  );
+
+  ipcMain.handle(ipcChannels.portfolioAddLedgerEntry, (event, input: Record<string, unknown>) => {
+    assertTrustedSender(event, window);
+    return service.request('portfolio.addLedgerEntry', input as never);
+  });
+
+  ipcMain.handle(
+    ipcChannels.portfolioConfirmDividend,
+    (event, input: { id: string; confirmed: boolean; cashAmount?: number }) => {
+      assertTrustedSender(event, window);
+      return service.request('portfolio.confirmDividend', input);
+    },
+  );
+
+  ipcMain.handle(
+    ipcChannels.portfolioRefreshDividends,
+    (event, input: { accountId?: string; symbol?: string }) => {
+      assertTrustedSender(event, window);
+      return service.request('portfolio.refreshDividends', input);
+    },
+  );
+
+  ipcMain.handle(ipcChannels.portfolioSyncMarketQuotes, (event, input: { accountId?: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('portfolio.syncMarketQuotes', input);
+  });
+
   ipcMain.handle(ipcChannels.getUpdateState, (event) => {
     assertTrustedSender(event, window);
     return updater.getState();
@@ -333,6 +385,14 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     ipcMain.removeHandler(ipcChannels.marketListNews);
     ipcMain.removeHandler(ipcChannels.watchlistListPools);
     ipcMain.removeHandler(ipcChannels.watchlistGetPoolSnapshot);
+    ipcMain.removeHandler(ipcChannels.portfolioListPositions);
+    ipcMain.removeHandler(ipcChannels.portfolioGetSummary);
+    ipcMain.removeHandler(ipcChannels.portfolioGetDividendCalendar);
+    ipcMain.removeHandler(ipcChannels.portfolioListDividends);
+    ipcMain.removeHandler(ipcChannels.portfolioAddLedgerEntry);
+    ipcMain.removeHandler(ipcChannels.portfolioConfirmDividend);
+    ipcMain.removeHandler(ipcChannels.portfolioRefreshDividends);
+    ipcMain.removeHandler(ipcChannels.portfolioSyncMarketQuotes);
     ipcMain.removeHandler(ipcChannels.getUpdateState);
     ipcMain.removeHandler(ipcChannels.checkForUpdates);
     ipcMain.removeHandler(ipcChannels.downloadUpdate);
