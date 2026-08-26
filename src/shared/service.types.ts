@@ -41,7 +41,21 @@ import type {
   PortfolioRefreshResult,
   PortfolioSummaryView,
 } from './portfolio/types';
+import type {
+  CreateTradingAccountInput,
+  FeeEstimateInput,
+  FeeEstimateResult,
+  FeeProfile,
+  TradingAccountSummary,
+  UpdateTradingAccountInput,
+} from './accounts/types';
 import type { PromptId } from './llm/prompt-id';
+import type {
+  BackupExportInput,
+  BackupExportResult,
+  BackupImportInput,
+  BackupImportResult,
+} from './backup/types';
 
 export interface ServiceContract {
   'system.health': {
@@ -208,6 +222,57 @@ export interface ServiceContract {
     params: { code: string };
     result: LicenseActivateResult;
   };
+  'accounts.list': {
+    params: { includeArchived?: boolean };
+    result: TradingAccountSummary[];
+  };
+  'accounts.get': {
+    params: { id: string };
+    result: TradingAccountSummary;
+  };
+  'accounts.create': {
+    params: CreateTradingAccountInput;
+    result: TradingAccountSummary;
+  };
+  'accounts.update': {
+    params: { id: string; input: UpdateTradingAccountInput };
+    result: TradingAccountSummary;
+  };
+  'accounts.setDefault': {
+    params: { id: string };
+    result: TradingAccountSummary;
+  };
+  'accounts.archive': {
+    params: { id: string };
+    result: TradingAccountSummary;
+  };
+  'accounts.listFeeProfiles': {
+    params: Record<string, never>;
+    result: FeeProfile[];
+  };
+  'accounts.estimateFees': {
+    params: FeeEstimateInput;
+    result: FeeEstimateResult;
+  };
+  'accounts.estimateFeesForSymbol': {
+    params: {
+      accountId?: string;
+      feeProfileId?: string;
+      side: 'buy' | 'sell';
+      symbol: string;
+      price: number;
+      quantity: number;
+    };
+    result: FeeEstimateResult;
+  };
+  'backup.export': {
+    params: BackupExportInput;
+    result: BackupExportResult;
+  };
+  'backup.import': {
+    params: BackupImportInput;
+    result: BackupImportResult;
+  };
 }
 
 export type ServiceStreamMethod = 'reviews.generateAiDraftStream' | 'llm.debugRunStream';
@@ -241,7 +306,7 @@ export type ServiceResponse =
   { id: string; ok: true; data: unknown } | { id: string; ok: false; error: { code: string; message: string } };
 
 export type MainToServiceMessage =
-  | { type: 'service:init'; dataDir: string }
+  | { type: 'service:init'; dataDir: string; appVersion: string }
   | { type: 'service:request'; request: ServiceRequest }
   | { type: 'service:stream-request'; streamId: string; method: ServiceStreamMethod; params: unknown }
   | { type: 'service:stream-cancel'; streamId: string }

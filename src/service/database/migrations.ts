@@ -172,4 +172,89 @@ export const migrations: readonly Migration[] = [
       CREATE INDEX portfolio_dividends_year_idx ON portfolio_dividends(account_id, ex_dividend_date);
     `,
   },
+  {
+    version: 4,
+    name: 'account_management',
+    sql: `
+      CREATE TABLE fee_profiles (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        commission_rate_ppm INTEGER NOT NULL,
+        commission_min_cents INTEGER NOT NULL,
+        stamp_duty_rate_ppm INTEGER NOT NULL,
+        transfer_fee_rate_ppm INTEGER NOT NULL,
+        transfer_fee_min_cents INTEGER NOT NULL,
+        other_fee_cents INTEGER NOT NULL DEFAULT 0,
+        slippage_bps INTEGER NOT NULL DEFAULT 0,
+        is_builtin INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      ) STRICT;
+
+      INSERT INTO fee_profiles (
+        id, name, commission_rate_ppm, commission_min_cents, stamp_duty_rate_ppm,
+        transfer_fee_rate_ppm, transfer_fee_min_cents, other_fee_cents, slippage_bps,
+        is_builtin, created_at, updated_at
+      ) VALUES
+        ('fee-a-share-standard', 'A股标准（万2.5 / 最低5元）', 250, 500, 500, 10, 100, 0, 0, 1, datetime('now'), datetime('now')),
+        ('fee-a-share-low', 'A股低佣（万1.5 / 最低5元）', 150, 500, 500, 10, 100, 0, 0, 1, datetime('now'), datetime('now')),
+        ('fee-a-share-min', 'A股极低佣（万1 / 最低5元）', 100, 500, 500, 10, 100, 0, 0, 1, datetime('now'), datetime('now'));
+
+      ALTER TABLE portfolio_accounts ADD COLUMN broker TEXT NOT NULL DEFAULT 'custom';
+      ALTER TABLE portfolio_accounts ADD COLUMN account_kind TEXT NOT NULL DEFAULT 'securities';
+      ALTER TABLE portfolio_accounts ADD COLUMN market_scope_json TEXT NOT NULL DEFAULT '["CN_A"]';
+      ALTER TABLE portfolio_accounts ADD COLUMN fee_profile_id TEXT REFERENCES fee_profiles(id);
+      ALTER TABLE portfolio_accounts ADD COLUMN initial_balance_cents INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE portfolio_accounts ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE portfolio_accounts ADD COLUMN note TEXT NOT NULL DEFAULT '';
+
+      UPDATE portfolio_accounts
+      SET fee_profile_id = 'fee-a-share-standard'
+      WHERE fee_profile_id IS NULL;
+    `,
+  },
+  {
+    version: 5,
+    name: 'fund_fee_preset',
+    sql: `
+      INSERT OR IGNORE INTO fee_profiles (
+        id, name, commission_rate_ppm, commission_min_cents, stamp_duty_rate_ppm,
+        transfer_fee_rate_ppm, transfer_fee_min_cents, other_fee_cents, slippage_bps,
+        is_builtin, created_at, updated_at
+      ) VALUES
+        ('fee-fund-default', '基金默认（免五费）', 0, 0, 0, 0, 0, 0, 0, 1, datetime('now'), datetime('now'));
+    `,
+  },
+  {
+    version: 6,
+    name: 'fee_transfer_rate_fix',
+    sql: `
+      UPDATE fee_profiles
+      SET transfer_fee_min_cents = 0,
+          stamp_duty_rate_ppm = 500,
+          transfer_fee_rate_ppm = 10,
+          updated_at = datetime('now')
+      WHERE stamp_duty_rate_ppm > 0 OR transfer_fee_rate_ppm > 0;
+    `,
+  },
+  {
+    version: 7,
+    name: 'fee_profile_etf_commission',
+    sql: `
+      ALTER TABLE fee_profiles ADD COLUMN etf_commission_rate_ppm INTEGER;
+      ALTER TABLE fee_profiles ADD COLUMN etf_commission_min_cents INTEGER;
+    `,
+  },
+  {
+    version: 8,
+    name: 'fee_profile_etf_backfill',
+    sql: `
+      UPDATE fee_profiles
+      SET etf_commission_rate_ppm = commission_rate_ppm,
+          etf_commission_min_cents = commission_min_cents,
+          updated_at = datetime('now')
+      WHERE etf_commission_rate_ppm IS NULL
+        AND stamp_duty_rate_ppm > 0;
+    `,
+  },
 ];

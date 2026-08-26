@@ -20,11 +20,8 @@ import type { CreateTradeReviewInput, TradeDirection, TradeReview, TradingPlan }
 import { directionLabels, formatCurrency, formatDateTime, formatPrice } from '../lib/trading-format';
 import { useReviewAiDraft } from '../hooks/useReviewAiDraft';
 import { routePaths } from '../router/paths';
+import type { JournalLocationState, JournalReviewDraft } from '../router/journal-state';
 import { SymbolSearchInput } from '../components/trading/SymbolSearchInput';
-
-interface JournalLocationState {
-  planId?: string;
-}
 
 interface ReviewFormValues {
   planId?: string;
@@ -46,9 +43,12 @@ export function JournalPage(): React.JSX.Element {
   const location = useLocation();
   const navigate = useNavigate();
   const requestedPlanId = (location.state as JournalLocationState | null)?.planId ?? null;
+  const requestedReviewDraft = (location.state as JournalLocationState | null)?.reviewDraft ?? null;
+  const requestedOpenReview = (location.state as JournalLocationState | null)?.openReview ?? false;
   const [reviews, setReviews] = useState<TradeReview[]>([]);
   const [plans, setPlans] = useState<TradingPlan[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(Boolean(requestedPlanId));
+  const [dialogOpen, setDialogOpen] = useState(Boolean(requestedPlanId || requestedReviewDraft || requestedOpenReview));
+  const [initialReviewDraft, setInitialReviewDraft] = useState<JournalReviewDraft | null>(requestedReviewDraft);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async (): Promise<void> => {
@@ -82,6 +82,14 @@ export function JournalPage(): React.JSX.Element {
     };
   }, [message]);
 
+  useEffect(() => {
+    const state = location.state as JournalLocationState | null;
+    if (!state?.reviewDraft && !state?.openReview) return;
+    setInitialReviewDraft(state.reviewDraft ?? null);
+    setDialogOpen(true);
+    void navigate(routePaths.journal, { replace: true });
+  }, [location.state, navigate]);
+
   const reviewedPlanIds = useMemo(() => new Set(reviews.flatMap((review) => (review.planId ? [review.planId] : []))), [reviews]);
   const reviewablePlans = useMemo(
     () => plans.filter((plan) => plan.status === 'completed' && !reviewedPlanIds.has(plan.id)),
@@ -99,7 +107,14 @@ export function JournalPage(): React.JSX.Element {
           <h1>交易日记</h1>
           <p className="page-intro">把结果和过程分开记录，让下一次行动真正发生变化。</p>
         </div>
-        <Button type="primary" size="large" onClick={() => setDialogOpen(true)}>
+        <Button
+          type="primary"
+          size="large"
+          onClick={() => {
+            setInitialReviewDraft(null);
+            setDialogOpen(true);
+          }}
+        >
           新建复盘
         </Button>
       </header>
@@ -189,12 +204,15 @@ export function JournalPage(): React.JSX.Element {
         open={dialogOpen}
         plans={reviewablePlans}
         initialPlanId={requestedPlanId}
+        initialReviewDraft={initialReviewDraft}
         onClose={() => {
           setDialogOpen(false);
+          setInitialReviewDraft(null);
           void navigate(routePaths.journal, { replace: true });
         }}
         onSaved={() => {
           setDialogOpen(false);
+          setInitialReviewDraft(null);
           window.dispatchEvent(new Event('workspace-changed'));
           void navigate(routePaths.journal, { replace: true });
           void load();
@@ -209,11 +227,19 @@ interface NewReviewDialogProps {
   open: boolean;
   plans: TradingPlan[];
   initialPlanId: string | null;
+  initialReviewDraft: JournalReviewDraft | null;
   onClose: () => void;
   onSaved: () => void;
 }
 
-function NewReviewDialog({ open, plans, initialPlanId, onClose, onSaved }: NewReviewDialogProps): React.JSX.Element {
+function NewReviewDialog({
+  open,
+  plans,
+  initialPlanId,
+  initialReviewDraft,
+  onClose,
+  onSaved,
+}: NewReviewDialogProps): React.JSX.Element {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const [form] = Form.useForm<ReviewFormValues>();
@@ -238,20 +264,32 @@ function NewReviewDialog({ open, plans, initialPlanId, onClose, onSaved }: NewRe
     }
     const plan = plans.find((item) => item.id === initialPlanId);
     form.setFieldsValue(
-      plan
+      initialReviewDraft
         ? {
-            planId: plan.id,
-            symbol: plan.symbol,
-            title: `${plan.name}复盘`,
-            direction: plan.direction,
-            planned: true,
-            entryPrice: plan.entryPrice,
-            fees: 0,
+            symbol: initialReviewDraft.symbol,
+            title: initialReviewDraft.title,
+            direction: initialReviewDraft.direction,
+            planned: initialReviewDraft.planned,
+            entryPrice: initialReviewDraft.entryPrice,
+            exitPrice: initialReviewDraft.exitPrice,
+            quantity: initialReviewDraft.quantity,
+            fees: initialReviewDraft.fees,
             executionScore: 3,
           }
-        : { direction: 'long', planned: false, fees: 0, executionScore: 3 },
+        : plan
+          ? {
+              planId: plan.id,
+              symbol: plan.symbol,
+              title: `${plan.name}复盘`,
+              direction: plan.direction,
+              planned: true,
+              entryPrice: plan.entryPrice,
+              fees: 0,
+              executionScore: 3,
+            }
+          : { direction: 'long', planned: false, fees: 0, executionScore: 3 },
     );
-  }, [cancelStream, form, initialPlanId, open, plans, resetError]);
+  }, [cancelStream, form, initialPlanId, initialReviewDraft, open, plans, resetError]);
 
   const generateAiDraft = async (): Promise<void> => {
     const values = await form.validateFields([
@@ -355,7 +393,16 @@ function NewReviewDialog({ open, plans, initialPlanId, onClose, onSaved }: NewRe
         </Space>
       }
     >
-      <p className="dialog-intro">盈亏是结果，纪律评分只评价你是否按规则执行。AI 草稿仅归纳已有记录，不会给出买卖建议。</p>
+      <p className="dialog-intro">
+        盈亏是结果，纪律评分只评价你是否按规则执行。AI 草稿仅归纳已有记录，不会给出买卖建议。
+        {initialReviewDraft ? (
+          <>
+            {' '}
+            已根据 {new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(initialReviewDraft.tradeAt))}{' '}
+            的成交流水预填价格与数量。
+          </>
+        ) : null}
+      </p>
       {streamingText ? (
         <pre className="ai-stream-preview">{streamingText}</pre>
       ) : null}

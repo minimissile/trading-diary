@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { utilityProcess, type UtilityProcess } from 'electron';
+import { app, utilityProcess, type UtilityProcess } from 'electron';
 import serviceModulePath from '../service/index?modulePath';
 import type {
   MainToServiceMessage,
@@ -15,6 +15,12 @@ import type {
 
 const START_TIMEOUT_MS = 15_000;
 const REQUEST_TIMEOUT_MS = 30_000;
+const BACKUP_REQUEST_TIMEOUT_MS = 120_000;
+
+const REQUEST_TIMEOUT_BY_METHOD: Partial<Record<ServiceMethod, number>> = {
+  'backup.export': BACKUP_REQUEST_TIMEOUT_MS,
+  'backup.import': BACKUP_REQUEST_TIMEOUT_MS,
+};
 
 interface PendingRequest {
   resolve: (value: unknown) => void;
@@ -81,7 +87,7 @@ export class ServiceHost {
       child.on('message', onMessage);
       child.on('exit', onExit);
       child.on('error', onError);
-      this.post({ type: 'service:init', dataDir });
+      this.post({ type: 'service:init', dataDir, appVersion: app.getVersion() });
     });
   }
 
@@ -89,11 +95,12 @@ export class ServiceHost {
     if (!this.child || !this.ready) throw new Error('后台服务尚未就绪');
 
     const id = randomUUID();
+    const timeoutMs = REQUEST_TIMEOUT_BY_METHOD[method] ?? REQUEST_TIMEOUT_MS;
     const result = new Promise<unknown>((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pending.delete(id);
         reject(new Error(`后台服务请求超时：${method}`));
-      }, REQUEST_TIMEOUT_MS);
+      }, timeoutMs);
 
       this.pending.set(id, { resolve, reject, timeout });
     });

@@ -130,6 +130,14 @@
       "titleColor": "#e7f1fa",
       "titleFontSize": 17
     },
+    "Select": {
+      "selectorBg": "#0c2231",
+      "optionActiveBg": "#154b79",
+      "optionSelectedBg": "#123d65",
+      "optionSelectedColor": "#ffffff",
+      "colorBgElevated": "#102737",
+      "colorTextQuaternary": "#73889a"
+    },
     "Progress": {
       "defaultColor": "#2c8cff",
       "remainingColor": "#20394b",

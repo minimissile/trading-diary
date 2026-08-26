@@ -61,6 +61,17 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
+export function formatPercent(value: number | null | undefined, digits = 2): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—';
+  const prefix = value > 0 ? '+' : '';
+  return `${prefix}${value.toFixed(digits)}%`;
+}
+
+export function changeClass(value: number | null | undefined): string {
+  if (value === null || value === undefined || value === 0) return '';
+  return value > 0 ? 'profit-text' : 'loss-text';
+}
+
 export function formatDateTime(value: string): string {
   return new Intl.DateTimeFormat('zh-CN', {
     month: 'numeric',

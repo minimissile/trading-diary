@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, App, Button, Descriptions, Input, InputNumber, Space, Switch, Tag } from 'antd';
+import { Alert, App, Button, Checkbox, Descriptions, Input, InputNumber, Modal, Space, Switch, Tag } from 'antd';
 import { Link } from 'react-router';
-import type { AssetStats, HealthResult, ImportedAsset, LicenseStatus, LlmUsageSummary, LlmUserSettings, UpdateState } from '../../shared/api.types';
+import type { AssetStats, BackupExportResult, HealthResult, ImportedAsset, LicenseStatus, LlmUsageSummary, LlmUserSettings, UpdateState } from '../../shared/api.types';
 import { AssetWorkspace } from '../components/AssetWorkspace';
 import { UpdaterPanel } from '../components/UpdaterPanel';
 import { aiClient } from '../lib/ai/ai-client';
@@ -36,6 +36,9 @@ export function SettingsPage(): React.JSX.Element {
   const [licenseBusy, setLicenseBusy] = useState(false);
   const [licenseNotice, setLicenseNotice] = useState<string | null>(null);
   const [showRenewForm, setShowRenewForm] = useState(false);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [includeLicenseInBackup, setIncludeLicenseInBackup] = useState(true);
+  const [lastBackup, setLastBackup] = useState<BackupExportResult | null>(null);
   const statusLoadSeq = useRef(0);
 
   const refreshRuntime = useCallback(async (): Promise<void> => {
@@ -200,6 +203,60 @@ export function SettingsPage(): React.JSX.Element {
     }
   };
 
+  const formatBackupStats = (stats: BackupExportResult['stats']): string =>
+    `${stats.tradingPlans} 个计划 · ${stats.tradeAlerts} 条提醒 · ${stats.tradeReviews} 篇复盘 · ${stats.portfolioLedgerEntries} 笔持仓流水 · ${stats.assets} 张图片`;
+
+  const exportBackup = async (): Promise<void> => {
+    setBackupBusy(true);
+    setError(null);
+    try {
+      const result = await window.desktop.backup.export({ includeLicense: includeLicenseInBackup });
+      if (!result) return;
+      setLastBackup(result);
+      void message.success(`备份已保存：${formatBackupStats(result.stats)}`);
+    } catch (reason) {
+      const text = reason instanceof Error ? reason.message : '导出失败';
+      setError(text);
+      void message.error(text);
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const importBackup = (): void => {
+    Modal.confirm({
+      title: '导入本地数据',
+      okText: '确认导入',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      content: (
+        <div>
+          <p>导入会用备份文件<strong>完全覆盖</strong>当前设备上的交易计划、提醒、复盘、持仓与图片数据。</p>
+          <p>此操作不可撤销。导入完成后应用会自动重启。</p>
+        </div>
+      ),
+      onOk: async () => {
+        setBackupBusy(true);
+        setError(null);
+        try {
+          const result = await window.desktop.backup.import();
+          if (!result) return;
+          void message.success(`已导入 ${formatBackupStats(result.stats)}，应用即将重启…`, 2);
+          window.setTimeout(() => {
+            void window.desktop.backup.relaunchApp();
+          }, 1500);
+        } catch (reason) {
+          const text = reason instanceof Error ? reason.message : '导入失败';
+          setError(text);
+          void message.error(text);
+          throw reason;
+        } finally {
+          setBackupBusy(false);
+        }
+      },
+    });
+  };
+
   return (
     <main className="workspace-page">
       <header className="page-header">
@@ -340,6 +397,45 @@ export function SettingsPage(): React.JSX.Element {
             { key: 'assets', label: '本地图片', children: stats ? `${stats.count} 张` : '—' },
           ]}
         />
+      </section>
+
+      <section className="settings-panel">
+        <div className="section-heading">
+          <div>
+            <span className="section-label">数据迁移</span>
+            <h2>导出与导入</h2>
+          </div>
+        </div>
+        <p className="page-intro">
+          将本机 SQLite 数据库、图片仓库和 AI 设置打包为 ZIP 备份，换设备后可导入继续记录。OpenRouter API Key 不会写入备份文件，需在新设备重新配置。
+        </p>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Checkbox checked={includeLicenseInBackup} onChange={(event) => setIncludeLicenseInBackup(event.target.checked)}>
+            导出时包含 License 激活信息
+          </Checkbox>
+          <Space wrap>
+            <Button type="primary" loading={backupBusy} onClick={() => void exportBackup()}>
+              导出备份
+            </Button>
+            <Button danger loading={backupBusy} onClick={importBackup}>
+              导入备份
+            </Button>
+          </Space>
+          {lastBackup ? (
+            <Alert
+              type="success"
+              showIcon
+              message="最近一次导出"
+              description={
+                <>
+                  <div>{lastBackup.filePath}</div>
+                  <div>{formatBackupStats(lastBackup.stats)}</div>
+                  <div>数据库结构 v{lastBackup.manifest.schemaVersion}</div>
+                </>
+              }
+            />
+          ) : null}
+        </Space>
       </section>
 
       <section className="settings-panel">

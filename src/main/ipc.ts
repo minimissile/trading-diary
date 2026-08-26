@@ -9,6 +9,7 @@ import type {
   TradeAlertStatus,
   TradingPlanStatus,
 } from '../shared/api.types';
+import type { CreateTradingAccountInput, FeeEstimateInput, UpdateTradingAccountInput } from '../shared/accounts/types';
 import { ipcChannels } from '../shared/ipc-channels';
 import type { ServiceHost } from './service-host';
 import type { UpdateManager } from './updater/update-manager';
@@ -327,6 +328,104 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     return service.request('license.activate', input);
   });
 
+  ipcMain.handle(ipcChannels.accountsList, (event, input: { includeArchived?: boolean }) => {
+    assertTrustedSender(event, window);
+    return service.request('accounts.list', input);
+  });
+
+  ipcMain.handle(ipcChannels.accountsGet, (event, input: { id: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('accounts.get', input);
+  });
+
+  ipcMain.handle(ipcChannels.accountsCreate, (event, input: CreateTradingAccountInput) => {
+    assertTrustedSender(event, window);
+    return service.request('accounts.create', input);
+  });
+
+  ipcMain.handle(
+    ipcChannels.accountsUpdate,
+    (event, input: { id: string; input: UpdateTradingAccountInput }) => {
+      assertTrustedSender(event, window);
+      return service.request('accounts.update', input);
+    },
+  );
+
+  ipcMain.handle(ipcChannels.accountsSetDefault, (event, input: { id: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('accounts.setDefault', input);
+  });
+
+  ipcMain.handle(ipcChannels.accountsArchive, (event, input: { id: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('accounts.archive', input);
+  });
+
+  ipcMain.handle(ipcChannels.accountsListFeeProfiles, (event) => {
+    assertTrustedSender(event, window);
+    return service.request('accounts.listFeeProfiles', {});
+  });
+
+  ipcMain.handle(ipcChannels.accountsEstimateFees, (event, input: FeeEstimateInput) => {
+    assertTrustedSender(event, window);
+    return service.request('accounts.estimateFees', input);
+  });
+
+  ipcMain.handle(
+    ipcChannels.accountsEstimateFeesForSymbol,
+    (
+      event,
+      input: {
+        accountId?: string;
+        feeProfileId?: string;
+        side: 'buy' | 'sell';
+        symbol: string;
+        price: number;
+        quantity: number;
+      },
+    ) => {
+      assertTrustedSender(event, window);
+      return service.request('accounts.estimateFeesForSymbol', input);
+    },
+  );
+
+  ipcMain.handle(ipcChannels.backupExport, async (event, input?: { includeLicense?: boolean }) => {
+    assertTrustedSender(event, window);
+    const stamp = new Date().toISOString().slice(0, 10);
+    const selection = await dialog.showSaveDialog(window, {
+      title: '导出本地数据',
+      defaultPath: `交易日记备份-${stamp}.zip`,
+      filters: [{ name: '交易日记备份', extensions: ['zip'] }],
+    });
+    if (selection.canceled || !selection.filePath) return null;
+    let targetPath = selection.filePath;
+    if (!targetPath.toLowerCase().endsWith('.zip')) {
+      targetPath = `${targetPath}.zip`;
+    }
+    return service.request('backup.export', {
+      targetPath,
+      includeLicense: input?.includeLicense,
+    });
+  });
+
+  ipcMain.handle(ipcChannels.backupImport, async (event) => {
+    assertTrustedSender(event, window);
+    const selection = await dialog.showOpenDialog(window, {
+      title: '导入本地数据',
+      properties: ['openFile'],
+      filters: [{ name: '交易日记备份', extensions: ['zip'] }],
+    });
+    const sourcePath = selection.filePaths[0];
+    if (selection.canceled || !sourcePath) return null;
+    return service.request('backup.import', { sourcePath });
+  });
+
+  ipcMain.handle(ipcChannels.backupRelaunchApp, (event) => {
+    assertTrustedSender(event, window);
+    app.relaunch();
+    app.exit(0);
+  });
+
   ipcMain.handle(ipcChannels.getUpdateState, (event) => {
     assertTrustedSender(event, window);
     return updater.getState();
@@ -405,6 +504,9 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     ipcMain.removeHandler(ipcChannels.portfolioSyncMarketQuotes);
     ipcMain.removeHandler(ipcChannels.licenseGetStatus);
     ipcMain.removeHandler(ipcChannels.licenseActivate);
+    ipcMain.removeHandler(ipcChannels.backupExport);
+    ipcMain.removeHandler(ipcChannels.backupImport);
+    ipcMain.removeHandler(ipcChannels.backupRelaunchApp);
     ipcMain.removeHandler(ipcChannels.getUpdateState);
     ipcMain.removeHandler(ipcChannels.checkForUpdates);
     ipcMain.removeHandler(ipcChannels.downloadUpdate);

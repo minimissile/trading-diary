@@ -20,6 +20,7 @@ import type {
 } from '../../shared/api.types';
 import { migrations } from './migrations';
 import { PortfolioDatabase } from '../portfolio/portfolio-database';
+import { AccountDatabase } from '../accounts/account-database';
 
 const PRICE_SCALE = 10_000;
 const QUANTITY_SCALE = 10_000;
@@ -125,6 +126,7 @@ const planTransitions: Readonly<Record<TradingPlanStatus, readonly TradingPlanSt
 export class AppDatabase {
   readonly filePath: string;
   readonly portfolio: PortfolioDatabase;
+  readonly accounts: AccountDatabase;
   private readonly db: DatabaseSync;
 
   constructor(filePath: string) {
@@ -151,13 +153,55 @@ export class AppDatabase {
 
     this.applyMigrations();
     this.portfolio = new PortfolioDatabase(this.db);
+    this.accounts = new AccountDatabase(this.db);
     if (this.schemaVersion() >= 3) {
       this.portfolio.ensureDefaultAccount();
+    }
+    if (this.schemaVersion() >= 4) {
+      this.accounts.ensureDefaults('default');
     }
   }
 
   close(): void {
     this.db.close();
+  }
+
+  checkpoint(): void {
+    this.db.exec('PRAGMA wal_checkpoint(FULL)');
+  }
+
+  rewriteAssetPaths(dataDir: string): void {
+    const assetsRoot = path.join(dataDir, 'assets');
+    interface AssetPathRow {
+      hash: string;
+      original_path: string;
+    }
+    const rows = this.db.prepare('SELECT hash, original_path FROM assets').all() as unknown as AssetPathRow[];
+    const update = this.db.prepare('UPDATE assets SET original_path = ?, preview_path = ? WHERE hash = ?');
+    for (const row of rows) {
+      const extension = path.extname(row.original_path).slice(1) || 'bin';
+      const shard = path.join(row.hash.slice(0, 2), row.hash.slice(2, 4));
+      update.run(
+        path.join(assetsRoot, 'original', shard, `${row.hash}.${extension}`),
+        path.join(assetsRoot, 'preview', shard, `${row.hash}.webp`),
+        row.hash,
+      );
+    }
+  }
+
+  countTradingPlans(): number {
+    const row = this.db.prepare('SELECT COUNT(*) AS count FROM trading_plans').get() as { count: number };
+    return row.count;
+  }
+
+  countTradeAlerts(): number {
+    const row = this.db.prepare('SELECT COUNT(*) AS count FROM alert_rules').get() as { count: number };
+    return row.count;
+  }
+
+  countTradeReviews(): number {
+    const row = this.db.prepare('SELECT COUNT(*) AS count FROM trade_reviews').get() as { count: number };
+    return row.count;
   }
 
   sqliteVersion(): string {

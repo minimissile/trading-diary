@@ -154,6 +154,28 @@ export type {
   LicenseTier,
 } from './license/types';
 
+export type {
+  AccountBroker,
+  AccountCustomFeeInput,
+  AccountKind,
+  CreateTradingAccountInput,
+  FeeEstimateInput,
+  FeeEstimateResult,
+  FeeProfile,
+  TradingAccount,
+  TradingAccountSummary,
+  UpdateTradingAccountInput,
+} from './accounts/types';
+
+import type {
+  CreateTradingAccountInput,
+  FeeEstimateInput,
+  FeeEstimateResult,
+  FeeProfile,
+  TradingAccountSummary,
+  UpdateTradingAccountInput,
+} from './accounts/types';
+
 export interface ReviewAiDraftInput {
   planId: string | null;
   symbol: string;
@@ -288,6 +310,15 @@ export type {
   PortfolioSummaryView,
 } from './portfolio/types';
 
+export type {
+  BackupExportInput,
+  BackupExportResult,
+  BackupImportInput,
+  BackupImportResult,
+  BackupManifest,
+  BackupStats,
+} from './backup/types';
+
 export interface DesktopApi {
   system: {
     health: () => Promise<HealthResult>;
@@ -381,5 +412,28 @@ export interface DesktopApi {
   license: {
     getStatus: () => Promise<import('./license/types').LicenseStatus>;
     activate: (code: string) => Promise<import('./license/types').LicenseActivateResult>;
+  };
+  accounts: {
+    list: (includeArchived?: boolean) => Promise<TradingAccountSummary[]>;
+    get: (id: string) => Promise<TradingAccountSummary>;
+    create: (input: CreateTradingAccountInput) => Promise<TradingAccountSummary>;
+    update: (id: string, input: UpdateTradingAccountInput) => Promise<TradingAccountSummary>;
+    setDefault: (id: string) => Promise<TradingAccountSummary>;
+    archive: (id: string) => Promise<TradingAccountSummary>;
+    listFeeProfiles: () => Promise<FeeProfile[]>;
+    estimateFees: (input: FeeEstimateInput) => Promise<FeeEstimateResult>;
+    estimateFeesForSymbol: (input: {
+      accountId?: string;
+      feeProfileId?: string;
+      side: 'buy' | 'sell';
+      symbol: string;
+      price: number;
+      quantity: number;
+    }) => Promise<FeeEstimateResult>;
+  };
+  backup: {
+    export: (options?: { includeLicense?: boolean }) => Promise<import('./backup/types').BackupExportResult | null>;
+    import: () => Promise<import('./backup/types').BackupImportResult | null>;
+    relaunchApp: () => Promise<void>;
   };
 }

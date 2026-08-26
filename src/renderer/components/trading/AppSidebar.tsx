@@ -1,4 +1,5 @@
 import {
+  BankOutlined,
   BarChartOutlined,
   BellOutlined,
   BookFilled,
@@ -13,13 +14,16 @@ import {
   WalletOutlined,
   StarOutlined,
   SettingOutlined,
+  MoneyCollectOutlined,
 } from '@ant-design/icons';
 
 const navItems = [
   { key: 'today', label: '今日指挥台', icon: DashboardOutlined },
   { key: 'plans', label: '计划工作台', icon: ProjectOutlined },
   { key: 'watchlist', label: '自选观察池', icon: StarOutlined },
-  { key: 'portfolio', label: '持仓与股息', icon: WalletOutlined },
+  { key: 'positions', label: '持仓中心', icon: WalletOutlined },
+  { key: 'dividends', label: '股息与分红', icon: MoneyCollectOutlined },
+  { key: 'accounts', label: '账户管理', icon: BankOutlined },
   { key: 'alerts', label: '提醒中心', icon: BellOutlined },
   { key: 'settings', label: '成交导入', icon: ImportOutlined },
   { key: 'journal', label: '交易回合', icon: HistoryOutlined },

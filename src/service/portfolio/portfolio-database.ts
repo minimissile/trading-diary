@@ -328,4 +328,14 @@ export class PortfolioDatabase {
       source: row.source,
     };
   }
+
+  countLedgerEntries(): number {
+    const row = this.db.prepare('SELECT COUNT(*) AS count FROM portfolio_ledger').get() as { count: number };
+    return row.count;
+  }
+
+  countDividends(): number {
+    const row = this.db.prepare('SELECT COUNT(*) AS count FROM portfolio_dividends').get() as { count: number };
+    return row.count;
+  }
 }

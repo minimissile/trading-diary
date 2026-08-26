@@ -1,10 +1,49 @@
 import { z } from 'zod';
+import { ACCOUNT_BROKER_IDS } from './accounts/brokers';
 
 export const assetHashSchema = z.string().regex(/^[a-f0-9]{64}$/u);
 
-const positiveNumberSchema = z.number().finite().positive();
-const nonNegativeNumberSchema = z.number().finite().nonnegative();
+const positiveNumberSchema = z.coerce.number().finite().positive();
+const nonNegativeNumberSchema = z.coerce.number().finite().nonnegative();
 const symbolSchema = z.string().trim().min(1).max(32);
+const accountBrokerSchema = z.enum(ACCOUNT_BROKER_IDS);
+const accountKindSchema = z.enum(['securities', 'fund']);
+const accountCustomFeeSchema = z
+  .object({
+    commissionWan: nonNegativeNumberSchema,
+    commissionMinYuan: nonNegativeNumberSchema.optional(),
+    noCommissionMin: z.boolean().optional(),
+    etfCommissionWan: nonNegativeNumberSchema.optional(),
+    etfCommissionMinYuan: nonNegativeNumberSchema.optional(),
+    etfNoCommissionMin: z.boolean().optional(),
+  })
+  .strict();
+const accountAliasSchema = z.string().trim().max(80);
+
+const createAccountParamsSchema = z
+  .object({
+    alias: accountAliasSchema.optional(),
+    name: accountAliasSchema.optional(),
+    broker: accountBrokerSchema.optional(),
+    accountKind: accountKindSchema.optional(),
+    currency: z.string().trim().min(3).max(8).optional(),
+    marketScope: z.array(z.string().trim().min(1).max(32)).optional(),
+    feeProfileId: z.string().trim().min(1).max(64).optional(),
+    customFee: accountCustomFeeSchema.optional(),
+    isDefault: z.boolean().optional(),
+  })
+  .strict();
+
+const updateAccountInputSchema = z
+  .object({
+    alias: accountAliasSchema.optional(),
+    name: accountAliasSchema.optional(),
+    broker: accountBrokerSchema.optional(),
+    accountKind: accountKindSchema.optional(),
+    feeProfileId: z.string().trim().min(1).max(64).optional(),
+    customFee: accountCustomFeeSchema.optional(),
+  })
+  .strict();
 const planStatusSchema = z.enum(['draft', 'watching', 'holding', 'completed', 'cancelled']);
 const alertStatusSchema = z.enum(['active', 'triggered', 'completed', 'disabled']);
 const directionSchema = z.enum(['long', 'short']);
@@ -345,5 +384,88 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
     id: z.uuid(),
     method: z.literal('license.activate'),
     params: z.object({ code: z.string().trim().min(8).max(2_000) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('accounts.list'),
+    params: z.object({ includeArchived: z.boolean().optional() }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('accounts.get'),
+    params: z.object({ id: z.string().trim().min(1).max(64) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('accounts.create'),
+    params: createAccountParamsSchema,
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('accounts.update'),
+    params: z
+      .object({
+        id: z.string().trim().min(1).max(64),
+        input: updateAccountInputSchema,
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('accounts.setDefault'),
+    params: z.object({ id: z.string().trim().min(1).max(64) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('accounts.archive'),
+    params: z.object({ id: z.string().trim().min(1).max(64) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('accounts.listFeeProfiles'),
+    params: z.object({}).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('accounts.estimateFees'),
+    params: z
+      .object({
+        side: z.enum(['buy', 'sell']),
+        market: z.enum(['SH', 'SZ']).nullable(),
+        price: positiveNumberSchema,
+        quantity: positiveNumberSchema,
+        feeProfileId: z.string().trim().min(1).max(64).optional(),
+        accountId: z.string().trim().min(1).max(64).optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('accounts.estimateFeesForSymbol'),
+    params: z
+      .object({
+        accountId: z.string().trim().min(1).max(64).optional(),
+        feeProfileId: z.string().trim().min(1).max(64).optional(),
+        side: z.enum(['buy', 'sell']),
+        symbol: symbolSchema,
+        price: positiveNumberSchema,
+        quantity: positiveNumberSchema,
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('backup.export'),
+    params: z
+      .object({
+        targetPath: z.string().min(1),
+        includeLicense: z.boolean().optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('backup.import'),
+    params: z.object({ sourcePath: z.string().min(1) }).strict(),
   }),
 ]);

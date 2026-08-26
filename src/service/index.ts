@@ -3,6 +3,7 @@ import { LlmError } from '../shared/llm/errors';
 import { LicenseError } from '../shared/license/errors';
 import type { MainToServiceMessage, ServiceStreamEvent, ServiceToMainMessage } from '../shared/service.types';
 import { AppService } from './app-service';
+import { BackupError } from './backup/backup-service';
 
 const parentPort = process.parentPort;
 if (!parentPort) throw new Error('后台服务必须运行在 Electron Utility Process 中');
@@ -18,7 +19,7 @@ parentPort.on('message', (event: { data: MainToServiceMessage }) => {
 
   if (message.type === 'service:init') {
     try {
-      service = new AppService(message.dataDir);
+      service = new AppService(message.dataDir, message.appVersion);
       post({ type: 'service:ready' });
     } catch (error) {
       post({
@@ -65,12 +66,15 @@ parentPort.on('message', (event: { data: MainToServiceMessage }) => {
 
   const parsed = serviceRequestSchema.safeParse(message.request);
   if (!parsed.success) {
+    const detail = parsed.error.issues
+      .map((issue) => `${issue.path.join('.') || 'request'}: ${issue.message}`)
+      .join('; ');
     post({
       type: 'service:response',
       response: {
         id: message.request.id,
         ok: false,
-        error: { code: 'INVALID_REQUEST', message: '后台服务请求校验失败' },
+        error: { code: 'INVALID_REQUEST', message: `后台服务请求校验失败：${detail}` },
       },
     });
     return;
@@ -96,7 +100,9 @@ parentPort.on('message', (event: { data: MainToServiceMessage }) => {
                 ? error.code
                 : error instanceof LicenseError
                   ? error.code
-                  : 'SERVICE_ERROR',
+                  : error instanceof BackupError
+                    ? 'BACKUP_ERROR'
+                    : 'SERVICE_ERROR',
             message: error instanceof Error ? error.message : '未知后台服务错误',
           },
         },

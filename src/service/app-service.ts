@@ -11,8 +11,10 @@ import { generateReviewAiDraft, generateReviewAiDraftStream } from './reviews/re
 import { marketService } from './market/market-service';
 import { watchlistService } from './watchlist/watchlist-service';
 import { createPortfolioService, type PortfolioService } from './portfolio/portfolio-service';
+import { AccountService } from './accounts/account-service';
 import { LicenseService } from './license/license-service';
 import { LicenseError } from '../shared/license/errors';
+import { BackupService } from './backup/backup-service';
 
 const reviewAiDraftParamsSchema = z
   .object({
@@ -51,14 +53,18 @@ export class AppService {
   private readonly images: ImageStore;
   private readonly llmRunner: LlmRunner;
   private readonly portfolioService: PortfolioService;
+  private readonly accountService: AccountService;
   private readonly licenseService: LicenseService;
+  private readonly backupService: BackupService;
 
-  constructor(dataDir: string) {
+  constructor(dataDir: string, appVersion: string) {
     this.database = new AppDatabase(path.join(dataDir, 'database', 'app.sqlite'));
     this.images = new ImageStore(dataDir, this.database);
     this.llmRunner = createLlmRunner(dataDir);
     this.portfolioService = createPortfolioService(this.database);
+    this.accountService = new AccountService(this.database.accounts, this.portfolioService);
     this.licenseService = new LicenseService(dataDir);
+    this.backupService = new BackupService(dataDir, this.database, appVersion);
   }
 
   close(): void {
@@ -188,6 +194,28 @@ export class AppService {
         return this.licenseService.getStatus();
       case 'license.activate':
         return this.licenseService.activate(request.params.code);
+      case 'accounts.list':
+        return this.accountService.list(request.params.includeArchived);
+      case 'accounts.get':
+        return this.accountService.get(request.params.id);
+      case 'accounts.create':
+        return this.accountService.create(request.params);
+      case 'accounts.update':
+        return this.accountService.update(request.params.id, request.params.input);
+      case 'accounts.setDefault':
+        return this.accountService.setDefault(request.params.id);
+      case 'accounts.archive':
+        return this.accountService.archive(request.params.id);
+      case 'accounts.listFeeProfiles':
+        return this.accountService.listFeeProfiles();
+      case 'accounts.estimateFees':
+        return this.accountService.estimateFees(request.params);
+      case 'accounts.estimateFeesForSymbol':
+        return this.accountService.estimateFeesForSymbol(request.params);
+      case 'backup.export':
+        return this.backupService.exportBackup(request.params);
+      case 'backup.import':
+        return this.backupService.importBackup(request.params, () => this.database.close());
     }
   }
 

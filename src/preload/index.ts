@@ -147,6 +147,22 @@ const desktopApi: DesktopApi = {
     getStatus: () => ipcRenderer.invoke(ipcChannels.licenseGetStatus),
     activate: (code) => ipcRenderer.invoke(ipcChannels.licenseActivate, { code }),
   },
+  accounts: {
+    list: (includeArchived) => ipcRenderer.invoke(ipcChannels.accountsList, { includeArchived }),
+    get: (id) => ipcRenderer.invoke(ipcChannels.accountsGet, { id }),
+    create: (input) => ipcRenderer.invoke(ipcChannels.accountsCreate, input),
+    update: (id, input) => ipcRenderer.invoke(ipcChannels.accountsUpdate, { id, input }),
+    setDefault: (id) => ipcRenderer.invoke(ipcChannels.accountsSetDefault, { id }),
+    archive: (id) => ipcRenderer.invoke(ipcChannels.accountsArchive, { id }),
+    listFeeProfiles: () => ipcRenderer.invoke(ipcChannels.accountsListFeeProfiles),
+    estimateFees: (input) => ipcRenderer.invoke(ipcChannels.accountsEstimateFees, input),
+    estimateFeesForSymbol: (input) => ipcRenderer.invoke(ipcChannels.accountsEstimateFeesForSymbol, input),
+  },
+  backup: {
+    export: (options) => ipcRenderer.invoke(ipcChannels.backupExport, options),
+    import: () => ipcRenderer.invoke(ipcChannels.backupImport),
+    relaunchApp: () => ipcRenderer.invoke(ipcChannels.backupRelaunchApp),
+  },
 };
 
 contextBridge.exposeInMainWorld('desktop', desktopApi);

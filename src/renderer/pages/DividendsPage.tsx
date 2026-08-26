@@ -12,86 +12,68 @@ import {
   Tooltip,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { ReloadOutlined, PlusOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { ReloadOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import type {
   DividendCalendarDay,
   PortfolioDividendRecord,
-  PortfolioPositionView,
   PortfolioSummaryView,
 } from '../../shared/api.types';
-import { PortfolioLedgerModal } from '../components/trading/PortfolioLedgerModal';
 import { formatCurrency, formatPrice } from '../lib/trading-format';
+import { AccountSelect } from '../components/trading/AccountSelect';
+import { useTradingAccountId } from '../hooks/useTradingAccountId';
 
-type PortfolioTab = 'overview' | 'positions' | 'calendar' | 'dividends';
-
-const kindLabels: Record<string, string> = {
-  stock: 'A股',
-  etf: 'ETF',
-  lof: 'LOF',
-  otc_fund: '场外',
-};
+type DividendsTab = 'overview' | 'calendar' | 'dividends';
 
 function currentMonth(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-export function PortfolioPage(): React.JSX.Element {
+/**
+ * 股息与分红页面，展示分红统计、点亮墙、日历与明细。
+ */
+export function DividendsPage(): React.JSX.Element {
   const { message } = App.useApp();
-  const [tab, setTab] = useState<PortfolioTab>('overview');
+  const [tab, setTab] = useState<DividendsTab>('overview');
   const [summary, setSummary] = useState<PortfolioSummaryView | null>(null);
-  const [positions, setPositions] = useState<PortfolioPositionView[]>([]);
   const [dividends, setDividends] = useState<PortfolioDividendRecord[]>([]);
   const [calendarDays, setCalendarDays] = useState<DividendCalendarDay[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(currentMonth());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [ledgerOpen, setLedgerOpen] = useState(false);
+  const [accountId, setAccountId] = useTradingAccountId();
 
   const load = useCallback(async (silent = false): Promise<void> => {
+    if (!accountId) return;
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
       const year = new Date().getFullYear();
-      const [nextSummary, nextPositions, nextDividends, nextCalendar] = await Promise.all([
-        window.desktop.portfolio.getSummary(undefined, year),
-        window.desktop.portfolio.listPositions(),
-        window.desktop.portfolio.listDividends(undefined, year),
-        window.desktop.portfolio.getDividendCalendar(undefined, calendarMonth),
+      const [nextSummary, nextDividends, nextCalendar] = await Promise.all([
+        window.desktop.portfolio.getSummary(accountId, year),
+        window.desktop.portfolio.listDividends(accountId, year),
+        window.desktop.portfolio.getDividendCalendar(accountId, calendarMonth),
       ]);
       setSummary(nextSummary);
-      setPositions(nextPositions);
       setDividends(nextDividends);
       setCalendarDays(nextCalendar);
     } catch (reason) {
-      void message.error(reason instanceof Error ? reason.message : '持仓数据读取失败');
+      void message.error(reason instanceof Error ? reason.message : '分红数据读取失败');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [calendarMonth, message]);
+  }, [accountId, calendarMonth, message]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const refreshQuotes = async (): Promise<void> => {
-    setRefreshing(true);
-    try {
-      setPositions(await window.desktop.portfolio.syncMarketQuotes());
-      setSummary(await window.desktop.portfolio.getSummary(undefined, new Date().getFullYear()));
-      void message.success('行情已刷新');
-    } catch (reason) {
-      void message.error(reason instanceof Error ? reason.message : '行情刷新失败');
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   const refreshDividends = async (): Promise<void> => {
+    if (!accountId) return;
     setRefreshing(true);
     try {
-      const result = await window.desktop.portfolio.refreshDividends();
+      const result = await window.desktop.portfolio.refreshDividends(accountId);
       await load(true);
       void message.success(`已同步 ${result.synced} 条分红，其中 ${result.estimated} 条待确认`);
     } catch (reason) {
@@ -102,87 +84,15 @@ export function PortfolioPage(): React.JSX.Element {
   };
 
   const confirmDividend = async (id: string, confirmed: boolean): Promise<void> => {
+    if (!accountId) return;
     try {
       setDividends(await window.desktop.portfolio.confirmDividend(id, confirmed));
-      setSummary(await window.desktop.portfolio.getSummary(undefined, new Date().getFullYear()));
+      setSummary(await window.desktop.portfolio.getSummary(accountId, new Date().getFullYear()));
       void message.success(confirmed ? '分红已确认' : '分红已驳回');
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '操作失败');
     }
   };
-
-  const positionColumns = useMemo<ColumnsType<PortfolioPositionView>>(
-    () => [
-      {
-        title: '标的',
-        key: 'symbol',
-        fixed: 'left',
-        width: 140,
-        render: (_, row) => (
-          <span className="watchlist-symbol-button">
-            <strong>{row.name}</strong>
-            <small>{row.symbol}</small>
-          </span>
-        ),
-      },
-      {
-        title: '类型',
-        dataIndex: 'kind',
-        width: 72,
-        render: (kind: string) => <Tag>{kindLabels[kind] ?? kind}</Tag>,
-      },
-      {
-        title: '份额',
-        dataIndex: 'quantity',
-        width: 96,
-        align: 'right',
-        render: (value: number) => formatPrice(value),
-      },
-      {
-        title: '成本',
-        dataIndex: 'avgCost',
-        width: 88,
-        align: 'right',
-        render: (value: number) => formatPrice(value),
-      },
-      {
-        title: '现价',
-        key: 'price',
-        width: 88,
-        align: 'right',
-        render: (_, row) => (row.marketPrice === null ? '—' : formatPrice(row.marketPrice)),
-      },
-      {
-        title: '市值',
-        key: 'mv',
-        width: 100,
-        align: 'right',
-        render: (_, row) => (row.marketValue === null ? '—' : formatCurrency(row.marketValue)),
-      },
-      {
-        title: '今年分红',
-        dataIndex: 'ytdDividendReceived',
-        width: 100,
-        align: 'right',
-        render: (value: number) => formatCurrency(value),
-      },
-      {
-        title: '预期分红',
-        dataIndex: 'expectedDividend',
-        width: 100,
-        align: 'right',
-        render: (value: number) => formatCurrency(value),
-      },
-      {
-        title: '股息率',
-        key: 'yield',
-        width: 88,
-        align: 'right',
-        render: (_, row) => (row.dividendYieldTtm === null ? '—' : `${row.dividendYieldTtm.toFixed(2)}%`),
-      },
-    ],
-    [],
-  );
 
   const dividendColumns = useMemo<ColumnsType<PortfolioDividendRecord>>(
     () => [
@@ -264,19 +174,18 @@ export function PortfolioPage(): React.JSX.Element {
     <main className="workspace-page portfolio-page">
       <header className="page-header">
         <div>
-          <p className="page-kicker">PORTFOLIO</p>
-          <h1>持仓与股息</h1>
-          <p className="page-intro">记录真实持仓，统计建仓后收到的分红。累计分红仅含已确认记录。</p>
+          <p className="page-kicker">DIVIDENDS</p>
+          <h1>股息与分红</h1>
+          <p className="page-intro">统计建仓后收到的分红，累计分红仅含已确认记录。</p>
         </div>
         <div className="portfolio-header-actions">
-          <Button icon={<ReloadOutlined spin={refreshing} />} loading={refreshing} onClick={() => void refreshQuotes()}>
-            刷新行情
-          </Button>
-          <Button loading={refreshing} onClick={() => void refreshDividends()}>
+          <AccountSelect value={accountId} onChange={setAccountId} className="portfolio-account-select" />
+          <Button
+            icon={<ReloadOutlined spin={refreshing} />}
+            loading={refreshing}
+            onClick={() => void refreshDividends()}
+          >
             同步分红
-          </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setLedgerOpen(true)}>
-            录入流水
           </Button>
         </div>
       </header>
@@ -310,42 +219,45 @@ export function PortfolioPage(): React.JSX.Element {
               <span>按日历天折算</span>
             </article>
             <article className="portfolio-metric-card">
-              <small>持仓市值</small>
-              <strong>{formatCurrency(summary?.totalMarketValue ?? 0)}</strong>
-              <span>成本 {formatCurrency(summary?.totalCost ?? 0)}</span>
+              <small>点亮进度</small>
+              <strong>
+                {summary?.litMilestoneCount ?? 0} / {summary?.milestones.length ?? 0}
+              </strong>
+              <span>分红里程碑</span>
             </article>
           </section>
 
-          <section className="portfolio-milestones">
-            <div className="portfolio-milestones-head">
-              <h2>分红点亮墙</h2>
-              <span>
-                已点亮 {summary?.litMilestoneCount ?? 0} / {summary?.milestones.length ?? 0}
-              </span>
-            </div>
-            <div className="portfolio-milestone-grid">
-              {(summary?.milestones ?? []).map((milestone) => (
-                <Tooltip key={milestone.id} title={milestone.caption}>
-                  <article className={milestone.lit ? 'portfolio-milestone lit' : 'portfolio-milestone'}>
-                    <span className="portfolio-milestone-emoji">{milestone.emoji}</span>
-                    <strong>{milestone.name}</strong>
-                    <small>¥{milestone.threshold.toLocaleString('zh-CN')}</small>
-                    {!milestone.lit ? (
-                      <div className="portfolio-milestone-progress">
-                        <i style={{ width: `${Math.round(milestone.progress * 100)}%` }} />
-                      </div>
-                    ) : null}
-                  </article>
-                </Tooltip>
-              ))}
-            </div>
-          </section>
+          {tab === 'overview' ? (
+            <section className="portfolio-milestones">
+              <div className="portfolio-milestones-head">
+                <h2>分红点亮墙</h2>
+                <span>
+                  已点亮 {summary?.litMilestoneCount ?? 0} / {summary?.milestones.length ?? 0}
+                </span>
+              </div>
+              <div className="portfolio-milestone-grid">
+                {(summary?.milestones ?? []).map((milestone) => (
+                  <Tooltip key={milestone.id} title={milestone.caption}>
+                    <article className={milestone.lit ? 'portfolio-milestone lit' : 'portfolio-milestone'}>
+                      <span className="portfolio-milestone-emoji">{milestone.emoji}</span>
+                      <strong>{milestone.name}</strong>
+                      <small>¥{milestone.threshold.toLocaleString('zh-CN')}</small>
+                      {!milestone.lit ? (
+                        <div className="portfolio-milestone-progress">
+                          <i style={{ width: `${Math.round(milestone.progress * 100)}%` }} />
+                        </div>
+                      ) : null}
+                    </article>
+                  </Tooltip>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           <div className="page-toolbar">
-            <Segmented<PortfolioTab>
+            <Segmented<DividendsTab>
               options={[
                 { label: '总览', value: 'overview' },
-                { label: `持仓 ${positions.length}`, value: 'positions' },
                 { label: '分红日历', value: 'calendar' },
                 { label: `分红明细${pendingCount > 0 ? ` (${pendingCount})` : ''}`, value: 'dividends' },
               ]}
@@ -354,42 +266,22 @@ export function PortfolioPage(): React.JSX.Element {
             />
           </div>
 
-          {tab === 'overview' ? (
-            <div className="portfolio-overview">
-              {positions.length === 0 ? (
-                <Empty description="还没有持仓，录入第一笔买入流水开始跟踪股息">
-                  <Button type="primary" onClick={() => setLedgerOpen(true)}>
-                    录入买入
-                  </Button>
-                </Empty>
-              ) : (
-                <Table<PortfolioPositionView>
-                  className="watchlist-table"
-                  columns={positionColumns}
-                  dataSource={positions.slice(0, 8)}
-                  pagination={false}
-                  rowKey="symbol"
-                  size="small"
-                  scroll={{ x: 960 }}
-                />
-              )}
-            </div>
+          {tab === 'overview' && dividends.length > 0 ? (
+            <Table<PortfolioDividendRecord>
+              className="watchlist-table"
+              columns={dividendColumns}
+              dataSource={dividends.slice(0, 8)}
+              pagination={false}
+              rowKey="id"
+              size="small"
+              scroll={{ x: 900 }}
+            />
           ) : null}
 
-          {tab === 'positions' ? (
-            positions.length === 0 ? (
-              <Empty description="暂无持仓" />
-            ) : (
-              <Table<PortfolioPositionView>
-                className="watchlist-table"
-                columns={positionColumns}
-                dataSource={positions}
-                pagination={false}
-                rowKey="symbol"
-                size="small"
-                scroll={{ x: 960 }}
-              />
-            )
+          {tab === 'overview' && dividends.length === 0 ? (
+            <Empty description="今年还没有分红记录，可先同步分红或录入持仓">
+              <Button onClick={() => void refreshDividends()}>同步分红</Button>
+            </Empty>
           ) : null}
 
           {tab === 'calendar' ? (
@@ -399,7 +291,8 @@ export function PortfolioPage(): React.JSX.Element {
                 onPanelChange={(value) => {
                   const month = `${value.year()}-${String(value.month() + 1).padStart(2, '0')}`;
                   setCalendarMonth(month);
-                  void window.desktop.portfolio.getDividendCalendar(undefined, month).then(setCalendarDays);
+                  if (!accountId) return;
+                  void window.desktop.portfolio.getDividendCalendar(accountId, month).then(setCalendarDays);
                 }}
                 cellRender={(current, info) => {
                   if (info.type !== 'date') return info.originNode;
@@ -442,12 +335,6 @@ export function PortfolioPage(): React.JSX.Element {
           ) : null}
         </>
       )}
-
-      <PortfolioLedgerModal
-        open={ledgerOpen}
-        onClose={() => setLedgerOpen(false)}
-        onSaved={() => void load(true)}
-      />
     </main>
   );
 }
