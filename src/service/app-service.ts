@@ -2,15 +2,19 @@ import path from 'node:path';
 import type { ServiceRequest } from '../shared/service.types';
 import { ImageStore } from './assets/image-store';
 import { AppDatabase } from './database/database';
+import { createLlmRunner, type LlmRunner } from './llm/llm-runner';
+import { generateReviewAiDraft } from './reviews/review-ai-service';
 
 export class AppService {
   private readonly startedAt = new Date().toISOString();
   private readonly database: AppDatabase;
   private readonly images: ImageStore;
+  private readonly llmRunner: LlmRunner;
 
   constructor(dataDir: string) {
     this.database = new AppDatabase(path.join(dataDir, 'database', 'app.sqlite'));
     this.images = new ImageStore(dataDir, this.database);
+    this.llmRunner = createLlmRunner(dataDir);
   }
 
   close(): void {
@@ -55,6 +59,20 @@ export class AppService {
         return this.database.listTradeReviews();
       case 'reviews.create':
         return this.database.createTradeReview(request.params);
+      case 'reviews.generateAiDraft':
+        return generateReviewAiDraft(this.database, this.llmRunner, request.params);
+      case 'settings.saveLlmApiKey': {
+        const store = this.llmRunner.getCredentialStore();
+        if (!store) throw new Error('凭据存储不可用');
+        store.saveApiKey(request.params.apiKey);
+        return { configured: true };
+      }
+      case 'settings.getLlmStatus': {
+        const store = this.llmRunner.getCredentialStore();
+        return { configured: Boolean(store?.hasConfiguredKey()) };
+      }
+      case 'settings.testLlmConnection':
+        return this.llmRunner.testConnection();
     }
   }
 }

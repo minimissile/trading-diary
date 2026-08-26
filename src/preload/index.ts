@@ -27,6 +27,12 @@ const desktopApi: DesktopApi = {
   reviews: {
     list: () => ipcRenderer.invoke(ipcChannels.listReviews),
     create: (input) => ipcRenderer.invoke(ipcChannels.createReview, input),
+    generateAiDraft: (input) => ipcRenderer.invoke(ipcChannels.generateReviewAiDraft, input),
+  },
+  settings: {
+    getLlmStatus: () => ipcRenderer.invoke(ipcChannels.getLlmStatus),
+    saveLlmApiKey: (apiKey) => ipcRenderer.invoke(ipcChannels.saveLlmApiKey, { apiKey }),
+    testLlmConnection: () => ipcRenderer.invoke(ipcChannels.testLlmConnection),
   },
   updater: {
     getState: () => ipcRenderer.invoke(ipcChannels.getUpdateState),

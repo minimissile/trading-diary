@@ -146,6 +146,37 @@ export interface UpdateState {
   message: string | null;
 }
 
+export interface ReviewAiDraftInput {
+  planId: string | null;
+  symbol: string;
+  title: string;
+  direction: TradeDirection;
+  planned: boolean;
+  entryPrice: number;
+  exitPrice: number;
+  quantity: number;
+  fees: number;
+  executionScore: number;
+  partialSummary?: string;
+  partialLesson?: string;
+}
+
+export interface ReviewAiDraftResult {
+  summary: string;
+  lesson: string;
+  citations: string[];
+}
+
+export interface LlmStatusResult {
+  configured: boolean;
+}
+
+export interface LlmConnectionTestResult {
+  ok: boolean;
+  model: string;
+  latencyMs: number;
+}
+
 export interface DesktopApi {
   system: {
     health: () => Promise<HealthResult>;
@@ -171,6 +202,12 @@ export interface DesktopApi {
   reviews: {
     list: () => Promise<TradeReview[]>;
     create: (input: CreateTradeReviewInput) => Promise<TradeReview>;
+    generateAiDraft: (input: ReviewAiDraftInput) => Promise<ReviewAiDraftResult>;
+  };
+  settings: {
+    getLlmStatus: () => Promise<LlmStatusResult>;
+    saveLlmApiKey: (apiKey: string) => Promise<LlmStatusResult>;
+    testLlmConnection: () => Promise<LlmConnectionTestResult>;
   };
   updater: {
     getState: () => Promise<UpdateState>;

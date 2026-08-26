@@ -18,6 +18,7 @@ import {
 import { useLocation, useNavigate } from 'react-router';
 import type { CreateTradeReviewInput, TradeDirection, TradeReview, TradingPlan } from '../../shared/api.types';
 import { directionLabels, formatCurrency, formatDateTime, formatPrice } from '../lib/trading-format';
+import { useReviewAiDraft } from '../hooks/useReviewAiDraft';
 import { routePaths } from '../router/paths';
 
 interface JournalLocationState {
@@ -212,8 +213,11 @@ interface NewReviewDialogProps {
 }
 
 function NewReviewDialog({ open, plans, initialPlanId, onClose, onSaved }: NewReviewDialogProps): React.JSX.Element {
+  const { message } = App.useApp();
+  const navigate = useNavigate();
   const [form] = Form.useForm<ReviewFormValues>();
   const [saving, setSaving] = useState(false);
+  const { loading: aiLoading, error: aiError, notConfigured, generateDraft, resetError } = useReviewAiDraft();
   const entryPrice = Form.useWatch('entryPrice', form);
   const exitPrice = Form.useWatch('exitPrice', form);
   const quantity = Form.useWatch('quantity', form);
@@ -225,7 +229,10 @@ function NewReviewDialog({ open, plans, initialPlanId, onClose, onSaved }: NewRe
       : null;
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      resetError();
+      return;
+    }
     const plan = plans.find((item) => item.id === initialPlanId);
     form.setFieldsValue(
       plan
@@ -241,7 +248,50 @@ function NewReviewDialog({ open, plans, initialPlanId, onClose, onSaved }: NewRe
           }
         : { direction: 'long', planned: false, fees: 0, executionScore: 3 },
     );
-  }, [form, initialPlanId, open, plans]);
+  }, [form, initialPlanId, open, plans, resetError]);
+
+  const generateAiDraft = async (): Promise<void> => {
+    const values = await form.validateFields([
+      'planId',
+      'symbol',
+      'title',
+      'direction',
+      'planned',
+      'entryPrice',
+      'exitPrice',
+      'quantity',
+      'fees',
+      'executionScore',
+    ]);
+
+    const draft = await generateDraft({
+      planId: values.planId ?? null,
+      symbol: values.symbol.trim().toUpperCase(),
+      title: values.title.trim(),
+      direction: values.direction,
+      planned: values.planned,
+      entryPrice: values.entryPrice,
+      exitPrice: values.exitPrice,
+      quantity: values.quantity,
+      fees: values.fees,
+      executionScore: values.executionScore,
+      partialSummary: form.getFieldValue('summary') as string | undefined,
+      partialLesson: form.getFieldValue('lesson') as string | undefined,
+    });
+
+    if (!draft) {
+      if (notConfigured) {
+        void message.warning('请先在设置中配置 OpenRouter API Key');
+        void navigate(routePaths.settings);
+      } else if (aiError) {
+        void message.error(aiError);
+      }
+      return;
+    }
+
+    form.setFieldsValue({ summary: draft.summary, lesson: draft.lesson });
+    void message.success('AI 草稿已生成，请核对后保存');
+  };
 
   const choosePlan = (planId: string | undefined): void => {
     const plan = plans.find((item) => item.id === planId);
@@ -287,13 +337,16 @@ function NewReviewDialog({ open, plans, initialPlanId, onClose, onSaved }: NewRe
       footer={
         <Space>
           <Button onClick={onClose}>取消</Button>
+          <Button loading={aiLoading} onClick={() => void generateAiDraft()}>
+            AI 生成草稿
+          </Button>
           <Button type="primary" loading={saving} onClick={() => void save()}>
             完成复盘
           </Button>
         </Space>
       }
     >
-      <p className="dialog-intro">盈亏是结果，纪律评分只评价你是否按规则执行。</p>
+      <p className="dialog-intro">盈亏是结果，纪律评分只评价你是否按规则执行。AI 草稿仅归纳已有记录，不会给出买卖建议。</p>
       <Form<ReviewFormValues> form={form} layout="vertical" preserve={false}>
         <Form.Item label="关联已结束计划（可选）" name="planId">
           <Select

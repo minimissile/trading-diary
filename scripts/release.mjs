@@ -18,6 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
+import { generateReleaseNotesWithLlm, generateReleasePlanWithLlm } from './llm-release.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -26,14 +27,6 @@ const CHANGELOG = path.join(ROOT, 'CHANGELOG.md');
 const RELEASE_NOTES = path.join(ROOT, 'release-notes.md');
 const ENV_FILE = path.join(ROOT, 'electron-builder.env');
 const DEFAULT_OPENROUTER_MODEL = '~deepseek/deepseek-v4-flash-latest';
-const OPENROUTER_MODEL_FALLBACKS = [
-  '~deepseek/deepseek-v4-flash-latest',
-  'deepseek/deepseek-v4-flash-0731',
-  'qwen/qwen-plus',
-  'qwen/qwen3-32b',
-  'deepseek/deepseek-chat-v3-0324',
-];
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 const COMMIT_GROUPS = {
   feat: '新功能',
@@ -312,90 +305,6 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function resolveModelCandidates() {
-  const preferred = process.env.OPENROUTER_MODEL?.trim();
-  const candidates = preferred
-    ? [preferred, ...OPENROUTER_MODEL_FALLBACKS.filter((model) => model !== preferred)]
-    : [...OPENROUTER_MODEL_FALLBACKS];
-  return candidates;
-}
-
-function isRetryableOpenRouterError(status, detail) {
-  if (status === 429) return true;
-  if (status !== 403) return false;
-  return /not available in your region|region|country|blocked/i.test(detail);
-}
-
-function isJsonModeError(status, detail) {
-  return status === 400 || status === 422 || /response_format|json_object|structured output/i.test(detail);
-}
-
-async function callOpenRouter({ system, user, json = false }) {
-  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
-  if (!apiKey) {
-    throw new Error('需要在 electron-builder.env 中配置 OPENROUTER_API_KEY');
-  }
-
-  const models = resolveModelCandidates();
-  let lastError = null;
-
-  for (const model of models) {
-    const jsonModes = json ? [true, false] : [false];
-
-    for (const useJson of jsonModes) {
-      const body = {
-        model,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-        temperature: 0.2,
-      };
-
-      if (useJson) body.response_format = { type: 'json_object' };
-
-      const response = await fetch(OPENROUTER_API_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://github.com/minimissile/trading-diary',
-          'X-Title': 'Trading Diary Release',
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (response.ok) {
-        if (model !== models[0] || (json && !useJson)) {
-          console.log(`OpenRouter 已切换至可用配置：${model}${useJson ? '' : '（非 JSON 模式）'}`);
-        }
-
-        const payload = await response.json();
-        const content = payload.choices?.[0]?.message?.content?.trim();
-        if (!content) throw new Error('OpenRouter 返回空内容');
-        return content;
-      }
-
-      const detail = await response.text();
-      lastError = new Error(`OpenRouter 请求失败 (${response.status}, ${model})：${detail}`);
-
-      if (useJson && isJsonModeError(response.status, detail)) {
-        console.warn(`模型 ${model} 不支持 JSON 模式，改用普通模式…`);
-        continue;
-      }
-
-      if (isRetryableOpenRouterError(response.status, detail)) {
-        console.warn(`模型 ${model} 不可用，尝试下一个…`);
-        break;
-      }
-
-      throw lastError;
-    }
-  }
-
-  throw lastError ?? new Error('OpenRouter 无可用模型');
-}
-
 async function pushWithRetry(label, command, attempts = 3) {
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
@@ -410,52 +319,8 @@ async function pushWithRetry(label, command, attempts = 3) {
 }
 
 async function generateReleasePlanWithAi(currentVersion, lastTag, commits) {
-  const date = new Date().toISOString().slice(0, 10);
-  const commitList = commits.length
-    ? commits.map((subject) => `- ${subject}`).join('\n')
-    : '- （无新提交，建议 patch 维护性发布）';
-
   console.log('调用 OpenRouter 推断版本号并生成更新说明…');
-
-  const system = `你是「交易日记」桌面应用发布助手。根据 Git 提交（Conventional Commits）决定 SemVer 递增类型，并撰写面向最终用户的简体中文更新说明。
-
-SemVer 规则（取所有提交中的最高级别）：
-- breaking change（提交含 ! 或 BREAKING CHANGE）→ major
-- feat 新功能 → minor
-- fix / docs / chore / refactor / style / perf 等 → patch
-
-只输出 JSON，不要 markdown 代码块，格式：
-{
-  "bump": "patch",
-  "bumpReason": "一句话说明选择此递增的理由",
-  "releaseNotes": "Markdown 更新说明正文"
-}
-
-releaseNotes 要求：
-- 第一行必须是 ## NEXT_VERSION (${date})，版本号用字面量 NEXT_VERSION
-- 按「新功能」「修复」「改进」「其他」分组，空组省略
-- 每条以 - 开头，面向用户，合并琐碎提交`;
-
-  const user = `当前版本：${currentVersion}
-上一 tag：${lastTag ?? '无（首次发布）'}
-
-Git 提交：
-${commitList}`;
-
-  const raw = await callOpenRouter({ system, user, json: true });
-  const jsonText = raw
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```$/i, '')
-    .trim();
-  const parsed = JSON.parse(jsonText);
-
-  if (!['patch', 'minor', 'major'].includes(parsed.bump)) {
-    throw new Error(`AI 返回无效 bump：${parsed.bump}`);
-  }
-  if (!parsed.releaseNotes?.trim()) {
-    throw new Error('AI 未返回 releaseNotes');
-  }
-
+  const parsed = await generateReleasePlanWithLlm(currentVersion, lastTag, commits);
   const nextVersion = bumpVersion(currentVersion, parsed.bump);
   const notes = ensureNotesHeader(parsed.releaseNotes.replaceAll('NEXT_VERSION', nextVersion), nextVersion);
 
@@ -544,40 +409,10 @@ async function resolveReleaseNotes(args, version, lastTag, commits, dryRun) {
   }
 }
 
-function buildAiPrompt(version, lastTag, commits) {
-  const date = new Date().toISOString().slice(0, 10);
-  const commitList = commits.length ? commits.map((subject) => `- ${subject}`).join('\n') : '- （无新提交，仅为维护性发布）';
-
-  return {
-    system: `你是「交易日记」桌面应用的发布说明撰写助手。根据 Git 提交记录，生成面向最终用户的简体中文更新说明。
-
-要求：
-- 使用 Markdown，第一行必须是 ## ${version} (${date})
-- 按「新功能」「修复」「改进」「其他」分组，空组省略
-- 每条以 - 开头，语气简洁，面向用户而非开发者
-- 合并重复或琐碎提交，不要逐条翻译 commit message
-- 保留重要的破坏性变更提示
-- 只输出 Markdown 正文，不要代码块或额外解释`,
-    user: `版本：${version}
-上一版本 tag：${lastTag ?? '首次发布'}
-
-Git 提交：
-${commitList}`,
-  };
-}
-
 async function generateReleaseNotesWithAi(version, lastTag, commits) {
   const model = process.env.OPENROUTER_MODEL?.trim() || DEFAULT_OPENROUTER_MODEL;
-  const prompt = buildAiPrompt(version, lastTag, commits);
-
   console.log(`调用 OpenRouter（${model}）生成更新说明…`);
-
-  const content = await callOpenRouter({
-    system: prompt.system,
-    user: prompt.user,
-  });
-
-  return content.endsWith('\n') ? content : `${content}\n`;
+  return generateReleaseNotesWithLlm(version, lastTag, commits);
 }
 
 function prependChangelog(section) {

@@ -32,6 +32,23 @@ const createAlertParamsSchema = z
   })
   .strict();
 
+const reviewAiDraftParamsSchema = z
+  .object({
+    planId: z.uuid().nullable(),
+    symbol: symbolSchema,
+    title: z.string().trim().min(1).max(120),
+    direction: directionSchema,
+    planned: z.boolean(),
+    entryPrice: positiveNumberSchema,
+    exitPrice: positiveNumberSchema,
+    quantity: positiveNumberSchema,
+    fees: nonNegativeNumberSchema,
+    executionScore: z.number().int().min(1).max(5),
+    partialSummary: z.string().trim().max(2_000).optional(),
+    partialLesson: z.string().trim().max(2_000).optional(),
+  })
+  .strict();
+
 const createReviewParamsSchema = z
   .object({
     planId: z.uuid().nullable(),
@@ -122,5 +139,25 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
     id: z.uuid(),
     method: z.literal('reviews.create'),
     params: createReviewParamsSchema,
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('reviews.generateAiDraft'),
+    params: reviewAiDraftParamsSchema,
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('settings.saveLlmApiKey'),
+    params: z.object({ apiKey: z.string().trim().min(1) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('settings.getLlmStatus'),
+    params: z.object({}).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('settings.testLlmConnection'),
+    params: z.object({}).strict(),
   }),
 ]);

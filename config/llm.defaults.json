@@ -1,0 +1,6 @@
+{
+  "defaultModel": "~deepseek/deepseek-v4-flash-latest",
+  "fallbackModels": ["deepseek/deepseek-v4-flash-0731", "qwen/qwen-plus", "qwen/qwen3-32b"],
+  "timeoutMs": 60000,
+  "maxRetries": 2
+}

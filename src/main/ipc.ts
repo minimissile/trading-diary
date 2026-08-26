@@ -3,6 +3,7 @@ import type {
   CreateTradeAlertInput,
   CreateTradeReviewInput,
   CreateTradingPlanInput,
+  ReviewAiDraftInput,
   TradeAlertStatus,
   TradingPlanStatus,
 } from '../shared/api.types';
@@ -111,6 +112,26 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     return service.request('reviews.create', input);
   });
 
+  ipcMain.handle(ipcChannels.generateReviewAiDraft, (event, input: ReviewAiDraftInput) => {
+    assertTrustedSender(event, window);
+    return service.request('reviews.generateAiDraft', input);
+  });
+
+  ipcMain.handle(ipcChannels.getLlmStatus, (event) => {
+    assertTrustedSender(event, window);
+    return service.request('settings.getLlmStatus', {});
+  });
+
+  ipcMain.handle(ipcChannels.saveLlmApiKey, (event, input: { apiKey: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('settings.saveLlmApiKey', input);
+  });
+
+  ipcMain.handle(ipcChannels.testLlmConnection, (event) => {
+    assertTrustedSender(event, window);
+    return service.request('settings.testLlmConnection', {});
+  });
+
   ipcMain.handle(ipcChannels.getUpdateState, (event) => {
     assertTrustedSender(event, window);
     return updater.getState();
@@ -155,6 +176,10 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     ipcMain.removeHandler(ipcChannels.evaluateAlertPrice);
     ipcMain.removeHandler(ipcChannels.listReviews);
     ipcMain.removeHandler(ipcChannels.createReview);
+    ipcMain.removeHandler(ipcChannels.generateReviewAiDraft);
+    ipcMain.removeHandler(ipcChannels.getLlmStatus);
+    ipcMain.removeHandler(ipcChannels.saveLlmApiKey);
+    ipcMain.removeHandler(ipcChannels.testLlmConnection);
     ipcMain.removeHandler(ipcChannels.getUpdateState);
     ipcMain.removeHandler(ipcChannels.checkForUpdates);
     ipcMain.removeHandler(ipcChannels.downloadUpdate);

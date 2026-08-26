@@ -1,5 +1,21 @@
 import react from '@vitejs/plugin-react';
+import { cpSync, mkdirSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { defineConfig } from 'electron-vite';
+import type { Plugin } from 'vite';
+
+function copyServiceAssetsPlugin(): Plugin {
+  return {
+    name: 'copy-service-assets',
+    closeBundle() {
+      const serviceOut = resolve('out/service');
+      mkdirSync(resolve(serviceOut, 'prompts'), { recursive: true });
+      mkdirSync(resolve(serviceOut, 'config'), { recursive: true });
+      cpSync(resolve('src/prompts'), resolve(serviceOut, 'prompts'), { recursive: true });
+      cpSync(resolve('config/llm.defaults.json'), resolve(serviceOut, 'config/llm.defaults.json'));
+    },
+  };
+}
 
 export default defineConfig({
   main: {
@@ -10,6 +26,7 @@ export default defineConfig({
         external: ['electron-updater', 'sharp'],
       },
     },
+    plugins: [copyServiceAssetsPlugin()],
   },
   preload: {
     build: {

@@ -5,7 +5,11 @@ import type {
   CreateTradingPlanInput,
   HealthResult,
   ImportedAsset,
+  LlmConnectionTestResult,
+  LlmStatusResult,
   QuoteEvaluationResult,
+  ReviewAiDraftInput,
+  ReviewAiDraftResult,
   TradeAlert,
   TradeAlertStatus,
   TradeReview,
@@ -70,6 +74,22 @@ export interface ServiceContract {
   'reviews.create': {
     params: CreateTradeReviewInput;
     result: TradeReview;
+  };
+  'reviews.generateAiDraft': {
+    params: ReviewAiDraftInput;
+    result: ReviewAiDraftResult;
+  };
+  'settings.saveLlmApiKey': {
+    params: { apiKey: string };
+    result: LlmStatusResult;
+  };
+  'settings.getLlmStatus': {
+    params: Record<string, never>;
+    result: LlmStatusResult;
+  };
+  'settings.testLlmConnection': {
+    params: Record<string, never>;
+    result: LlmConnectionTestResult;
   };
 }
 
