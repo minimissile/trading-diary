@@ -6,7 +6,11 @@ import type {
   HealthResult,
   ImportedAsset,
   LlmConnectionTestResult,
+  LlmDebugRunResult,
+  LlmPromptPreview,
   LlmStatusResult,
+  LlmUsageSummary,
+  LlmUserSettings,
   QuoteEvaluationResult,
   ReviewAiDraftInput,
   ReviewAiDraftResult,
@@ -17,6 +21,7 @@ import type {
   TradingPlanStatus,
   WorkspaceSnapshot,
 } from './api.types';
+import type { PromptId } from './llm/prompt-id';
 
 export interface ServiceContract {
   'system.health': {
@@ -91,7 +96,40 @@ export interface ServiceContract {
     params: Record<string, never>;
     result: LlmConnectionTestResult;
   };
+  'settings.getLlmUsage': {
+    params: Record<string, never>;
+    result: LlmUsageSummary;
+  };
+  'settings.getLlmSettings': {
+    params: Record<string, never>;
+    result: LlmUserSettings;
+  };
+  'settings.saveLlmSettings': {
+    params: LlmUserSettings;
+    result: LlmUserSettings;
+  };
+  'llm.previewPrompt': {
+    params: { promptId: PromptId; variables: Record<string, string> };
+    result: LlmPromptPreview;
+  };
 }
+
+export type ServiceStreamMethod = 'reviews.generateAiDraftStream' | 'llm.debugRunStream';
+
+export type ServiceStreamParams = {
+  'reviews.generateAiDraftStream': ReviewAiDraftInput;
+  'llm.debugRunStream': { promptId: PromptId; variables: Record<string, string> };
+};
+
+export type ServiceStreamResult = {
+  'reviews.generateAiDraftStream': ReviewAiDraftResult;
+  'llm.debugRunStream': LlmDebugRunResult;
+};
+
+export type ServiceStreamChunk = { type: 'chunk'; delta: string };
+export type ServiceStreamDone = { type: 'done'; result: unknown };
+export type ServiceStreamError = { type: 'error'; code: string; message: string };
+export type ServiceStreamEvent = ServiceStreamChunk | ServiceStreamDone | ServiceStreamError;
 
 export type ServiceMethod = keyof ServiceContract;
 
@@ -107,9 +145,14 @@ export type ServiceResponse =
   { id: string; ok: true; data: unknown } | { id: string; ok: false; error: { code: string; message: string } };
 
 export type MainToServiceMessage =
-  { type: 'service:init'; dataDir: string } | { type: 'service:request'; request: ServiceRequest } | { type: 'service:shutdown' };
+  | { type: 'service:init'; dataDir: string }
+  | { type: 'service:request'; request: ServiceRequest }
+  | { type: 'service:stream-request'; streamId: string; method: ServiceStreamMethod; params: unknown }
+  | { type: 'service:stream-cancel'; streamId: string }
+  | { type: 'service:shutdown' };
 
 export type ServiceToMainMessage =
   | { type: 'service:ready' }
   | { type: 'service:response'; response: ServiceResponse }
+  | { type: 'service:stream-event'; streamId: string; event: ServiceStreamEvent }
   | { type: 'service:fatal'; message: string };

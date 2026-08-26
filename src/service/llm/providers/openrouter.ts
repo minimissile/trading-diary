@@ -1,7 +1,7 @@
 import { PROMPT_IDS } from '../../../shared/llm/prompt-id';
 import { LlmProviderError } from '../../../shared/llm/errors';
 import type { LlmCompletionOptions, LlmCompletionResult, LlmMessage } from '../../../shared/llm/types';
-import type { LlmProvider } from './provider';
+import type { LlmProvider, LlmStreamHandlers } from './provider';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
@@ -125,6 +125,130 @@ export class OpenRouterProvider implements LlmProvider {
         } finally {
           clearTimeout(timer);
         }
+      }
+    }
+
+    throw lastError ?? new LlmProviderError('OpenRouter 无可用模型');
+  }
+
+  async completeStream(
+    messages: LlmMessage[],
+    options: LlmCompletionOptions,
+    handlers: LlmStreamHandlers,
+  ): Promise<LlmCompletionResult> {
+    const apiKey = this.getApiKey();
+    if (!apiKey) throw new LlmProviderError('OpenRouter API Key 未配置');
+
+    const preferred = options.model ?? this.defaultModel;
+    const models = [preferred, ...(options.fallbackModels ?? this.fallbackModels).filter((model) => model !== preferred)];
+    const startedAt = Date.now();
+    let lastError: Error | null = null;
+
+    for (const model of models) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? this.timeoutMs);
+      const abortListener = (): void => controller.abort();
+      handlers.signal?.addEventListener('abort', abortListener);
+
+      try {
+        const body: Record<string, unknown> = {
+          model,
+          messages,
+          stream: true,
+          temperature: options.temperature ?? 0.2,
+          stream_options: { include_usage: true },
+        };
+        if (options.maxTokens) body.max_tokens = options.maxTokens;
+
+        const response = await fetch(OPENROUTER_API_URL, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': options.referer ?? this.referer,
+            'X-Title': options.title ?? this.title,
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const detail = await response.text();
+          lastError = new LlmProviderError(`OpenRouter 请求失败 (${response.status}, ${model})：${detail}`, response.status);
+          if (isRetryableError(response.status, detail)) break;
+          throw lastError;
+        }
+
+        if (!response.body) throw new LlmProviderError('OpenRouter 流式响应为空');
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let content = '';
+        let resolvedModel = model;
+        let usage: LlmCompletionResult['usage'];
+
+        while (true) {
+          if (handlers.signal?.aborted) throw new LlmProviderError('流式请求已取消');
+          const readResult = await reader.read();
+          if (readResult.done) break;
+          if (!readResult.value) continue;
+
+          buffer += decoder.decode(new Uint8Array(readResult.value), { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data:')) continue;
+            const payload = trimmed.slice(5).trim();
+            if (!payload || payload === '[DONE]') continue;
+
+            const parsed = JSON.parse(payload) as {
+              model?: string;
+              choices?: Array<{ delta?: { content?: string } }>;
+              usage?: { prompt_tokens?: number; completion_tokens?: number };
+            };
+
+            if (parsed.model) resolvedModel = parsed.model;
+            if (parsed.usage?.prompt_tokens !== undefined) {
+              usage = {
+                inputTokens: parsed.usage.prompt_tokens,
+                outputTokens: parsed.usage.completion_tokens ?? 0,
+              };
+            }
+
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              content += delta;
+              handlers.onChunk(delta);
+            }
+          }
+        }
+
+        if (!content.trim()) throw new LlmProviderError('OpenRouter 流式返回空内容');
+
+        return {
+          content: content.trim(),
+          promptId: options.promptId ?? PROMPT_IDS.RELEASE_NOTES,
+          promptVersion: options.promptVersion ?? 0,
+          model: resolvedModel,
+          usage,
+          latencyMs: Date.now() - startedAt,
+        };
+      } catch (error) {
+        if (error instanceof LlmProviderError) {
+          lastError = error;
+          if (error.status && isRetryableError(error.status, error.message)) break;
+          throw error;
+        }
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw new LlmProviderError(handlers.signal?.aborted ? '流式请求已取消' : 'OpenRouter 请求超时');
+        }
+        throw error;
+      } finally {
+        clearTimeout(timer);
+        handlers.signal?.removeEventListener('abort', abortListener);
       }
     }
 

@@ -58,11 +58,11 @@ function parseReviewOutput(raw: string): { summary: string; lesson: string } {
   }
 }
 
-export async function generateReviewAiDraft(
-  database: AppDatabase,
-  llmRunner: LlmRunner,
-  input: ReviewAiDraftInput,
-): Promise<ReviewAiDraftResult> {
+function buildReviewRenderVars(database: AppDatabase, input: ReviewAiDraftInput): {
+  renderVars: Record<string, string>;
+  plan: TradingPlan | null;
+  variables: ReturnType<typeof reviewSummarizeVariablesSchema.parse>;
+} {
   const plan = input.planId ? (database.listTradingPlans().find((item) => item.id === input.planId) ?? null) : null;
   const pnl = (input.exitPrice - input.entryPrice) * input.quantity * (input.direction === 'short' ? -1 : 1) - input.fees;
 
@@ -89,20 +89,45 @@ export async function generateReviewAiDraft(
     partialAnswers: buildPartialAnswers(input),
   };
 
-  const result = await llmRunner.run(PROMPT_IDS.REVIEW_SUMMARIZE, renderVars);
+  return { renderVars, plan, variables };
+}
 
+function finalizeReviewDraft(
+  content: string,
+  variables: ReturnType<typeof reviewSummarizeVariablesSchema.parse>,
+  plan: TradingPlan | null,
+): ReviewAiDraftResult {
   try {
-    assertOutputPolicy(result.content);
+    assertOutputPolicy(content);
   } catch (error) {
     throw new LlmPolicyViolationError(error instanceof Error ? error.message : 'AI 输出未通过合规检查');
   }
 
-  const parsed = parseReviewOutput(result.content);
-  const citations = [variables.symbol, ...(plan ? [plan.id] : [])];
-
+  const parsed = parseReviewOutput(content);
   return {
     summary: parsed.summary,
     lesson: parsed.lesson,
-    citations,
+    citations: [variables.symbol, ...(plan ? [plan.id] : [])],
   };
+}
+
+export async function generateReviewAiDraft(
+  database: AppDatabase,
+  llmRunner: LlmRunner,
+  input: ReviewAiDraftInput,
+): Promise<ReviewAiDraftResult> {
+  const { renderVars, plan, variables } = buildReviewRenderVars(database, input);
+  const result = await llmRunner.run(PROMPT_IDS.REVIEW_SUMMARIZE, renderVars);
+  return finalizeReviewDraft(result.content, variables, plan);
+}
+
+export async function generateReviewAiDraftStream(
+  database: AppDatabase,
+  llmRunner: LlmRunner,
+  input: ReviewAiDraftInput,
+  handlers: { onChunk: (delta: string) => void; streamId: string },
+): Promise<ReviewAiDraftResult> {
+  const { renderVars, plan, variables } = buildReviewRenderVars(database, input);
+  const result = await llmRunner.runStream(PROMPT_IDS.REVIEW_SUMMARIZE, renderVars, handlers.onChunk, handlers.streamId);
+  return finalizeReviewDraft(result.content, variables, plan);
 }

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { App, Button, Descriptions, Input, Space, Tag } from 'antd';
-import type { AssetStats, HealthResult, ImportedAsset, UpdateState } from '../../shared/api.types';
+import { App, Button, Descriptions, Input, InputNumber, Space, Switch, Tag } from 'antd';
+import { Link } from 'react-router';
+import type { AssetStats, HealthResult, ImportedAsset, LlmUsageSummary, LlmUserSettings, UpdateState } from '../../shared/api.types';
 import { AssetWorkspace } from '../components/AssetWorkspace';
 import { UpdaterPanel } from '../components/UpdaterPanel';
 import { aiClient } from '../lib/ai/ai-client';
 import { getLlmErrorMessage } from '../lib/ai/llm-errors';
+import { routePaths } from '../router/paths';
 
 export function SettingsPage(): React.JSX.Element {
   const { message } = App.useApp();
@@ -19,11 +21,24 @@ export function SettingsPage(): React.JSX.Element {
   const [llmApiKey, setLlmApiKey] = useState('');
   const [llmBusy, setLlmBusy] = useState(false);
   const [llmTestResult, setLlmTestResult] = useState<string | null>(null);
+  const [llmUsage, setLlmUsage] = useState<LlmUsageSummary | null>(null);
+  const [llmSettings, setLlmSettings] = useState<LlmUserSettings | null>(null);
 
   const refreshRuntime = useCallback(async (): Promise<void> => {
     const [nextHealth, nextStats] = await Promise.all([window.desktop.system.health(), window.desktop.assets.stats()]);
     setHealth(nextHealth);
     setStats(nextStats);
+  }, []);
+
+  const refreshLlmPanel = useCallback(async (): Promise<void> => {
+    const [status, usage, settings] = await Promise.all([
+      aiClient.getLlmStatus(),
+      aiClient.getLlmUsage(),
+      aiClient.getLlmSettings(),
+    ]);
+    setLlmConfigured(status.configured);
+    setLlmUsage(usage);
+    setLlmSettings(settings);
   }, []);
 
   useEffect(() => {
@@ -33,13 +48,17 @@ export function SettingsPage(): React.JSX.Element {
       window.desktop.assets.stats(),
       window.desktop.updater.getState(),
       aiClient.getLlmStatus(),
+      aiClient.getLlmUsage(),
+      aiClient.getLlmSettings(),
     ])
-      .then(([nextHealth, nextStats, nextUpdateState, llmStatus]) => {
+      .then(([nextHealth, nextStats, nextUpdateState, llmStatus, usage, settings]) => {
         if (!active) return;
         setHealth(nextHealth);
         setStats(nextStats);
         setUpdateState(nextUpdateState);
         setLlmConfigured(llmStatus.configured);
+        setLlmUsage(usage);
+        setLlmSettings(settings);
       })
       .catch((reason: unknown) => {
         if (active) setError(reason instanceof Error ? reason.message : '运行状态读取失败');
@@ -93,6 +112,7 @@ export function SettingsPage(): React.JSX.Element {
       setLlmConfigured(status.configured);
       setLlmApiKey('');
       void message.success('API Key 已保存到本机凭据文件');
+      await refreshLlmPanel();
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '保存 API Key 失败');
     } finally {
@@ -111,6 +131,21 @@ export function SettingsPage(): React.JSX.Element {
       const text = getLlmErrorMessage(reason, '连接测试失败');
       setLlmTestResult(text);
       void message.error(text);
+    } finally {
+      setLlmBusy(false);
+    }
+  };
+
+  const saveLlmSettings = async (): Promise<void> => {
+    if (!llmSettings) return;
+    setLlmBusy(true);
+    try {
+      const saved = await aiClient.saveLlmSettings(llmSettings);
+      setLlmSettings(saved);
+      await refreshLlmPanel();
+      void message.success('AI 设置已保存');
+    } catch (reason) {
+      void message.error(reason instanceof Error ? reason.message : '保存 AI 设置失败');
     } finally {
       setLlmBusy(false);
     }
@@ -175,6 +210,68 @@ export function SettingsPage(): React.JSX.Element {
           </Space>
           {llmTestResult ? <p className="dialog-intro">{llmTestResult}</p> : null}
         </Space>
+      </section>
+
+      <section className="settings-panel">
+        <div className="section-heading">
+          <div>
+            <span className="section-label">Token 预算</span>
+            <h2>本月用量</h2>
+          </div>
+          <Tag color={llmUsage?.budgetExceeded ? 'red' : 'blue'}>{llmUsage?.month ?? '—'}</Tag>
+        </div>
+        <Descriptions
+          bordered
+          column={2}
+          items={[
+            { key: 'requests', label: '请求次数', children: llmUsage?.requestCount ?? '—' },
+            { key: 'tokens', label: '总 Token', children: llmUsage ? llmUsage.totalTokens.toLocaleString() : '—' },
+            {
+              key: 'budget',
+              label: '预算剩余',
+              children:
+                llmUsage?.monthlyTokenBudget === null
+                  ? '未限制'
+                  : llmUsage
+                    ? `${llmUsage.budgetRemaining?.toLocaleString() ?? 0} / ${llmUsage.monthlyTokenBudget.toLocaleString()}`
+                    : '—',
+            },
+            {
+              key: 'io',
+              label: '输入 / 输出',
+              children: llmUsage ? `${llmUsage.totalInputTokens} / ${llmUsage.totalOutputTokens}` : '—',
+            },
+          ]}
+        />
+        {llmSettings ? (
+          <Space orientation="vertical" size="middle" style={{ width: '100%', marginTop: 16 }}>
+            <Space wrap align="center">
+              <span>每月 Token 上限</span>
+              <InputNumber
+                min={1}
+                step={10_000}
+                placeholder="留空表示不限制"
+                value={llmSettings.monthlyTokenBudget ?? undefined}
+                onChange={(value) =>
+                  setLlmSettings((current) =>
+                    current ? { ...current, monthlyTokenBudget: typeof value === 'number' ? value : null } : current,
+                  )
+                }
+              />
+              <span>调试日志</span>
+              <Switch
+                checked={llmSettings.debugLogging}
+                onChange={(checked) => setLlmSettings((current) => (current ? { ...current, debugLogging: checked } : current))}
+              />
+              <Button loading={llmBusy} onClick={() => void saveLlmSettings()}>
+                保存 AI 设置
+              </Button>
+            </Space>
+            {import.meta.env.DEV ? (
+              <Link to={routePaths.devLlm}>打开 Prompt 调试面板（仅开发模式）</Link>
+            ) : null}
+          </Space>
+        ) : null}
       </section>
 
       <UpdaterPanel

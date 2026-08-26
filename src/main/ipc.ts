@@ -1,8 +1,10 @@
-import { dialog, ipcMain, Notification, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
+import { app, dialog, ipcMain, Notification, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import type {
   CreateTradeAlertInput,
   CreateTradeReviewInput,
   CreateTradingPlanInput,
+  LlmStreamPayload,
+  LlmUserSettings,
   ReviewAiDraftInput,
   TradeAlertStatus,
   TradingPlanStatus,
@@ -11,10 +13,20 @@ import { ipcChannels } from '../shared/ipc-channels';
 import type { ServiceHost } from './service-host';
 import type { UpdateManager } from './updater/update-manager';
 
+const activeStreamCancels = new Map<string, () => void>();
+
 function assertTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow): void {
   if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame) {
     throw new Error('已拒绝来自非受信 frame 的 IPC 调用');
   }
+}
+
+function assertDevOnly(): void {
+  if (app.isPackaged) throw new Error('该功能仅在开发模式可用');
+}
+
+function sendStreamEvent(window: BrowserWindow, payload: LlmStreamPayload): void {
+  if (!window.isDestroyed()) window.webContents.send(ipcChannels.llmStreamEvent, payload);
 }
 
 /**
@@ -117,6 +129,23 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     return service.request('reviews.generateAiDraft', input);
   });
 
+  ipcMain.handle(ipcChannels.startReviewAiDraftStream, (event, input: { streamId: string; payload: ReviewAiDraftInput }) => {
+    assertTrustedSender(event, window);
+    const session = service.startStream('reviews.generateAiDraftStream', input.payload, input.streamId, {
+      onChunk: (delta) => sendStreamEvent(window, { streamId: input.streamId, type: 'chunk', delta }),
+      onDone: (result) => {
+        activeStreamCancels.delete(input.streamId);
+        sendStreamEvent(window, { streamId: input.streamId, type: 'done', result });
+      },
+      onError: (error) => {
+        activeStreamCancels.delete(input.streamId);
+        sendStreamEvent(window, { streamId: input.streamId, type: 'error', code: error.code, message: error.message });
+      },
+    });
+    activeStreamCancels.set(input.streamId, session.cancel);
+    return { streamId: input.streamId };
+  });
+
   ipcMain.handle(ipcChannels.getLlmStatus, (event) => {
     assertTrustedSender(event, window);
     return service.request('settings.getLlmStatus', {});
@@ -130,6 +159,62 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
   ipcMain.handle(ipcChannels.testLlmConnection, (event) => {
     assertTrustedSender(event, window);
     return service.request('settings.testLlmConnection', {});
+  });
+
+  ipcMain.handle(ipcChannels.getLlmUsage, (event) => {
+    assertTrustedSender(event, window);
+    return service.request('settings.getLlmUsage', {});
+  });
+
+  ipcMain.handle(ipcChannels.getLlmSettings, (event) => {
+    assertTrustedSender(event, window);
+    return service.request('settings.getLlmSettings', {});
+  });
+
+  ipcMain.handle(ipcChannels.saveLlmSettings, (event, settings: LlmUserSettings) => {
+    assertTrustedSender(event, window);
+    return service.request('settings.saveLlmSettings', settings);
+  });
+
+  ipcMain.handle(
+    ipcChannels.previewLlmPrompt,
+    (event, input: { promptId: string; variables: Record<string, string> }) => {
+      assertTrustedSender(event, window);
+      assertDevOnly();
+      return service.request('llm.previewPrompt', input as never);
+    },
+  );
+
+  ipcMain.handle(
+    ipcChannels.startLlmDebugStream,
+    (event, input: { streamId: string; promptId: string; variables: Record<string, string> }) => {
+      assertTrustedSender(event, window);
+      assertDevOnly();
+      const session = service.startStream(
+        'llm.debugRunStream',
+        { promptId: input.promptId, variables: input.variables } as never,
+        input.streamId,
+        {
+          onChunk: (delta) => sendStreamEvent(window, { streamId: input.streamId, type: 'chunk', delta }),
+          onDone: (result) => {
+            activeStreamCancels.delete(input.streamId);
+            sendStreamEvent(window, { streamId: input.streamId, type: 'done', result });
+          },
+          onError: (error) => {
+            activeStreamCancels.delete(input.streamId);
+            sendStreamEvent(window, { streamId: input.streamId, type: 'error', code: error.code, message: error.message });
+          },
+        },
+      );
+      activeStreamCancels.set(input.streamId, session.cancel);
+      return { streamId: input.streamId };
+    },
+  );
+
+  ipcMain.handle(ipcChannels.cancelLlmStream, (event, input: { streamId: string }) => {
+    assertTrustedSender(event, window);
+    activeStreamCancels.get(input.streamId)?.();
+    activeStreamCancels.delete(input.streamId);
   });
 
   ipcMain.handle(ipcChannels.getUpdateState, (event) => {
@@ -163,6 +248,10 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
 
   return () => {
     unsubscribeUpdater();
+    for (const streamId of [...activeStreamCancels.keys()]) {
+      activeStreamCancels.get(streamId)?.();
+      activeStreamCancels.delete(streamId);
+    }
     ipcMain.removeHandler(ipcChannels.health);
     ipcMain.removeHandler(ipcChannels.assetStats);
     ipcMain.removeHandler(ipcChannels.importImage);
@@ -177,9 +266,16 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     ipcMain.removeHandler(ipcChannels.listReviews);
     ipcMain.removeHandler(ipcChannels.createReview);
     ipcMain.removeHandler(ipcChannels.generateReviewAiDraft);
+    ipcMain.removeHandler(ipcChannels.startReviewAiDraftStream);
     ipcMain.removeHandler(ipcChannels.getLlmStatus);
     ipcMain.removeHandler(ipcChannels.saveLlmApiKey);
     ipcMain.removeHandler(ipcChannels.testLlmConnection);
+    ipcMain.removeHandler(ipcChannels.getLlmUsage);
+    ipcMain.removeHandler(ipcChannels.getLlmSettings);
+    ipcMain.removeHandler(ipcChannels.saveLlmSettings);
+    ipcMain.removeHandler(ipcChannels.previewLlmPrompt);
+    ipcMain.removeHandler(ipcChannels.startLlmDebugStream);
+    ipcMain.removeHandler(ipcChannels.cancelLlmStream);
     ipcMain.removeHandler(ipcChannels.getUpdateState);
     ipcMain.removeHandler(ipcChannels.checkForUpdates);
     ipcMain.removeHandler(ipcChannels.downloadUpdate);

@@ -1,6 +1,6 @@
 import { serviceRequestSchema } from '../shared/service.schemas';
 import { LlmError } from '../shared/llm/errors';
-import type { MainToServiceMessage, ServiceToMainMessage } from '../shared/service.types';
+import type { MainToServiceMessage, ServiceStreamEvent, ServiceToMainMessage } from '../shared/service.types';
 import { AppService } from './app-service';
 
 const parentPort = process.parentPort;
@@ -34,10 +34,33 @@ parentPort.on('message', (event: { data: MainToServiceMessage }) => {
     process.exit(0);
   }
 
+  if (message.type === 'service:stream-cancel') {
+    service?.cancelStream(message.streamId);
+    return;
+  }
+
+  if (message.type === 'service:stream-request') {
+    if (!service) {
+      post({
+        type: 'service:stream-event',
+        streamId: message.streamId,
+        event: { type: 'error', code: 'SERVICE_ERROR', message: '后台服务尚未初始化' },
+      });
+      return;
+    }
+
+    void service.handleStream(message.streamId, message.method, message.params, (event: ServiceStreamEvent) => {
+      post({ type: 'service:stream-event', streamId: message.streamId, event });
+    });
+    return;
+  }
+
   if (!service) {
     post({ type: 'service:fatal', message: '后台服务尚未初始化' });
     return;
   }
+
+  if (message.type !== 'service:request') return;
 
   const parsed = serviceRequestSchema.safeParse(message.request);
   if (!parsed.success) {

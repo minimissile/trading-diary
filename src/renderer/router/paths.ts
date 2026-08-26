@@ -5,4 +5,5 @@ export const routePaths = {
   journal: '/journal',
   analysis: '/analysis',
   settings: '/settings',
+  devLlm: '/dev/llm',
 } as const;

@@ -1,9 +1,44 @@
 import path from 'node:path';
-import type { ServiceRequest } from '../shared/service.types';
+import { z } from 'zod';
+import { PROMPT_IDS } from '../shared/llm/prompt-id';
+import { LlmError } from '../shared/llm/errors';
+import type { ServiceRequest, ServiceStreamEvent, ServiceStreamMethod } from '../shared/service.types';
 import { ImageStore } from './assets/image-store';
 import { AppDatabase } from './database/database';
+import { debugRunStream, previewPrompt } from './llm/debug-service';
 import { createLlmRunner, type LlmRunner } from './llm/llm-runner';
-import { generateReviewAiDraft } from './reviews/review-ai-service';
+import { generateReviewAiDraft, generateReviewAiDraftStream } from './reviews/review-ai-service';
+
+const reviewAiDraftParamsSchema = z
+  .object({
+    planId: z.uuid().nullable(),
+    symbol: z.string().trim().min(1).max(32),
+    title: z.string().trim().min(1).max(120),
+    direction: z.enum(['long', 'short']),
+    planned: z.boolean(),
+    entryPrice: z.number().finite().positive(),
+    exitPrice: z.number().finite().positive(),
+    quantity: z.number().finite().positive(),
+    fees: z.number().finite().nonnegative(),
+    executionScore: z.number().int().min(1).max(5),
+    partialSummary: z.string().trim().max(2_000).optional(),
+    partialLesson: z.string().trim().max(2_000).optional(),
+  })
+  .strict();
+
+const llmPreviewParamsSchema = z
+  .object({
+    promptId: z.enum([PROMPT_IDS.REVIEW_SUMMARIZE, PROMPT_IDS.RELEASE_NOTES, PROMPT_IDS.RELEASE_PLAN]),
+    variables: z.record(z.string(), z.string()),
+  })
+  .strict();
+
+const llmDebugRunParamsSchema = z
+  .object({
+    promptId: z.enum([PROMPT_IDS.REVIEW_SUMMARIZE, PROMPT_IDS.RELEASE_NOTES, PROMPT_IDS.RELEASE_PLAN]),
+    variables: z.record(z.string(), z.string()),
+  })
+  .strict();
 
 export class AppService {
   private readonly startedAt = new Date().toISOString();
@@ -73,6 +108,66 @@ export class AppService {
       }
       case 'settings.testLlmConnection':
         return this.llmRunner.testConnection();
+      case 'settings.getLlmUsage': {
+        const summary = this.llmRunner.getUsageSummary();
+        if (!summary) throw new Error('用量统计不可用');
+        return summary;
+      }
+      case 'settings.getLlmSettings': {
+        const settings = this.llmRunner.getSettings();
+        if (!settings) throw new Error('AI 设置不可用');
+        return settings;
+      }
+      case 'settings.saveLlmSettings':
+        return this.llmRunner.saveSettings(request.params);
+      case 'llm.previewPrompt': {
+        const params = llmPreviewParamsSchema.parse(request.params);
+        return previewPrompt(this.llmRunner, params.promptId, params.variables);
+      }
+    }
+  }
+
+  cancelStream(streamId: string): void {
+    this.llmRunner.cancelStream(streamId);
+  }
+
+  async handleStream(
+    streamId: string,
+    method: ServiceStreamMethod,
+    params: unknown,
+    emit: (event: ServiceStreamEvent) => void,
+  ): Promise<void> {
+    const emitError = (error: unknown): void => {
+      emit({
+        type: 'error',
+        code: error instanceof LlmError ? error.code : 'SERVICE_ERROR',
+        message: error instanceof Error ? error.message : '未知后台服务错误',
+      });
+    };
+
+    try {
+      switch (method) {
+        case 'reviews.generateAiDraftStream': {
+          const input = reviewAiDraftParamsSchema.parse(params);
+          const result = await generateReviewAiDraftStream(this.database, this.llmRunner, input, {
+            streamId,
+            onChunk: (delta) => emit({ type: 'chunk', delta }),
+          });
+          emit({ type: 'done', result });
+          return;
+        }
+        case 'llm.debugRunStream': {
+          const parsed = llmDebugRunParamsSchema.parse(params);
+          const result = await debugRunStream(this.llmRunner, parsed.promptId, parsed.variables, {
+            streamId,
+            onChunk: (delta) => emit({ type: 'chunk', delta }),
+          });
+          emit({ type: 'done', result });
+          return;
+        }
+      }
+    } catch (error) {
+      emitError(error);
     }
   }
 }

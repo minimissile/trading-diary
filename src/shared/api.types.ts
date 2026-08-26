@@ -177,6 +177,59 @@ export interface LlmConnectionTestResult {
   latencyMs: number;
 }
 
+export interface LlmUserSettings {
+  monthlyTokenBudget: number | null;
+  debugLogging: boolean;
+}
+
+export interface LlmUsageRecord {
+  id: string;
+  timestamp: string;
+  promptId: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export interface LlmUsageSummary {
+  month: string;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalTokens: number;
+  requestCount: number;
+  monthlyTokenBudget: number | null;
+  budgetRemaining: number | null;
+  budgetExceeded: boolean;
+  recentRecords: LlmUsageRecord[];
+}
+
+export interface LlmPromptPreview {
+  promptId: string;
+  promptVersion: number;
+  system: string;
+  user: string;
+}
+
+export interface LlmDebugRunResult {
+  content: string;
+  model: string;
+  promptId: string;
+  promptVersion: number;
+  latencyMs: number;
+  usage?: { inputTokens: number; outputTokens: number };
+}
+
+export type LlmStreamEventType = 'chunk' | 'done' | 'error';
+
+export interface LlmStreamPayload {
+  streamId: string;
+  type: LlmStreamEventType;
+  delta?: string;
+  result?: ReviewAiDraftResult | LlmDebugRunResult;
+  code?: string;
+  message?: string;
+}
+
 export interface DesktopApi {
   system: {
     health: () => Promise<HealthResult>;
@@ -203,11 +256,34 @@ export interface DesktopApi {
     list: () => Promise<TradeReview[]>;
     create: (input: CreateTradeReviewInput) => Promise<TradeReview>;
     generateAiDraft: (input: ReviewAiDraftInput) => Promise<ReviewAiDraftResult>;
+    generateAiDraftStream: (
+      input: ReviewAiDraftInput,
+      listeners: {
+        onChunk: (delta: string) => void;
+        onDone: (result: ReviewAiDraftResult) => void;
+        onError: (error: { code: string; message: string }) => void;
+      },
+    ) => Promise<{ streamId: string; cancel: () => void }>;
   };
   settings: {
     getLlmStatus: () => Promise<LlmStatusResult>;
     saveLlmApiKey: (apiKey: string) => Promise<LlmStatusResult>;
     testLlmConnection: () => Promise<LlmConnectionTestResult>;
+    getLlmUsage: () => Promise<LlmUsageSummary>;
+    getLlmSettings: () => Promise<LlmUserSettings>;
+    saveLlmSettings: (settings: LlmUserSettings) => Promise<LlmUserSettings>;
+  };
+  llm: {
+    previewPrompt: (promptId: string, variables: Record<string, string>) => Promise<LlmPromptPreview>;
+    debugRunStream: (
+      promptId: string,
+      variables: Record<string, string>,
+      listeners: {
+        onChunk: (delta: string) => void;
+        onDone: (result: LlmDebugRunResult) => void;
+        onError: (error: { code: string; message: string }) => void;
+      },
+    ) => Promise<{ streamId: string; cancel: () => void }>;
   };
   updater: {
     getState: () => Promise<UpdateState>;

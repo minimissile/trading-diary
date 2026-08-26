@@ -634,9 +634,9 @@ tests/llm/
 
 ### Phase 2 — 体验增强
 
-- [ ] 流式输出 IPC
-- [ ] Prompt 调试面板（仅 dev 构建）
-- [ ] 用量统计与 token 预算
+- [x] 流式输出 IPC（`reviews.generateAiDraftStream` + `desktop:llm:stream-event`）
+- [x] Prompt 调试面板（`/dev/llm`，仅 dev 构建）
+- [x] 用量统计与 token 预算（`settings.getLlmUsage` / `saveLlmSettings`）
 
 ---
 

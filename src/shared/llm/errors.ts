@@ -39,9 +39,23 @@ export class LlmPolicyViolationError extends LlmError {
   }
 }
 
+export class LlmBudgetExceededError extends LlmError {
+  constructor(message = '本月 token 预算已用尽') {
+    super('LLM_BUDGET_EXCEEDED', message);
+    this.name = 'LlmBudgetExceededError';
+  }
+}
+
 export function isLlmNotConfigured(error: unknown): error is LlmNotConfiguredError {
   if (error instanceof LlmNotConfiguredError) return true;
   if (error instanceof LlmError && error.code === 'LLM_NOT_CONFIGURED') return true;
   if (error instanceof Error && error.message.includes('LLM_NOT_CONFIGURED')) return true;
+  return false;
+}
+
+export function isLlmBudgetExceeded(error: unknown): boolean {
+  if (error instanceof LlmBudgetExceededError) return true;
+  if (error instanceof LlmError && error.code === 'LLM_BUDGET_EXCEEDED') return true;
+  if (error instanceof Error && error.message.includes('LLM_BUDGET_EXCEEDED')) return true;
   return false;
 }

@@ -6,6 +6,10 @@ import type {
   ServiceContract,
   ServiceMethod,
   ServiceResponse,
+  ServiceStreamEvent,
+  ServiceStreamMethod,
+  ServiceStreamParams,
+  ServiceStreamResult,
   ServiceToMainMessage,
 } from '../shared/service.types';
 
@@ -18,9 +22,17 @@ interface PendingRequest {
   timeout: NodeJS.Timeout;
 }
 
+interface ActiveStream {
+  method: ServiceStreamMethod;
+  emit: (event: ServiceStreamEvent) => void;
+  resolve: (value: unknown) => void;
+  reject: (error: Error) => void;
+}
+
 export class ServiceHost {
   private child: UtilityProcess | null = null;
   private readonly pending = new Map<string, PendingRequest>();
+  private readonly activeStreams = new Map<string, ActiveStream>();
   private ready = false;
 
   async start(dataDir: string): Promise<void> {
@@ -29,8 +41,6 @@ export class ServiceHost {
     const child = utilityProcess.fork(serviceModulePath, [], {
       serviceName: '交易日记后台服务',
       stdio: 'pipe',
-      // Sharp 会加载原生 .node 模块。在 macOS 上启用此项后，Electron 会选择
-      // 具备相应签名权限的 Plugin Helper 来运行后台服务。
       allowLoadingUnsignedLibraries: process.platform === 'darwin',
     });
 
@@ -96,6 +106,57 @@ export class ServiceHost {
     return (await result) as ServiceContract[M]['result'];
   }
 
+  startStream<M extends ServiceStreamMethod>(
+    method: M,
+    params: ServiceStreamParams[M],
+    streamId: string,
+    handlers: {
+      onChunk: (delta: string) => void;
+      onDone: (result: ServiceStreamResult[M]) => void;
+      onError: (error: { code: string; message: string }) => void;
+    },
+  ): { streamId: string; cancel: () => void } {
+    if (!this.child || !this.ready) throw new Error('后台服务尚未就绪');
+
+    const cancel = (): void => {
+      this.activeStreams.delete(streamId);
+      this.post({ type: 'service:stream-cancel', streamId });
+    };
+
+    const promise = new Promise<ServiceStreamResult[M]>((resolve, reject) => {
+      this.activeStreams.set(streamId, {
+        method,
+        emit: (event) => {
+          if (event.type === 'chunk') handlers.onChunk(event.delta);
+          if (event.type === 'done') {
+            this.activeStreams.delete(streamId);
+            handlers.onDone(event.result as ServiceStreamResult[M]);
+            resolve(event.result as ServiceStreamResult[M]);
+          }
+          if (event.type === 'error') {
+            this.activeStreams.delete(streamId);
+            const error = { code: event.code, message: event.message };
+            handlers.onError(error);
+            reject(new Error(`${event.code}: ${event.message}`));
+          }
+        },
+        resolve: (value) => resolve(value as ServiceStreamResult[M]),
+        reject,
+      });
+    });
+
+    void promise.catch(() => undefined);
+
+    this.post({
+      type: 'service:stream-request',
+      streamId,
+      method,
+      params,
+    });
+
+    return { streamId, cancel };
+  }
+
   stop(): void {
     if (!this.child) return;
     this.post({ type: 'service:shutdown' });
@@ -115,6 +176,11 @@ export class ServiceHost {
 
     if (message.type === 'service:fatal') {
       this.rejectAll(new Error(message.message));
+      return;
+    }
+
+    if (message.type === 'service:stream-event') {
+      this.activeStreams.get(message.streamId)?.emit(message.event);
       return;
     }
 
@@ -144,5 +210,10 @@ export class ServiceHost {
       request.reject(error);
     }
     this.pending.clear();
+
+    for (const stream of this.activeStreams.values()) {
+      stream.reject(error);
+    }
+    this.activeStreams.clear();
   }
 }

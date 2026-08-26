@@ -1,6 +1,6 @@
 import { PROMPT_IDS, type PromptId } from '../../../shared/llm/prompt-id';
 import type { LlmCompletionOptions, LlmCompletionResult, LlmMessage } from '../../../shared/llm/types';
-import type { LlmProvider } from './provider';
+import type { LlmProvider, LlmStreamHandlers } from './provider';
 
 export class MockProvider implements LlmProvider {
   private readonly fixtures: Partial<Record<PromptId, string>>;
@@ -21,7 +21,23 @@ export class MockProvider implements LlmProvider {
       promptId,
       promptVersion: 1,
       model: 'mock/model',
+      usage: { inputTokens: 12, outputTokens: content.length },
       latencyMs: this.latencyMs,
     };
+  }
+
+  async completeStream(
+    messages: LlmMessage[],
+    options: LlmCompletionOptions,
+    handlers: LlmStreamHandlers,
+  ): Promise<LlmCompletionResult> {
+    const result = await this.complete(messages, options);
+    const chunkSize = 8;
+    for (let index = 0; index < result.content.length; index += chunkSize) {
+      if (handlers.signal?.aborted) break;
+      handlers.onChunk(result.content.slice(index, index + chunkSize));
+      await new Promise((resolve) => setTimeout(resolve, this.latencyMs));
+    }
+    return result;
   }
 }

@@ -211,6 +211,21 @@
   margin-bottom: 20px;
 }
 
+.ai-stream-preview {
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--td-color-border);
+  border-radius: 10px;
+  background: var(--td-color-surface-muted, #f7f7f8);
+  color: var(--td-color-ink-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .dialog-alert {
   margin-bottom: 18px;
 }

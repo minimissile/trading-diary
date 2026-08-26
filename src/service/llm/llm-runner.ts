@@ -3,18 +3,20 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { PromptId } from '../../shared/llm/prompt-id';
 import { LlmNotConfiguredError } from '../../shared/llm/errors';
-import type { LlmCompletionResult } from '../../shared/llm/types';
+import type { LlmCompletionResult, LlmPromptPreview, LlmUsageSummary, LlmUserSettings } from '../../shared/llm/types';
 import { assertOutputPolicy } from './guards/output-policy';
 import { PromptLoader } from './prompt-loader';
 import type { LlmProvider } from './providers/provider';
 import { OpenRouterProvider } from './providers/openrouter';
 import { CredentialStore } from './credential-store';
+import { LlmSettingsStore, LlmUsageStore } from './usage-store';
 
 interface LlmDefaults {
   defaultModel: string;
   fallbackModels: string[];
   timeoutMs: number;
   maxRetries: number;
+  defaultMonthlyTokenBudget?: number;
 }
 
 function loadDefaults(): LlmDefaults {
@@ -36,6 +38,7 @@ function loadDefaults(): LlmDefaults {
     fallbackModels: ['deepseek/deepseek-v4-flash-0731', 'qwen/qwen-plus', 'qwen/qwen3-32b'],
     timeoutMs: 60_000,
     maxRetries: 2,
+    defaultMonthlyTokenBudget: 500_000,
   };
 }
 
@@ -43,13 +46,21 @@ export class LlmRunner {
   private provider: LlmProvider;
   private readonly promptLoader: PromptLoader;
   private readonly credentialStore: CredentialStore | null;
+  private readonly usageStore: LlmUsageStore | null;
+  private readonly settingsStore: LlmSettingsStore | null;
   private readonly defaults: LlmDefaults;
   private readonly enforcePolicy: boolean;
+  private readonly streamControllers = new Map<string, AbortController>();
 
   constructor(options: { dataDir?: string; promptsDir?: string; provider?: LlmProvider; enforcePolicy?: boolean }) {
     this.defaults = loadDefaults();
     this.promptLoader = new PromptLoader(options.promptsDir);
     this.credentialStore = options.dataDir ? new CredentialStore(options.dataDir) : null;
+    this.settingsStore = options.dataDir
+      ? new LlmSettingsStore(options.dataDir, { defaultMonthlyTokenBudget: this.defaults.defaultMonthlyTokenBudget })
+      : null;
+    this.usageStore =
+      options.dataDir && this.settingsStore ? new LlmUsageStore(options.dataDir, this.settingsStore) : null;
     this.enforcePolicy = options.enforcePolicy ?? true;
 
     this.provider =
@@ -70,11 +81,63 @@ export class LlmRunner {
     return this.credentialStore;
   }
 
-  async run(promptId: PromptId, variables: Record<string, string>): Promise<LlmCompletionResult> {
+  getUsageSummary(): LlmUsageSummary | null {
+    return this.usageStore?.getSummary() ?? null;
+  }
+
+  getSettings(): LlmUserSettings | null {
+    return this.settingsStore?.read() ?? null;
+  }
+
+  saveSettings(settings: LlmUserSettings): LlmUserSettings {
+    if (!this.settingsStore) throw new Error('设置存储不可用');
+    return this.settingsStore.save(settings);
+  }
+
+  previewPrompt(promptId: PromptId, variables: Record<string, string>): LlmPromptPreview {
+    const { system, user, definition } = this.promptLoader.render(promptId, variables);
+    return {
+      promptId,
+      promptVersion: definition.version,
+      system,
+      user,
+    };
+  }
+
+  cancelStream(streamId: string): void {
+    this.streamControllers.get(streamId)?.abort();
+  }
+
+  private assertConfigured(): void {
     if (this.provider instanceof OpenRouterProvider) {
       const apiKey = this.credentialStore?.getApiKey() ?? process.env.OPENROUTER_API_KEY?.trim() ?? null;
       if (!apiKey) throw new LlmNotConfiguredError();
     }
+  }
+
+  private assertBudget(): void {
+    this.usageStore?.assertWithinBudget();
+  }
+
+  private recordUsage(result: LlmCompletionResult): void {
+    if (!this.usageStore) return;
+    this.usageStore.record({
+      promptId: result.promptId,
+      model: result.model,
+      inputTokens: result.usage?.inputTokens ?? 0,
+      outputTokens: result.usage?.outputTokens ?? 0,
+    });
+
+    if (this.settingsStore?.read().debugLogging) {
+      console.info(
+        `[llm] prompt=${result.promptId} v${result.promptVersion} model=${result.model} in=${result.usage?.inputTokens ?? 0} out=${result.usage?.outputTokens ?? 0} latency=${result.latencyMs}ms`,
+      );
+    }
+  }
+
+  async run(promptId: PromptId, variables: Record<string, string>): Promise<LlmCompletionResult> {
+    this.assertConfigured();
+    this.assertBudget();
 
     const { system, user, definition } = this.promptLoader.render(promptId, variables);
     const messages = [
@@ -100,17 +163,61 @@ export class LlmRunner {
           assertOutputPolicy(result.content);
         }
 
-        return {
-          ...result,
-          promptId,
-          promptVersion: definition.version,
-        };
+        const normalized = { ...result, promptId, promptVersion: definition.version };
+        this.recordUsage(normalized);
+        return normalized;
       } catch (error: unknown) {
         lastError = error;
       }
     }
 
     throw lastError;
+  }
+
+  async runStream(
+    promptId: PromptId,
+    variables: Record<string, string>,
+    onChunk: (delta: string) => void,
+    streamId?: string,
+  ): Promise<LlmCompletionResult> {
+    this.assertConfigured();
+    this.assertBudget();
+
+    const controller = new AbortController();
+    if (streamId) this.streamControllers.set(streamId, controller);
+
+    try {
+      const { system, user, definition } = this.promptLoader.render(promptId, variables);
+      const messages = [
+        { role: 'system' as const, content: system },
+        { role: 'user' as const, content: user },
+      ];
+
+      const result = await this.provider.completeStream(
+        messages,
+        {
+          promptId,
+          promptVersion: definition.version,
+          model: definition.model,
+          fallbackModels: definition.fallbackModels,
+          temperature: definition.temperature,
+          maxTokens: definition.maxTokens,
+          responseFormat: definition.responseFormat,
+          timeoutMs: this.defaults.timeoutMs,
+        },
+        { onChunk, signal: controller.signal },
+      );
+
+      if (this.enforcePolicy && promptId !== 'release.notes' && promptId !== 'release.plan') {
+        assertOutputPolicy(result.content);
+      }
+
+      const normalized = { ...result, promptId, promptVersion: definition.version };
+      this.recordUsage(normalized);
+      return normalized;
+    } finally {
+      if (streamId) this.streamControllers.delete(streamId);
+    }
   }
 
   async testConnection(): Promise<{ ok: boolean; model: string; latencyMs: number }> {

@@ -1,6 +1,59 @@
+import { randomUUID } from 'node:crypto';
 import { contextBridge, ipcRenderer } from 'electron';
-import type { DesktopApi, UpdateState } from '../shared/api.types';
+import type { DesktopApi, LlmDebugRunResult, LlmStreamPayload, ReviewAiDraftResult, UpdateState } from '../shared/api.types';
 import { ipcChannels } from '../shared/ipc-channels';
+
+function startLlmStream<T>(
+  invokeChannel: string,
+  invokePayload: Record<string, unknown>,
+  listeners: {
+    onChunk: (delta: string) => void;
+    onDone: (result: T) => void;
+    onError: (error: { code: string; message: string }) => void;
+  },
+): { streamId: string; cancel: () => void } {
+  const streamId = randomUUID();
+  let settled = false;
+
+  const cleanup = (): void => {
+    ipcRenderer.removeListener(ipcChannels.llmStreamEvent, handler);
+  };
+
+  const handler = (_event: Electron.IpcRendererEvent, payload: LlmStreamPayload): void => {
+    if (payload.streamId !== streamId || settled) return;
+
+    if (payload.type === 'chunk') {
+      listeners.onChunk(payload.delta ?? '');
+      return;
+    }
+
+    settled = true;
+    cleanup();
+
+    if (payload.type === 'done') {
+      listeners.onDone(payload.result as T);
+      return;
+    }
+
+    listeners.onError({
+      code: payload.code ?? 'SERVICE_ERROR',
+      message: payload.message ?? '未知错误',
+    });
+  };
+
+  ipcRenderer.on(ipcChannels.llmStreamEvent, handler);
+  void ipcRenderer.invoke(invokeChannel, { streamId, ...invokePayload });
+
+  return {
+    streamId,
+    cancel: () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      void ipcRenderer.invoke(ipcChannels.cancelLlmStream, { streamId });
+    },
+  };
+}
 
 const desktopApi: DesktopApi = {
   system: {
@@ -28,11 +81,25 @@ const desktopApi: DesktopApi = {
     list: () => ipcRenderer.invoke(ipcChannels.listReviews),
     create: (input) => ipcRenderer.invoke(ipcChannels.createReview, input),
     generateAiDraft: (input) => ipcRenderer.invoke(ipcChannels.generateReviewAiDraft, input),
+    generateAiDraftStream: (input, listeners) =>
+      Promise.resolve(
+        startLlmStream<ReviewAiDraftResult>(ipcChannels.startReviewAiDraftStream, { payload: input }, listeners),
+      ),
   },
   settings: {
     getLlmStatus: () => ipcRenderer.invoke(ipcChannels.getLlmStatus),
     saveLlmApiKey: (apiKey) => ipcRenderer.invoke(ipcChannels.saveLlmApiKey, { apiKey }),
     testLlmConnection: () => ipcRenderer.invoke(ipcChannels.testLlmConnection),
+    getLlmUsage: () => ipcRenderer.invoke(ipcChannels.getLlmUsage),
+    getLlmSettings: () => ipcRenderer.invoke(ipcChannels.getLlmSettings),
+    saveLlmSettings: (settings) => ipcRenderer.invoke(ipcChannels.saveLlmSettings, settings),
+  },
+  llm: {
+    previewPrompt: (promptId, variables) => ipcRenderer.invoke(ipcChannels.previewLlmPrompt, { promptId, variables }),
+    debugRunStream: (promptId, variables, listeners) =>
+      Promise.resolve(
+        startLlmStream<LlmDebugRunResult>(ipcChannels.startLlmDebugStream, { promptId, variables }, listeners),
+      ),
   },
   updater: {
     getState: () => ipcRenderer.invoke(ipcChannels.getUpdateState),

@@ -7,6 +7,7 @@ import { JournalPage } from '../pages/JournalPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { PlansPage } from '../pages/PlansPage';
 import { SettingsPage } from '../pages/SettingsPage';
+import { LlmDebugPage } from '../pages/LlmDebugPage';
 import { routePaths } from './paths';
 
 export function AppRouter(): React.JSX.Element {
@@ -20,6 +21,7 @@ export function AppRouter(): React.JSX.Element {
           <Route path={routePaths.journal} element={<JournalPage />} />
           <Route path={routePaths.analysis} element={<AnalysisPage />} />
           <Route path={routePaths.settings} element={<SettingsPage />} />
+          {import.meta.env.DEV ? <Route path={routePaths.devLlm} element={<LlmDebugPage />} /> : null}
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

@@ -160,4 +160,34 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
     method: z.literal('settings.testLlmConnection'),
     params: z.object({}).strict(),
   }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('settings.getLlmUsage'),
+    params: z.object({}).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('settings.getLlmSettings'),
+    params: z.object({}).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('settings.saveLlmSettings'),
+    params: z
+      .object({
+        monthlyTokenBudget: z.number().int().positive().nullable(),
+        debugLogging: z.boolean(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('llm.previewPrompt'),
+    params: z
+      .object({
+        promptId: z.enum(['review.summarize', 'release.notes', 'release.plan']),
+        variables: z.record(z.string(), z.string()),
+      })
+      .strict(),
+  }),
 ]);

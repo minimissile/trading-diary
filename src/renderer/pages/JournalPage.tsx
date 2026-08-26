@@ -217,7 +217,8 @@ function NewReviewDialog({ open, plans, initialPlanId, onClose, onSaved }: NewRe
   const navigate = useNavigate();
   const [form] = Form.useForm<ReviewFormValues>();
   const [saving, setSaving] = useState(false);
-  const { loading: aiLoading, error: aiError, notConfigured, generateDraft, resetError } = useReviewAiDraft();
+  const { loading: aiLoading, streamingText, error: aiError, notConfigured, budgetExceeded, generateDraftStream, resetError, cancelStream } =
+    useReviewAiDraft();
   const entryPrice = Form.useWatch('entryPrice', form);
   const exitPrice = Form.useWatch('exitPrice', form);
   const quantity = Form.useWatch('quantity', form);
@@ -230,6 +231,7 @@ function NewReviewDialog({ open, plans, initialPlanId, onClose, onSaved }: NewRe
 
   useEffect(() => {
     if (!open) {
+      cancelStream();
       resetError();
       return;
     }
@@ -248,7 +250,7 @@ function NewReviewDialog({ open, plans, initialPlanId, onClose, onSaved }: NewRe
           }
         : { direction: 'long', planned: false, fees: 0, executionScore: 3 },
     );
-  }, [form, initialPlanId, open, plans, resetError]);
+  }, [cancelStream, form, initialPlanId, open, plans, resetError]);
 
   const generateAiDraft = async (): Promise<void> => {
     const values = await form.validateFields([
@@ -264,7 +266,7 @@ function NewReviewDialog({ open, plans, initialPlanId, onClose, onSaved }: NewRe
       'executionScore',
     ]);
 
-    const draft = await generateDraft({
+    const draft = await generateDraftStream({
       planId: values.planId ?? null,
       symbol: values.symbol.trim().toUpperCase(),
       title: values.title.trim(),
@@ -282,6 +284,9 @@ function NewReviewDialog({ open, plans, initialPlanId, onClose, onSaved }: NewRe
     if (!draft) {
       if (notConfigured) {
         void message.warning('请先在设置中配置 OpenRouter API Key');
+        void navigate(routePaths.settings);
+      } else if (budgetExceeded) {
+        void message.warning('本月 token 预算已用尽');
         void navigate(routePaths.settings);
       } else if (aiError) {
         void message.error(aiError);
@@ -337,8 +342,11 @@ function NewReviewDialog({ open, plans, initialPlanId, onClose, onSaved }: NewRe
       footer={
         <Space>
           <Button onClick={onClose}>取消</Button>
+          {aiLoading ? (
+            <Button onClick={() => cancelStream()}>停止生成</Button>
+          ) : null}
           <Button loading={aiLoading} onClick={() => void generateAiDraft()}>
-            AI 生成草稿
+            AI 流式生成
           </Button>
           <Button type="primary" loading={saving} onClick={() => void save()}>
             完成复盘
@@ -347,6 +355,9 @@ function NewReviewDialog({ open, plans, initialPlanId, onClose, onSaved }: NewRe
       }
     >
       <p className="dialog-intro">盈亏是结果，纪律评分只评价你是否按规则执行。AI 草稿仅归纳已有记录，不会给出买卖建议。</p>
+      {streamingText ? (
+        <pre className="ai-stream-preview">{streamingText}</pre>
+      ) : null}
       <Form<ReviewFormValues> form={form} layout="vertical" preserve={false}>
         <Form.Item label="关联已结束计划（可选）" name="planId">
           <Select
