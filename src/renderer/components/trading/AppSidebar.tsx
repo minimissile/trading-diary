@@ -33,13 +33,7 @@ interface AppSidebarProps {
   onSelect: (key: string) => void;
 }
 
-export function AppSidebar({
-  activeKey,
-  alertCount,
-  collapsed,
-  onCollapse,
-  onSelect,
-}: AppSidebarProps): React.JSX.Element {
+export function AppSidebar({ activeKey, alertCount, collapsed, onCollapse, onSelect }: AppSidebarProps): React.JSX.Element {
   return (
     <aside className="app-sidebar" aria-label="交易日记主导航">
       <div className="app-brand">
@@ -81,7 +75,9 @@ export function AppSidebar({
       <blockquote className="sidebar-quote">
         <span>今日语录</span>
         <p>
-          专注流程，控制风险，<br />让概率替你赚钱。
+          专注流程，控制风险，
+          <br />
+          让概率替你赚钱。
         </p>
         <BookFilled aria-hidden="true" />
       </blockquote>

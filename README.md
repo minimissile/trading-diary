@@ -72,6 +72,7 @@ trading-diary/
 ├── docs/
 │   ├── ARCHITECTURE.md               # 进程、存储和打包架构说明
 │   ├── AUTO_UPDATE.md                # 自动更新构建、发布与验收说明
+│   ├── CLIENT_UPDATE_FLOW.md         # Windows 与 macOS 客户端更新流程
 │   ├── UI_COMPONENTS.md              # UI 组件库选型与开发约定
 │   └── UI_THEME.md                   # UI 主题 Token、语义和扩展规范
 ├── resources/                        # 图标、权限配置等打包资源
@@ -128,7 +129,9 @@ fuses 后留下无效签名。当前 macOS 版本不使用付费 Developer ID，
 更新通过 **GitHub Releases** 分发，无需自建服务器。Windows 支持应用内下载和安装；macOS
 只检查版本并打开对应 Release 下载页。推送 `v*` tag 会触发
 `.github/workflows/release.yml` 自动构建发布；也可本地配置 `GH_TOKEN` 后执行
-`dist:*:publish`。详见 [自动更新配置](docs/AUTO_UPDATE.md)。
+`dist:*:publish`。客户端运行时状态、平台分支和故障处理详见
+[客户端更新流程](docs/CLIENT_UPDATE_FLOW.md)，构建与发布配置详见
+[自动更新配置](docs/AUTO_UPDATE.md)。
 
 UI 组件库的方案对比、Ant Design 接入结构和开发约定详见
 [UI 组件库选型](docs/UI_COMPONENTS.md)，主题 Token、交易方向色和扩展规则详见

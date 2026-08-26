@@ -1,11 +1,4 @@
-import {
-  BarChartOutlined,
-  BellOutlined,
-  CalendarOutlined,
-  DownOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
+import { BarChartOutlined, BellOutlined, CalendarOutlined, DownOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { Badge, Button, Input } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
@@ -29,7 +22,14 @@ function navigationKeyFromPath(pathname: string): string {
 function compactDate(): string {
   const date = new Date();
   const weekday = new Intl.DateTimeFormat('zh-CN', { weekday: 'short' }).format(date);
-  return `${date.toISOString().slice(0, 10)}　${weekday}`;
+  const localDate = new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+    .format(date)
+    .replaceAll('/', '-');
+  return `${localDate}  ${weekday}`;
 }
 
 export function AppShell(): React.JSX.Element {
@@ -108,15 +108,14 @@ export function AppShell(): React.JSX.Element {
               className="new-plan-button"
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => void navigate(routePaths.home, { state: { newPlan: true } })}
+              onClick={() => {
+                if (location.pathname === routePaths.home) window.dispatchEvent(new Event('open-plan-create'));
+                else void navigate(routePaths.home, { state: { newPlan: true } });
+              }}
             >
               新建计划
             </Button>
-            <Button
-              className="record-trade-button"
-              icon={<CalendarOutlined />}
-              onClick={() => void navigate(routePaths.journal)}
-            >
+            <Button className="record-trade-button" icon={<CalendarOutlined />} onClick={() => void navigate(routePaths.journal)}>
               记录成交 <DownOutlined />
             </Button>
             <Badge count={alertCount} size="small" overflowCount={99}>

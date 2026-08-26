@@ -117,11 +117,56 @@ const previewActionItems: ActionItem[] = [
 ];
 
 const stageColumns = [
-  { title: '观察中', count: 6, tone: 'blue', items: [['宁德时代', '关注突破 240'], ['中国平安', '观察支撑 55.8'], ['美团-W', '等待回调机会']] },
-  { title: '等待入场', count: 7, tone: 'orange', items: [['宁德时代', '突破 240 入场'], ['贵州茅台', '回踩 1610 附近'], ['比亚迪', '站上 240 入场']] },
-  { title: '持仓中', count: 5, tone: 'green', items: [['沪深300ETF', '成本 3.502'], ['腾讯控股', '成本 368.20'], ['中国平安', '成本 54.80']] },
-  { title: '等待退出', count: 4, tone: 'violet', items: [['腾讯控股', '目标 400 附近'], ['贵州茅台', '目标 1750'], ['中国平安', '上移止损']] },
-  { title: '已完成', count: 6, tone: 'slate', items: [['比亚迪', '止盈达成'], ['洋河股份', '止损离场'], ['招商银行', '止盈达成']] },
+  {
+    title: '观察中',
+    count: 6,
+    tone: 'blue',
+    items: [
+      ['宁德时代', '关注突破 240'],
+      ['中国平安', '观察支撑 55.8'],
+      ['美团-W', '等待回调机会'],
+    ],
+  },
+  {
+    title: '等待入场',
+    count: 7,
+    tone: 'orange',
+    items: [
+      ['宁德时代', '突破 240 入场'],
+      ['贵州茅台', '回踩 1610 附近'],
+      ['比亚迪', '站上 240 入场'],
+    ],
+  },
+  {
+    title: '持仓中',
+    count: 5,
+    tone: 'green',
+    items: [
+      ['沪深300ETF', '成本 3.502'],
+      ['腾讯控股', '成本 368.20'],
+      ['中国平安', '成本 54.80'],
+    ],
+  },
+  {
+    title: '等待退出',
+    count: 4,
+    tone: 'violet',
+    items: [
+      ['腾讯控股', '目标 400 附近'],
+      ['贵州茅台', '目标 1750'],
+      ['中国平安', '上移止损'],
+    ],
+  },
+  {
+    title: '已完成',
+    count: 6,
+    tone: 'slate',
+    items: [
+      ['比亚迪', '止盈达成'],
+      ['洋河股份', '止损离场'],
+      ['招商银行', '止盈达成'],
+    ],
+  },
 ] as const;
 
 const timelineSteps = [
@@ -155,7 +200,7 @@ export function HomePage(): React.JSX.Element {
   const location = useLocation();
   const navigate = useNavigate();
   const [snapshot, setSnapshot] = useState<WorkspaceSnapshot | null>(null);
-  const [newPlanOpen, setNewPlanOpen] = useState(false);
+  const [newPlanOpen, setNewPlanOpen] = useState(() => Boolean((location.state as { newPlan?: boolean } | null)?.newPlan));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [queueFilter, setQueueFilter] = useState<QueueCategory>('all');
@@ -172,15 +217,34 @@ export function HomePage(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let active = true;
+    void window.desktop.workspace
+      .snapshot()
+      .then((next) => {
+        if (active) setSnapshot(next);
+      })
+      .catch((reason: unknown) => {
+        if (active) setError(reason instanceof Error ? reason.message : '工作台读取失败');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     const state = location.state as { newPlan?: boolean } | null;
     if (!state?.newPlan) return;
-    setNewPlanOpen(true);
     void navigate(location.pathname, { replace: true, state: null });
   }, [location.pathname, location.state, navigate]);
+
+  useEffect(() => {
+    const openDialog = (): void => setNewPlanOpen(true);
+    window.addEventListener('open-plan-create', openDialog);
+    return () => window.removeEventListener('open-plan-create', openDialog);
+  }, []);
 
   const realActionItems = useMemo<ActionItem[]>(() => {
     if (!snapshot) return [];
@@ -266,7 +330,9 @@ export function HomePage(): React.JSX.Element {
         return;
       }
     }
-    void navigate(item.category === 'review' ? routePaths.journal : item.category === 'reminder' ? routePaths.alerts : routePaths.plans);
+    void navigate(
+      item.category === 'review' ? routePaths.journal : item.category === 'reminder' ? routePaths.alerts : routePaths.plans,
+    );
   };
 
   if (loading) {
@@ -283,15 +349,23 @@ export function HomePage(): React.JSX.Element {
     <div className="command-dashboard">
       {error ? <div className="page-error command-error">{error}</div> : null}
       <div className="command-grid">
-        <CommandPanel className="queue-panel" number="1." title="下一步动作 / 今日执行队列" meta={`(${actionItems.length})`} extra={<SettingOutlined />}>
+        <CommandPanel
+          className="queue-panel"
+          number="1."
+          title="下一步动作 / 今日执行队列"
+          meta={`(${actionItems.length})`}
+          extra={<SettingOutlined />}
+        >
           <div className="queue-tabs" role="tablist" aria-label="行动队列筛选">
-            {([
-              ['all', '全部', actionItems.length],
-              ['reminder', '触发提醒', actionItems.filter((item) => item.category === 'reminder').length],
-              ['due', '计划到期', actionItems.filter((item) => item.category === 'due').length],
-              ['review', '待复盘', actionItems.filter((item) => item.category === 'review').length],
-              ['risk', '风险预警', actionItems.filter((item) => item.category === 'risk').length],
-            ] as const).map(([key, label, count]) => (
+            {(
+              [
+                ['all', '全部', actionItems.length],
+                ['reminder', '触发提醒', actionItems.filter((item) => item.category === 'reminder').length],
+                ['due', '计划到期', actionItems.filter((item) => item.category === 'due').length],
+                ['review', '待复盘', actionItems.filter((item) => item.category === 'review').length],
+                ['risk', '风险预警', actionItems.filter((item) => item.category === 'risk').length],
+              ] as const
+            ).map(([key, label, count]) => (
               <button className={queueFilter === key ? 'active' : ''} key={key} type="button" onClick={() => setQueueFilter(key)}>
                 {label} <span>{count}</span>
               </button>
@@ -299,50 +373,114 @@ export function HomePage(): React.JSX.Element {
           </div>
           <div className="action-table">
             <div className="action-table-head">
-              <span>优先级</span><span>类型</span><span>标的</span><span>触发条件 / 描述</span><span>现价</span><span>计划状态</span><span>操作</span>
+              <span>优先级</span>
+              <span>类型</span>
+              <span>标的</span>
+              <span>触发条件 / 描述</span>
+              <span>现价</span>
+              <span>计划状态</span>
+              <span>操作</span>
             </div>
             {visibleActions.map((item) => (
               <div className="action-table-row" key={item.id}>
-                <span className={`priority priority--${item.priority}`}>{item.priority === 'high' ? '高' : item.priority === 'medium' ? '中' : '低'}</span>
-                <span className={`action-type action-type--${item.category}`}><WarningOutlined />{item.type}</span>
-                <span className="security-name"><strong>{item.symbol}</strong><small>{item.code}</small></span>
-                <span className="action-description" title={item.description}>{item.description}</span>
-                <span className="market-price"><strong>{item.price}</strong><small className={item.change.startsWith('-') ? 'market-down' : 'market-up'}>{item.change}</small></span>
+                <span className={`priority priority--${item.priority}`}>
+                  {item.priority === 'high' ? '高' : item.priority === 'medium' ? '中' : '低'}
+                </span>
+                <span className={`action-type action-type--${item.category}`}>
+                  <WarningOutlined />
+                  {item.type}
+                </span>
+                <span className="security-name">
+                  <strong>{item.symbol}</strong>
+                  <small>{item.code}</small>
+                </span>
+                <span className="action-description" title={item.description}>
+                  {item.description}
+                </span>
+                <span className="market-price">
+                  <strong>{item.price}</strong>
+                  <small className={item.change.startsWith('-') ? 'market-down' : 'market-up'}>{item.change}</small>
+                </span>
                 <span className={`status-pill status-pill--${item.statusTone}`}>{item.status}</span>
-                <Button size="small" className="row-action-button" onClick={() => void handleAction(item)}>{item.action}</Button>
+                <Button size="small" className="row-action-button" onClick={() => void handleAction(item)}>
+                  {item.action}
+                </Button>
               </div>
             ))}
           </div>
-          <button className="panel-footer-link" type="button" onClick={() => void navigate(routePaths.plans)}>查看全部队列 <RightOutlined /></button>
+          <button className="panel-footer-link" type="button" onClick={() => void navigate(routePaths.plans)}>
+            查看全部队列 <RightOutlined />
+          </button>
         </CommandPanel>
 
-        <CommandPanel className="stage-panel" number="2." title="计划阶段看板" meta="(总计 28)" extra={<button type="button" onClick={() => void navigate(routePaths.plans)}>查看全部计划 <RightOutlined /></button>}>
+        <CommandPanel
+          className="stage-panel"
+          number="2."
+          title="计划阶段看板"
+          meta="(总计 28)"
+          extra={
+            <button type="button" onClick={() => void navigate(routePaths.plans)}>
+              查看全部计划 <RightOutlined />
+            </button>
+          }
+        >
           <div className="stage-board">
             {stageColumns.map((column) => (
-              <button className={`stage-column stage-column--${column.tone}`} key={column.title} type="button" onClick={() => void navigate(routePaths.plans)}>
-                <span className="stage-heading"><b>{column.title}</b><strong>{column.count}</strong></span>
-                {column.items.map(([name, detail]) => <span className="stage-card" key={`${name}-${detail}`}><b>{name}</b><small>{detail}</small></span>)}
+              <button
+                className={`stage-column stage-column--${column.tone}`}
+                key={column.title}
+                type="button"
+                onClick={() => void navigate(routePaths.plans)}
+              >
+                <span className="stage-heading">
+                  <b>{column.title}</b>
+                  <strong>{column.count}</strong>
+                </span>
+                {column.items.map(([name, detail]) => (
+                  <span className="stage-card" key={`${name}-${detail}`}>
+                    <b>{name}</b>
+                    <small>{detail}</small>
+                  </span>
+                ))}
                 <span className="stage-more">+{Math.max(column.count - 3, 2)} 更多</span>
               </button>
             ))}
           </div>
         </CommandPanel>
 
-        <CommandPanel className="timeline-panel" number="3." title="交易回合时间线" meta="(腾讯控股 0700.HK)" extra={<span className="timeline-id">回合ID：EP20250512002　<b>已完成</b></span>}>
+        <CommandPanel
+          className="timeline-panel"
+          number="3."
+          title="交易回合时间线"
+          meta="(腾讯控股 0700.HK)"
+          extra={
+            <span className="timeline-id">
+              回合ID：EP20250512002 <b>已完成</b>
+            </span>
+          }
+        >
           <div className="trade-timeline">
             {timelineSteps.map((step) => (
               <div className="timeline-step" key={step.label}>
                 <span className="timeline-icon">{step.icon}</span>
                 <strong>{step.label}</strong>
                 <time>{step.date}</time>
-                <span className="timeline-detail">{step.details.map((detail) => <small key={detail}>{detail}</small>)}</span>
+                <span className="timeline-detail">
+                  {step.details.map((detail) => (
+                    <small key={detail}>{detail}</small>
+                  ))}
+                </span>
               </div>
             ))}
           </div>
           <div className="timeline-result">
-            <span>回合结果：<strong>盈利 +3,740.00 HKD (+1.89%)</strong></span>
-            <span>最大回撤 -1.12%　 持有周期 3天</span>
-            <Button size="small" onClick={() => void navigate(routePaths.journal)}>查看回合详情</Button>
+            <span>
+              回合结果：<strong>盈利 +3,740.00 HKD (+1.89%)</strong>
+            </span>
+            <span>最大回撤 -1.12% · 持有周期 3天</span>
+            <Button size="small" onClick={() => void navigate(routePaths.journal)}>
+              查看回合详情
+            </Button>
           </div>
         </CommandPanel>
 
@@ -350,56 +488,226 @@ export function HomePage(): React.JSX.Element {
           <div className="risk-balance">
             <span>账户净值（CNY）</span>
             <strong>512,340.60</strong>
-            <small>本周 <b>+8,742.30　+1.74%</b></small>
-            <div className="equity-trend"><span>净值趋势</span><Progress percent={78} showInfo={false} size="small" /></div>
+            <small>
+              本周 <b>+8,742.30 · +1.74%</b>
+            </small>
+            <div className="equity-trend">
+              <span>净值趋势</span>
+              <Progress percent={78} showInfo={false} size="small" />
+            </div>
           </div>
           <div className="risk-stat-row">
-            <span>可用资金<strong>126,340.60</strong></span>
-            <span>当日盈亏<strong className="market-up">+4,230.50</strong></span>
-            <span>风险预算（单笔）<strong>10,246.81</strong><small>账户净值 2.0%</small></span>
+            <span>
+              可用资金<strong>126,340.60</strong>
+            </span>
+            <span>
+              当日盈亏<strong className="market-up">+4,230.50</strong>
+            </span>
+            <span>
+              风险预算（单笔）<strong>10,246.81</strong>
+              <small>账户净值 2.0%</small>
+            </span>
           </div>
           <div className="risk-bottom">
-            <Progress type="circle" percent={63} size={78} strokeColor="#f5a623" trailColor="#274055" format={(percent) => <span className="risk-gauge-value">{percent}%<small>中等</small></span>} />
-            <div className="risk-notes"><span>组合风险敞口<strong>63%</strong></span><span>最大单一标的占比<strong>22.6%</strong></span><span>行业集中度（前3）<strong>48.3%</strong></span><span>最大回撤（本月）<strong>-3.21%</strong></span></div>
+            <Progress
+              type="circle"
+              percent={63}
+              size={78}
+              strokeColor="#f5a623"
+              trailColor="#274055"
+              format={(percent) => (
+                <span className="risk-gauge-value">
+                  {percent}%<small>中等</small>
+                </span>
+              )}
+            />
+            <div className="risk-notes">
+              <span>
+                组合风险敞口<strong>63%</strong>
+              </span>
+              <span>
+                最大单一标的占比<strong>22.6%</strong>
+              </span>
+              <span>
+                行业集中度（前3）<strong>48.3%</strong>
+              </span>
+              <span>
+                最大回撤（本月）<strong>-3.21%</strong>
+              </span>
+            </div>
           </div>
         </CommandPanel>
 
-        <CommandPanel className="review-panel" number="5." title="本周复盘摘要" meta="(05.12 - 05.16)" extra={<button type="button" onClick={() => void navigate(routePaths.journal)}>查看全部计划 <RightOutlined /></button>}>
-          <div className="review-progress"><span>复盘完成率 <strong>72%</strong>　13 / 18</span><Progress percent={72} showInfo={false} size="small" /><Button size="small" onClick={() => void navigate(routePaths.journal)}>查看全部复盘</Button></div>
+        <CommandPanel
+          className="review-panel"
+          number="5."
+          title="本周复盘摘要"
+          meta="(05.12 - 05.16)"
+          extra={
+            <button type="button" onClick={() => void navigate(routePaths.journal)}>
+              查看全部计划 <RightOutlined />
+            </button>
+          }
+        >
+          <div className="review-progress">
+            <span>
+              复盘完成率 <strong>72%</strong> 13 / 18
+            </span>
+            <Progress percent={72} showInfo={false} size="small" />
+            <Button size="small" onClick={() => void navigate(routePaths.journal)}>
+              查看全部复盘
+            </Button>
+          </div>
           <div className="review-top-list">
-            <div><strong className="market-closed">重复出现的错误 TOP3</strong><span><WarningOutlined />止损执行不坚决 <b>4次</b></span><span><WarningOutlined />过早止盈 <b>3次</b></span><span><WarningOutlined />未按计划减仓 <b>2次</b></span></div>
-            <div><strong className="market-open">最佳行为 TOP3</strong><span><CheckCircleFilled />按计划分批建仓 <b>5次</b></span><span><CheckCircleFilled />严格执行止损 <b>4次</b></span><span><CheckCircleFilled />复盘记录完整 <b>4次</b></span></div>
+            <div>
+              <strong className="market-closed">重复出现的错误 TOP3</strong>
+              <span>
+                <WarningOutlined />
+                止损执行不坚决 <b>4次</b>
+              </span>
+              <span>
+                <WarningOutlined />
+                过早止盈 <b>3次</b>
+              </span>
+              <span>
+                <WarningOutlined />
+                未按计划减仓 <b>2次</b>
+              </span>
+            </div>
+            <div>
+              <strong className="market-open">最佳行为 TOP3</strong>
+              <span>
+                <CheckCircleFilled />
+                按计划分批建仓 <b>5次</b>
+              </span>
+              <span>
+                <CheckCircleFilled />
+                严格执行止损 <b>4次</b>
+              </span>
+              <span>
+                <CheckCircleFilled />
+                复盘记录完整 <b>4次</b>
+              </span>
+            </div>
           </div>
-          <div className="review-metrics"><span>本周净盈亏<strong className={reviewPnl >= 0 ? 'market-up' : 'market-down'}>{formatCurrency(reviewPnl)}</strong><small>(+1.74%)</small></span><span>平均 R 倍数<strong className="market-up">+0.42R</strong></span><span>胜率<strong>61.5%</strong></span><Button className="rule-button" icon={<ProjectOutlined />} onClick={() => void navigate(routePaths.analysis)}>转为规则 (3)</Button></div>
+          <div className="review-metrics">
+            <span>
+              本周净盈亏<strong className={reviewPnl >= 0 ? 'market-up' : 'market-down'}>{formatCurrency(reviewPnl)}</strong>
+              <small>(+1.74%)</small>
+            </span>
+            <span>
+              平均 R 倍数<strong className="market-up">+0.42R</strong>
+            </span>
+            <span>
+              胜率<strong>61.5%</strong>
+            </span>
+            <Button className="rule-button" icon={<ProjectOutlined />} onClick={() => void navigate(routePaths.analysis)}>
+              转为规则 (3)
+            </Button>
+          </div>
         </CommandPanel>
 
-        <CommandPanel className="rules-panel" number="6." title="规则检查面板" meta="(交易前自检)" extra={<span>全部通过可提交订单</span>}>
+        <CommandPanel
+          className="rules-panel"
+          number="6."
+          title="规则检查面板"
+          meta="(交易前自检)"
+          extra={<span>全部通过可提交订单</span>}
+        >
           <div className="rules-table">
             {ruleRows.map(([name, detail, status], index) => (
-              <div className="rule-row" key={name}><span>{index + 1}</span><strong>{name}</strong><small>{detail}</small><b className={status === '通过' ? 'market-open' : 'rule-warning'}>{status} {status === '通过' ? <CheckCircleFilled /> : <WarningOutlined />}</b></div>
+              <div className="rule-row" key={name}>
+                <span>{index + 1}</span>
+                <strong>{name}</strong>
+                <small>{detail}</small>
+                <b className={status === '通过' ? 'market-open' : 'rule-warning'}>
+                  {status} {status === '通过' ? <CheckCircleFilled /> : <WarningOutlined />}
+                </b>
+              </div>
             ))}
           </div>
-          <button className="panel-footer-link panel-footer-link--right" type="button" onClick={() => void navigate(routePaths.analysis)}>管理规则 <RightOutlined /></button>
+          <button
+            className="panel-footer-link panel-footer-link--right"
+            type="button"
+            onClick={() => void navigate(routePaths.analysis)}
+          >
+            管理规则 <RightOutlined />
+          </button>
         </CommandPanel>
 
         <CommandPanel className="watch-panel" number="7." title="观察清单">
           <div className="watch-table">
-            <div className="watch-head"><span>标的</span><span>最新价</span><span>涨跌幅</span><span>状态 / 关键位</span><span>关注度</span></div>
+            <div className="watch-head">
+              <span>标的</span>
+              <span>最新价</span>
+              <span>涨跌幅</span>
+              <span>状态 / 关键位</span>
+              <span>关注度</span>
+            </div>
             {watchRows.map(([name, code, price, change, keyLevel, rating]) => (
-              <div className="watch-row" key={code}><span><strong>{name}</strong><small>{code}</small></span><b>{price}</b><b className={String(change).startsWith('-') ? 'market-down' : 'market-up'}>{change}</b><small>{keyLevel}</small><span className="watch-stars">{Array.from({ length: 5 }, (_, index) => <StarFilled className={index < Number(rating) ? 'active' : ''} key={index} />)}</span></div>
+              <div className="watch-row" key={code}>
+                <span>
+                  <strong>{name}</strong>
+                  <small>{code}</small>
+                </span>
+                <b>{price}</b>
+                <b className={String(change).startsWith('-') ? 'market-down' : 'market-up'}>{change}</b>
+                <small>{keyLevel}</small>
+                <span className="watch-stars">
+                  {Array.from({ length: 5 }, (_, index) => (
+                    <StarFilled className={index < Number(rating) ? 'active' : ''} key={index} />
+                  ))}
+                </span>
+              </div>
             ))}
           </div>
-          <div className="watch-footer"><button type="button" onClick={() => void navigate(routePaths.plans)}>编辑观察清单 <RightOutlined /></button><button type="button" onClick={() => setNewPlanOpen(true)}>添加标的 <PlusOutlined /></button></div>
+          <div className="watch-footer">
+            <button type="button" onClick={() => void navigate(routePaths.plans)}>
+              编辑观察清单 <RightOutlined />
+            </button>
+            <button type="button" onClick={() => setNewPlanOpen(true)}>
+              添加标的 <PlusOutlined />
+            </button>
+          </div>
         </CommandPanel>
 
         <CommandPanel className="system-panel" number="8." title="数据状态">
           <div className="system-list">
-            <span><CloudSyncOutlined /><b>行情源</b><strong>同花顺（主）</strong><i />连接正常<time>09:45:12</time></span>
-            <span><NotificationOutlined /><b>通知服务</b><strong>企业微信</strong><i />连接正常</span>
-            <span><ImportOutlined /><b>CSV 导入</b><strong>成交记录.csv</strong><i />最新<time>09:31</time></span>
-            <span><DatabaseOutlined /><b>离线缓存</b><strong>本地数据库</strong><i />已同步<time>09:45</time></span>
+            <span>
+              <CloudSyncOutlined />
+              <b>行情源</b>
+              <strong>同花顺（主）</strong>
+              <i />
+              连接正常<time>09:45:12</time>
+            </span>
+            <span>
+              <NotificationOutlined />
+              <b>通知服务</b>
+              <strong>企业微信</strong>
+              <i />
+              连接正常
+            </span>
+            <span>
+              <ImportOutlined />
+              <b>CSV 导入</b>
+              <strong>成交记录.csv</strong>
+              <i />
+              最新<time>09:31</time>
+            </span>
+            <span>
+              <DatabaseOutlined />
+              <b>离线缓存</b>
+              <strong>本地数据库</strong>
+              <i />
+              已同步<time>09:45</time>
+            </span>
           </div>
-          <div className="system-footer"><span>上次完整备份　2025-05-15 22:30</span><Button size="small" icon={<SafetyCertificateOutlined />} onClick={() => void navigate(routePaths.settings)}>立即备份</Button></div>
+          <div className="system-footer">
+            <span>上次完整备份 · 2025-05-15 22:30</span>
+            <Button size="small" icon={<SafetyCertificateOutlined />} onClick={() => void navigate(routePaths.settings)}>
+              立即备份
+            </Button>
+          </div>
         </CommandPanel>
       </div>
 
@@ -430,7 +738,9 @@ function CommandPanel({ number, title, meta, extra, className = '', children }: 
   return (
     <section className={`command-panel ${className}`}>
       <header className="command-panel-header">
-        <h2><span>{number}</span> {title} {meta ? <small>{meta}</small> : null}</h2>
+        <h2>
+          <span>{number}</span> {title} {meta ? <small>{meta}</small> : null}
+        </h2>
         {extra ? <div className="command-panel-extra">{extra}</div> : null}
       </header>
       <div className="command-panel-body">{children}</div>

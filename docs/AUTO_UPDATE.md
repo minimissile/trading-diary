@@ -7,6 +7,9 @@
 客户端不调用 `setFeedURL`，更新源由构建阶段写入的 `app-update.yml` 提供，固定指向
 `minimissile/trading-diary` 的 GitHub Releases。
 
+本文主要说明构建和发布配置；客户端启动后的状态流、平台分支、旧版本迁移和故障处理见
+[客户端更新流程](CLIENT_UPDATE_FLOW.md)。
+
 ## 运行策略
 
 - 开发环境（`npm run dev`）不访问 GitHub。
