@@ -20,6 +20,7 @@ import type { CreateTradeReviewInput, TradeDirection, TradeReview, TradingPlan }
 import { directionLabels, formatCurrency, formatDateTime, formatPrice } from '../lib/trading-format';
 import { useReviewAiDraft } from '../hooks/useReviewAiDraft';
 import { routePaths } from '../router/paths';
+import { SymbolSearchInput } from '../components/trading/SymbolSearchInput';
 
 interface JournalLocationState {
   planId?: string;
@@ -369,7 +370,7 @@ function NewReviewDialog({ open, plans, initialPlanId, onClose, onSaved }: NewRe
         </Form.Item>
         <div className="form-grid form-grid--2">
           <Form.Item label="标的代码" name="symbol" rules={[{ required: true, message: '请输入标的代码' }]}>
-            <Input maxLength={32} />
+            <SymbolSearchInput maxLength={32} />
           </Form.Item>
           <Form.Item label="复盘标题" name="title" rules={[{ required: true, message: '请输入复盘标题' }]}>
             <Input maxLength={120} />

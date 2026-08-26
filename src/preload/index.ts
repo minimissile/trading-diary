@@ -143,6 +143,10 @@ const desktopApi: DesktopApi = {
       ipcRenderer.invoke(ipcChannels.portfolioRefreshDividends, { accountId, symbol }),
     syncMarketQuotes: (accountId) => ipcRenderer.invoke(ipcChannels.portfolioSyncMarketQuotes, { accountId }),
   },
+  license: {
+    getStatus: () => ipcRenderer.invoke(ipcChannels.licenseGetStatus),
+    activate: (code) => ipcRenderer.invoke(ipcChannels.licenseActivate, { code }),
+  },
 };
 
 contextBridge.exposeInMainWorld('desktop', desktopApi);

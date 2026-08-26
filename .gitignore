@@ -98,3 +98,6 @@ dist/
 
 # 测试或手动运行产生的本地数据
 .local-data/
+
+# License 私钥与发码记录（公钥已写入 src/shared/license/public-key.ts）
+licenses/

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Alert, Button, Form, Input, InputNumber, Modal, Radio, Space, Switch } from 'antd';
 import type { TradeDirection, TradingPlan } from '../../../shared/api.types';
 import { calculateExpectedR } from '../../lib/trading-format';
+import { SymbolSearchInput } from './SymbolSearchInput';
 
 interface PlanFormValues {
   symbol: string;
@@ -79,7 +80,7 @@ export function PlanCreateModal({ open, onClose, onSaved }: PlanCreateModalProps
       >
         <div className="form-grid form-grid--2">
           <Form.Item label="标的代码" name="symbol" rules={[{ required: true, message: '请输入标的代码' }]}>
-            <Input placeholder="例如 600519 / AAPL" maxLength={32} />
+            <SymbolSearchInput placeholder="例如 600519 / 510300" maxLength={32} />
           </Form.Item>
           <Form.Item label="计划名称" name="name" rules={[{ required: true, message: '请输入计划名称' }]}>
             <Input placeholder="例如 回踩支撑入场" maxLength={80} />

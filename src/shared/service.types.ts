@@ -11,6 +11,8 @@ import type {
   LlmStatusResult,
   LlmUsageSummary,
   LlmUserSettings,
+  LicenseActivateResult,
+  LicenseStatus,
   QuoteEvaluationResult,
   ReviewAiDraftInput,
   ReviewAiDraftResult,
@@ -197,6 +199,14 @@ export interface ServiceContract {
   'portfolio.syncMarketQuotes': {
     params: { accountId?: string };
     result: PortfolioPositionView[];
+  };
+  'license.getStatus': {
+    params: Record<string, never>;
+    result: LicenseStatus;
+  };
+  'license.activate': {
+    params: { code: string };
+    result: LicenseActivateResult;
   };
 }
 

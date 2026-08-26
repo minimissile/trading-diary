@@ -47,4 +47,6 @@ export const ipcChannels = {
   portfolioConfirmDividend: 'desktop:portfolio:confirm-dividend',
   portfolioRefreshDividends: 'desktop:portfolio:refresh-dividends',
   portfolioSyncMarketQuotes: 'desktop:portfolio:sync-market-quotes',
+  licenseGetStatus: 'desktop:license:get-status',
+  licenseActivate: 'desktop:license:activate',
 } as const;

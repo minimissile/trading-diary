@@ -1,12 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
-import { App, Button, Descriptions, Input, InputNumber, Space, Switch, Tag } from 'antd';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, App, Button, Descriptions, Input, InputNumber, Space, Switch, Tag } from 'antd';
 import { Link } from 'react-router';
-import type { AssetStats, HealthResult, ImportedAsset, LlmUsageSummary, LlmUserSettings, UpdateState } from '../../shared/api.types';
+import type { AssetStats, HealthResult, ImportedAsset, LicenseStatus, LlmUsageSummary, LlmUserSettings, UpdateState } from '../../shared/api.types';
 import { AssetWorkspace } from '../components/AssetWorkspace';
 import { UpdaterPanel } from '../components/UpdaterPanel';
 import { aiClient } from '../lib/ai/ai-client';
 import { getLlmErrorMessage } from '../lib/ai/llm-errors';
+import {
+  formatLicenseExpiryLabel,
+  formatLicenseSourceLabel,
+  formatLicenseTierLabel,
+  getLicenseErrorMessage,
+  getLicenseTagColor,
+} from '../lib/license-client';
 import { routePaths } from '../router/paths';
+import { TRIAL_DAYS } from '../../shared/license/features';
 
 export function SettingsPage(): React.JSX.Element {
   const { message } = App.useApp();
@@ -23,11 +31,24 @@ export function SettingsPage(): React.JSX.Element {
   const [llmTestResult, setLlmTestResult] = useState<string | null>(null);
   const [llmUsage, setLlmUsage] = useState<LlmUsageSummary | null>(null);
   const [llmSettings, setLlmSettings] = useState<LlmUserSettings | null>(null);
+  const [licenseStatus, setLicenseStatus] = useState<LicenseStatus | null>(null);
+  const [licenseCode, setLicenseCode] = useState('');
+  const [licenseBusy, setLicenseBusy] = useState(false);
+  const [licenseNotice, setLicenseNotice] = useState<string | null>(null);
+  const [showRenewForm, setShowRenewForm] = useState(false);
+  const statusLoadSeq = useRef(0);
 
   const refreshRuntime = useCallback(async (): Promise<void> => {
     const [nextHealth, nextStats] = await Promise.all([window.desktop.system.health(), window.desktop.assets.stats()]);
     setHealth(nextHealth);
     setStats(nextStats);
+  }, []);
+
+  const refreshLicensePanel = useCallback(async (): Promise<void> => {
+    const seq = ++statusLoadSeq.current;
+    const status = await window.desktop.license.getStatus();
+    if (seq !== statusLoadSeq.current) return;
+    setLicenseStatus(status);
   }, []);
 
   const refreshLlmPanel = useCallback(async (): Promise<void> => {
@@ -43,6 +64,7 @@ export function SettingsPage(): React.JSX.Element {
 
   useEffect(() => {
     let active = true;
+    const seq = ++statusLoadSeq.current;
     void Promise.all([
       window.desktop.system.health(),
       window.desktop.assets.stats(),
@@ -50,18 +72,22 @@ export function SettingsPage(): React.JSX.Element {
       aiClient.getLlmStatus(),
       aiClient.getLlmUsage(),
       aiClient.getLlmSettings(),
+      window.desktop.license.getStatus(),
     ])
-      .then(([nextHealth, nextStats, nextUpdateState, llmStatus, usage, settings]) => {
-        if (!active) return;
+      .then(([nextHealth, nextStats, nextUpdateState, llmStatus, usage, settings, nextLicenseStatus]) => {
+        if (!active || seq !== statusLoadSeq.current) return;
         setHealth(nextHealth);
         setStats(nextStats);
         setUpdateState(nextUpdateState);
         setLlmConfigured(llmStatus.configured);
         setLlmUsage(usage);
         setLlmSettings(settings);
+        setLicenseStatus(nextLicenseStatus);
       })
       .catch((reason: unknown) => {
-        if (active) setError(reason instanceof Error ? reason.message : '运行状态读取失败');
+        if (active && seq === statusLoadSeq.current) {
+          setError(reason instanceof Error ? reason.message : '运行状态读取失败');
+        }
       });
     const unsubscribe = window.desktop.updater.onStateChanged((state) => {
       if (active) setUpdateState(state);
@@ -97,6 +123,29 @@ export function SettingsPage(): React.JSX.Element {
       void message.error(reason instanceof Error ? reason.message : fallbackMessage);
     } finally {
       setUpdateBusy(false);
+    }
+  };
+
+  const activateLicense = async (): Promise<void> => {
+    if (!licenseCode.trim()) {
+      void message.warning('请粘贴激活码');
+      return;
+    }
+    setLicenseBusy(true);
+    setLicenseNotice(null);
+    try {
+      statusLoadSeq.current += 1;
+      const result = await window.desktop.license.activate(licenseCode.trim());
+      const latest = await window.desktop.license.getStatus();
+      setLicenseStatus(latest);
+      setLicenseCode('');
+      setLicenseNotice(result.message);
+      setShowRenewForm(false);
+      void message.success('Pro 激活成功');
+    } catch (reason) {
+      void message.error(getLicenseErrorMessage(reason, '激活失败'));
+    } finally {
+      setLicenseBusy(false);
     }
   };
 
@@ -161,6 +210,117 @@ export function SettingsPage(): React.JSX.Element {
         </div>
         <Tag color={health?.storageReady ? 'green' : 'orange'}>{health?.storageReady ? '本地存储正常' : '正在检查存储'}</Tag>
       </header>
+
+      <section className="settings-panel">
+        <div className="section-heading">
+          <div>
+            <span className="section-label">PRO</span>
+            <h2>License 激活</h2>
+          </div>
+          <Tag color={getLicenseTagColor(licenseStatus)}>
+            {licenseStatus ? formatLicenseTierLabel(licenseStatus) : '读取中'}
+          </Tag>
+        </div>
+        <p className="page-intro">
+          新用户默认享有 {TRIAL_DAYS} 天 Pro 试用。付费后请将激活码粘贴到下方；验证完全在本机离线完成，不上传任何数据。
+        </p>
+        {licenseNotice ? (
+          <Alert
+            type="success"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message="Pro 已激活"
+            description={licenseNotice}
+            closable
+            onClose={() => setLicenseNotice(null)}
+          />
+        ) : null}
+        <Descriptions
+          bordered
+          column={2}
+          style={{ marginBottom: 16 }}
+          key={`${licenseStatus?.tier ?? 'loading'}-${licenseStatus?.licenseId ?? 'none'}-${licenseStatus?.source ?? 'none'}`}
+          items={[
+            {
+              key: 'tier',
+              label: '当前档位',
+              children: licenseStatus ? formatLicenseTierLabel(licenseStatus) : '—',
+            },
+            {
+              key: 'source',
+              label: '授权来源',
+              children: licenseStatus ? formatLicenseSourceLabel(licenseStatus) : '—',
+            },
+            {
+              key: 'exp',
+              label: '到期日',
+              children: licenseStatus ? formatLicenseExpiryLabel(licenseStatus) : '—',
+            },
+            {
+              key: 'limits',
+              label: '计划 / 提醒上限',
+              children: licenseStatus
+                ? licenseStatus.limits.maxPlans === null
+                  ? '无限制'
+                  : `${licenseStatus.limits.maxPlans} 个计划 · ${licenseStatus.limits.maxAlerts} 条提醒`
+                : '—',
+            },
+            {
+              key: 'licenseId',
+              label: 'License 编号',
+              children: licenseStatus?.licenseId ?? '—',
+            },
+            {
+              key: 'activatedAt',
+              label: '激活时间',
+              children: licenseStatus?.activatedAt
+                ? new Date(licenseStatus.activatedAt).toLocaleString('zh-CN')
+                : '—',
+            },
+          ]}
+        />
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          {licenseStatus?.source === 'license' && !showRenewForm ? (
+            <Alert
+              type="info"
+              showIcon
+              message="当前已通过 License 激活"
+              action={
+                <Button size="small" onClick={() => setShowRenewForm(true)}>
+                  更换激活码
+                </Button>
+              }
+            />
+          ) : (
+            <Input.TextArea
+              value={licenseCode}
+              placeholder="粘贴 TD1.... 激活码"
+              autoSize={{ minRows: 2, maxRows: 4 }}
+              onChange={(event) => setLicenseCode(event.target.value)}
+            />
+          )}
+          <Space wrap>
+            {licenseStatus?.source !== 'license' || showRenewForm ? (
+              <Button type="primary" loading={licenseBusy} onClick={() => void activateLicense()}>
+                {licenseStatus?.source === 'license' ? '更换 License' : '激活 Pro'}
+              </Button>
+            ) : null}
+            {showRenewForm ? (
+              <Button
+                onClick={() => {
+                  setShowRenewForm(false);
+                  setLicenseCode('');
+                }}
+              >
+                取消
+              </Button>
+            ) : null}
+            <Button loading={licenseBusy} onClick={() => void refreshLicensePanel()}>
+              刷新状态
+            </Button>
+          </Space>
+        </Space>
+      </section>
 
       <section className="settings-panel">
         <div className="section-heading">

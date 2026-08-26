@@ -336,4 +336,14 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
     method: z.literal('portfolio.syncMarketQuotes'),
     params: z.object({ accountId: z.string().trim().min(1).max(64).optional() }).strict(),
   }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('license.getStatus'),
+    params: z.object({}).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('license.activate'),
+    params: z.object({ code: z.string().trim().min(8).max(2_000) }).strict(),
+  }),
 ]);

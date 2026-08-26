@@ -11,6 +11,8 @@ import { generateReviewAiDraft, generateReviewAiDraftStream } from './reviews/re
 import { marketService } from './market/market-service';
 import { watchlistService } from './watchlist/watchlist-service';
 import { createPortfolioService, type PortfolioService } from './portfolio/portfolio-service';
+import { LicenseService } from './license/license-service';
+import { LicenseError } from '../shared/license/errors';
 
 const reviewAiDraftParamsSchema = z
   .object({
@@ -49,12 +51,14 @@ export class AppService {
   private readonly images: ImageStore;
   private readonly llmRunner: LlmRunner;
   private readonly portfolioService: PortfolioService;
+  private readonly licenseService: LicenseService;
 
   constructor(dataDir: string) {
     this.database = new AppDatabase(path.join(dataDir, 'database', 'app.sqlite'));
     this.images = new ImageStore(dataDir, this.database);
     this.llmRunner = createLlmRunner(dataDir);
     this.portfolioService = createPortfolioService(this.database);
+    this.licenseService = new LicenseService(dataDir);
   }
 
   close(): void {
@@ -84,12 +88,14 @@ export class AppService {
       case 'plans.list':
         return this.database.listTradingPlans();
       case 'plans.create':
+        this.licenseService.assertCanCreatePlan(this.database.listTradingPlans().length);
         return this.database.createTradingPlan(request.params);
       case 'plans.setStatus':
         return this.database.setTradingPlanStatus(request.params.id, request.params.status);
       case 'alerts.list':
         return this.database.listTradeAlerts();
       case 'alerts.create':
+        this.licenseService.assertCanCreateAlert(this.database.listTradeAlerts().length);
         return this.database.createTradeAlert(request.params);
       case 'alerts.setStatus':
         return this.database.setTradeAlertStatus(request.params.id, request.params.status);
@@ -100,6 +106,7 @@ export class AppService {
       case 'reviews.create':
         return this.database.createTradeReview(request.params);
       case 'reviews.generateAiDraft':
+        this.licenseService.assertFeature('ai_review');
         return generateReviewAiDraft(this.database, this.llmRunner, request.params);
       case 'settings.saveLlmApiKey': {
         const store = this.llmRunner.getCredentialStore();
@@ -150,6 +157,7 @@ export class AppService {
       case 'watchlist.listPools':
         return watchlistService.listPools();
       case 'watchlist.getPoolSnapshot':
+        this.licenseService.assertWatchlistPoolAllowed(request.params.poolId);
         return watchlistService.getPoolSnapshot(request.params.poolId);
       case 'portfolio.listPositions':
         return this.portfolioService.listPositions(request.params.accountId);
@@ -172,9 +180,14 @@ export class AppService {
           request.params.cashAmount,
         );
       case 'portfolio.refreshDividends':
+        this.licenseService.assertFeature('portfolio_dividend_sync');
         return this.portfolioService.refreshDividends(request.params.accountId, request.params.symbol);
       case 'portfolio.syncMarketQuotes':
         return this.portfolioService.syncMarketQuotes(request.params.accountId);
+      case 'license.getStatus':
+        return this.licenseService.getStatus();
+      case 'license.activate':
+        return this.licenseService.activate(request.params.code);
     }
   }
 
@@ -191,7 +204,7 @@ export class AppService {
     const emitError = (error: unknown): void => {
       emit({
         type: 'error',
-        code: error instanceof LlmError ? error.code : 'SERVICE_ERROR',
+        code: error instanceof LlmError ? error.code : error instanceof LicenseError ? error.code : 'SERVICE_ERROR',
         message: error instanceof Error ? error.message : '未知后台服务错误',
       });
     };
@@ -200,6 +213,7 @@ export class AppService {
       switch (method) {
         case 'reviews.generateAiDraftStream': {
           const input = reviewAiDraftParamsSchema.parse(params);
+          this.licenseService.assertFeature('ai_review');
           const result = await generateReviewAiDraftStream(this.database, this.llmRunner, input, {
             streamId,
             onChunk: (delta) => emit({ type: 'chunk', delta }),

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { App, DatePicker, Form, Input, InputNumber, Modal, Radio } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import type { CreatePortfolioLedgerInput, InstrumentInfo } from '../../../shared/api.types';
+import { SymbolSearchInput } from './SymbolSearchInput';
 
 interface PortfolioLedgerModalProps {
   open: boolean;
@@ -37,6 +38,7 @@ export function PortfolioLedgerModal({ open, onClose, onSaved }: PortfolioLedger
     if (!open) {
       form.resetFields();
       setResolved(null);
+      setResolving(false);
       return;
     }
     form.setFieldsValue({
@@ -45,22 +47,6 @@ export function PortfolioLedgerModal({ open, onClose, onSaved }: PortfolioLedger
       tradeAt: dayjs(),
     });
   }, [form, open]);
-
-  const resolveSymbol = async (): Promise<void> => {
-    const symbol = form.getFieldValue('symbol') as string | undefined;
-    if (!symbol?.trim()) return;
-    setResolving(true);
-    try {
-      const instrument = await window.desktop.market.resolve(symbol.trim());
-      setResolved(instrument);
-      form.setFieldValue('symbol', instrument.symbol);
-    } catch {
-      setResolved(null);
-      void message.warning('未识别该代码，保存时将再次尝试解析');
-    } finally {
-      setResolving(false);
-    }
-  };
 
   const submit = async (): Promise<void> => {
     const values = await form.validateFields();
@@ -111,11 +97,19 @@ export function PortfolioLedgerModal({ open, onClose, onSaved }: PortfolioLedger
             ) : resolving ? (
               '识别中…'
             ) : (
-              '输入后失焦自动识别类型'
+              '输入代码或名称，可选择搜索建议'
             )
           }
         >
-          <Input placeholder="如 600941、510300、161725" onBlur={() => void resolveSymbol()} />
+          <SymbolSearchInput
+            placeholder="如 600941、510300、161725"
+            onResolveStart={() => setResolving(true)}
+            onResolve={(instrument) => {
+              setResolving(false);
+              setResolved(instrument);
+              if (!instrument) void message.warning('未识别该代码，保存时将再次尝试解析');
+            }}
+          />
         </Form.Item>
 
         <Form.Item label="方向" name="side" rules={[{ required: true }]}>

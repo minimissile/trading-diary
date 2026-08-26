@@ -1,5 +1,6 @@
 import { serviceRequestSchema } from '../shared/service.schemas';
 import { LlmError } from '../shared/llm/errors';
+import { LicenseError } from '../shared/license/errors';
 import type { MainToServiceMessage, ServiceStreamEvent, ServiceToMainMessage } from '../shared/service.types';
 import { AppService } from './app-service';
 
@@ -90,7 +91,12 @@ parentPort.on('message', (event: { data: MainToServiceMessage }) => {
           id: parsed.data.id,
           ok: false,
           error: {
-            code: error instanceof LlmError ? error.code : 'SERVICE_ERROR',
+            code:
+              error instanceof LlmError
+                ? error.code
+                : error instanceof LicenseError
+                  ? error.code
+                  : 'SERVICE_ERROR',
             message: error instanceof Error ? error.message : '未知后台服务错误',
           },
         },

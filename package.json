@@ -38,6 +38,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "theme:generate": "node scripts/generate-theme-css.mjs",
+    "license:keys": "node scripts/generate-license-keys.mjs",
+    "license:issue": "node scripts/issue-license.mjs",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run test",
     "release": "tsx scripts/release.mjs",
     "postinstall": "electron-builder install-app-deps"

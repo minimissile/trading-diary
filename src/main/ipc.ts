@@ -317,6 +317,16 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     return service.request('portfolio.syncMarketQuotes', input);
   });
 
+  ipcMain.handle(ipcChannels.licenseGetStatus, (event) => {
+    assertTrustedSender(event, window);
+    return service.request('license.getStatus', {});
+  });
+
+  ipcMain.handle(ipcChannels.licenseActivate, (event, input: { code: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('license.activate', input);
+  });
+
   ipcMain.handle(ipcChannels.getUpdateState, (event) => {
     assertTrustedSender(event, window);
     return updater.getState();
@@ -393,6 +403,8 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     ipcMain.removeHandler(ipcChannels.portfolioConfirmDividend);
     ipcMain.removeHandler(ipcChannels.portfolioRefreshDividends);
     ipcMain.removeHandler(ipcChannels.portfolioSyncMarketQuotes);
+    ipcMain.removeHandler(ipcChannels.licenseGetStatus);
+    ipcMain.removeHandler(ipcChannels.licenseActivate);
     ipcMain.removeHandler(ipcChannels.getUpdateState);
     ipcMain.removeHandler(ipcChannels.checkForUpdates);
     ipcMain.removeHandler(ipcChannels.downloadUpdate);

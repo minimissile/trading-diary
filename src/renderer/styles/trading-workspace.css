@@ -2823,3 +2823,28 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+.symbol-search-option {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 280px;
+}
+
+.symbol-search-option strong {
+  font-family: var(--td-font-mono, ui-monospace, monospace);
+  color: var(--td-color-ink);
+}
+
+.symbol-search-option span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--td-color-ink-secondary);
+}
+
+.symbol-search-option small {
+  color: var(--td-color-ink-tertiary);
+  white-space: nowrap;
+}

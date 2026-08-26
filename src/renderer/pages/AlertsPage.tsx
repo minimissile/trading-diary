@@ -9,6 +9,7 @@ import {
   formatDateTime,
   formatPrice,
 } from '../lib/trading-format';
+import { SymbolSearchInput } from '../components/trading/SymbolSearchInput';
 
 interface QuoteFormValues {
   symbol: string;
@@ -141,7 +142,7 @@ export function AlertsPage(): React.JSX.Element {
           onFinish={(values) => void evaluate(values)}
         >
           <Form.Item name="symbol" rules={[{ required: true, message: '请输入代码' }]}>
-            <Input placeholder="标的代码" maxLength={32} />
+            <SymbolSearchInput placeholder="标的代码" maxLength={32} resolveOnBlur={false} />
           </Form.Item>
           <Form.Item name="price" rules={[{ required: true, message: '请输入最新价' }]}>
             <InputNumber min={0.0001} precision={4} placeholder="最新价" />
@@ -238,7 +239,7 @@ export function AlertsPage(): React.JSX.Element {
         >
           <div className="form-grid form-grid--2">
             <Form.Item label="标的代码" name="symbol" rules={[{ required: true, message: '请输入标的代码' }]}>
-              <Input placeholder="例如 600519" maxLength={32} />
+              <SymbolSearchInput placeholder="例如 600519" maxLength={32} />
             </Form.Item>
             <Form.Item label="提醒名称" name="title" rules={[{ required: true, message: '请输入提醒名称' }]}>
               <Input placeholder="例如 突破前高" maxLength={120} />

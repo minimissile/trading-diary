@@ -146,6 +146,14 @@ export interface UpdateState {
   message: string | null;
 }
 
+export type {
+  LicenseActivateResult,
+  LicenseFeature,
+  LicenseSource,
+  LicenseStatus,
+  LicenseTier,
+} from './license/types';
+
 export interface ReviewAiDraftInput {
   planId: string | null;
   symbol: string;
@@ -369,5 +377,9 @@ export interface DesktopApi {
     confirmDividend: (id: string, confirmed: boolean, cashAmount?: number) => Promise<import('./portfolio/types').PortfolioDividendRecord[]>;
     refreshDividends: (accountId?: string, symbol?: string) => Promise<import('./portfolio/types').PortfolioRefreshResult>;
     syncMarketQuotes: (accountId?: string) => Promise<import('./portfolio/types').PortfolioPositionView[]>;
+  };
+  license: {
+    getStatus: () => Promise<import('./license/types').LicenseStatus>;
+    activate: (code: string) => Promise<import('./license/types').LicenseActivateResult>;
   };
 }
