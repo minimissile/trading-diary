@@ -1,8 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { net, protocol } from 'electron';
+import { app, net, protocol } from 'electron';
+import { resolveBrokerIcon } from './broker-icon-cache';
 import type { ServiceHost } from './service-host';
+import type { AccountBroker } from '../shared/accounts/types';
 
 const contentTypes: Readonly<Record<string, string>> = {
   '.css': 'text/css; charset=utf-8',
@@ -45,6 +47,22 @@ export function registerProtocolHandlers(service: ServiceHost): () => void {
   protocol.handle('app-asset', async (request) => {
     try {
       const url = new URL(request.url);
+
+      if (url.hostname === 'broker-icon') {
+        const brokerId = url.pathname.replace(/^\//u, '') as AccountBroker;
+        if (!brokerId) return responseStatus(404);
+
+        const icon = await resolveBrokerIcon(app.getPath('userData'), brokerId);
+        if (!icon) return responseStatus(404);
+
+        return new Response(new Uint8Array(icon.body), {
+          headers: {
+            'Content-Type': icon.contentType,
+            'Cache-Control': 'public, max-age=86400',
+          },
+        });
+      }
+
       if (url.hostname !== 'preview' && url.hostname !== 'original') return responseStatus(404);
 
       const hash = url.pathname.replace(/^\//u, '');

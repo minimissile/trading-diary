@@ -69,7 +69,7 @@ export const BROKER_REGISTRY: readonly BrokerMeta[] = [
   { id: 'hlzq', label: '华龙证券', domain: 'hlzq.com', group: 'regional', keywords: ['华龙', 'hlzq', '华龙点金'] },
   { id: 'cfzq', label: '华鑫证券', domain: 'cfzq.com', group: 'regional', keywords: ['华鑫', 'cfzq', '鑫智投'] },
   { id: 'hfzq', label: '华福证券', domain: 'hfzq.com.cn', group: 'regional', keywords: ['华福', 'hfzq', '小福牛'] },
-  { id: 'hwabao', label: '华宝证券', domain: 'hwabao.com', group: 'regional', keywords: ['华宝', 'hwabao', '华宝智投'] },
+  { id: 'hwabao', label: '华宝证券', domain: 'cnhbstock.com', group: 'regional', keywords: ['华宝', 'hwabao', '华宝智投'] },
   { id: 'huajin', label: '华金证券', domain: 'huajinsc.cn', group: 'regional', keywords: ['华金', 'huajin'] },
   { id: 'dycy', label: '第一创业', domain: 'firstcapital.com.cn', group: 'regional', keywords: ['第一创业', 'dycy', '一创'] },
   { id: 'dgzq', label: '东莞证券', domain: 'dgzq.com.cn', group: 'regional', keywords: ['东莞', 'dgzq', '掌证宝'] },
@@ -132,21 +132,36 @@ export function matchBrokerSearch(meta: BrokerMeta, query: string): boolean {
   return haystack.includes(q);
 }
 
-/** 券商 favicon 候选地址（按优先级，国内网络友好）。 */
-export function getBrokerIconCandidates(id: AccountBroker, size = 32): string[] {
-  const domain = getBrokerMeta(id).domain;
-  if (!domain) return [];
-  return [
-    `https://${domain}/favicon.ico`,
-    `https://${domain}/favicon.png`,
-    `https://icons.duckduckgo.com/ip3/${domain}.ico`,
-    `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${size}`,
-  ];
+function brokerIconHosts(domain: string): string[] {
+  const hosts = [domain];
+  if (!domain.startsWith('www.')) {
+    hosts.push(`www.${domain}`);
+  }
+  return hosts;
 }
 
-/** 券商 favicon 首选地址。 */
-export function getBrokerIconUrl(id: AccountBroker, size = 32): string | null {
-  return getBrokerIconCandidates(id, size)[0] ?? null;
+/** 券商 favicon 候选地址（按优先级，国内网络友好；不含 Google）。 */
+export function getBrokerIconCandidates(id: AccountBroker): string[] {
+  const domain = getBrokerMeta(id).domain;
+  if (!domain) return [];
+
+  const urls: string[] = [];
+  for (const host of brokerIconHosts(domain)) {
+    urls.push(`https://${host}/favicon.ico`, `https://${host}/favicon.png`);
+  }
+  urls.push(`https://icons.duckduckgo.com/ip3/${domain}.ico`);
+  return urls;
+}
+
+/** 通过主进程 app-asset 协议加载券商 favicon（本地缓存 + 多源拉取）。 */
+export function getBrokerIconAssetUrl(id: AccountBroker): string | null {
+  if (!getBrokerMeta(id).domain) return null;
+  return `app-asset://broker-icon/${id}`;
+}
+
+/** @deprecated 请使用 getBrokerIconAssetUrl。 */
+export function getBrokerIconUrl(id: AccountBroker): string | null {
+  return getBrokerIconAssetUrl(id);
 }
 
 export const BROKER_GROUP_LABELS: Record<BrokerMeta['group'], string> = {
