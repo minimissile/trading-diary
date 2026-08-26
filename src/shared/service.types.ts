@@ -20,6 +20,12 @@ import type {
   TradingPlan,
   TradingPlanStatus,
   WorkspaceSnapshot,
+  DividendListResult,
+  InstrumentInfo,
+  MarketNewsItem,
+  MarketQuote,
+  MarketSearchHit,
+  MarketSnapshotView,
 } from './api.types';
 import type { PromptId } from './llm/prompt-id';
 
@@ -111,6 +117,34 @@ export interface ServiceContract {
   'llm.previewPrompt': {
     params: { promptId: PromptId; variables: Record<string, string> };
     result: LlmPromptPreview;
+  };
+  'market.resolve': {
+    params: { symbol: string };
+    result: InstrumentInfo;
+  };
+  'market.search': {
+    params: { query: string; limit?: number };
+    result: MarketSearchHit[];
+  };
+  'market.getQuote': {
+    params: { symbol: string };
+    result: MarketQuote;
+  };
+  'market.getQuotes': {
+    params: { symbols: string[] };
+    result: MarketQuote[];
+  };
+  'market.getSnapshot': {
+    params: { symbol: string };
+    result: MarketSnapshotView;
+  };
+  'market.listDividends': {
+    params: { symbol: string; page?: number; pageSize?: number };
+    result: DividendListResult;
+  };
+  'market.listNews': {
+    params: { symbol: string; pageSize?: number };
+    result: MarketNewsItem[];
   };
 }
 

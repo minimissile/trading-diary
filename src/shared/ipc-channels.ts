@@ -30,4 +30,11 @@ export const ipcChannels = {
   downloadUpdate: 'desktop:update:download',
   installUpdate: 'desktop:update:install',
   openUpdateRelease: 'desktop:update:open-release',
+  marketResolve: 'desktop:market:resolve',
+  marketSearch: 'desktop:market:search',
+  marketGetQuote: 'desktop:market:get-quote',
+  marketGetQuotes: 'desktop:market:get-quotes',
+  marketGetSnapshot: 'desktop:market:get-snapshot',
+  marketListDividends: 'desktop:market:list-dividends',
+  marketListNews: 'desktop:market:list-news',
 } as const;

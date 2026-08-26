@@ -8,6 +8,7 @@ import { AppDatabase } from './database/database';
 import { debugRunStream, previewPrompt } from './llm/debug-service';
 import { createLlmRunner, type LlmRunner } from './llm/llm-runner';
 import { generateReviewAiDraft, generateReviewAiDraftStream } from './reviews/review-ai-service';
+import { marketService } from './market/market-service';
 
 const reviewAiDraftParamsSchema = z
   .object({
@@ -124,6 +125,24 @@ export class AppService {
         const params = llmPreviewParamsSchema.parse(request.params);
         return previewPrompt(this.llmRunner, params.promptId, params.variables);
       }
+      case 'market.resolve':
+        return marketService.resolve(request.params.symbol);
+      case 'market.search':
+        return marketService.search(request.params.query, request.params.limit);
+      case 'market.getQuote':
+        return marketService.getQuote(request.params.symbol);
+      case 'market.getQuotes':
+        return marketService.getQuotes(request.params.symbols);
+      case 'market.getSnapshot':
+        return marketService.getSnapshot(request.params.symbol);
+      case 'market.listDividends':
+        return marketService.listDividends(
+          request.params.symbol,
+          request.params.page,
+          request.params.pageSize,
+        );
+      case 'market.listNews':
+        return marketService.listNews(request.params.symbol, request.params.pageSize);
     }
   }
 

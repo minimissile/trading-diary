@@ -230,6 +230,32 @@ export interface LlmStreamPayload {
   message?: string;
 }
 
+import type {
+  DividendEvent,
+  DividendListResult,
+  InstrumentInfo,
+  MarketNewsItem,
+  MarketQuote,
+  MarketSearchHit,
+} from './market/types';
+
+export type {
+  DividendEvent,
+  DividendListResult,
+  InstrumentInfo,
+  InstrumentKind,
+  MarketNewsItem,
+  MarketQuote,
+  MarketSearchHit,
+  MarketSnapshot,
+} from './market/types';
+
+export interface MarketSnapshotView {
+  instrument: InstrumentInfo;
+  quote: MarketQuote;
+  upcomingDividends: DividendEvent[];
+}
+
 export interface DesktopApi {
   system: {
     health: () => Promise<HealthResult>;
@@ -292,5 +318,14 @@ export interface DesktopApi {
     install: () => Promise<void>;
     openReleasePage: () => Promise<void>;
     onStateChanged: (listener: (state: UpdateState) => void) => () => void;
+  };
+  market: {
+    resolve: (symbol: string) => Promise<InstrumentInfo>;
+    search: (query: string, limit?: number) => Promise<MarketSearchHit[]>;
+    getQuote: (symbol: string) => Promise<MarketQuote>;
+    getQuotes: (symbols: string[]) => Promise<MarketQuote[]>;
+    getSnapshot: (symbol: string) => Promise<MarketSnapshotView>;
+    listDividends: (symbol: string, page?: number, pageSize?: number) => Promise<DividendListResult>;
+    listNews: (symbol: string, pageSize?: number) => Promise<MarketNewsItem[]>;
   };
 }

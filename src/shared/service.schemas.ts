@@ -190,4 +190,55 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
       })
       .strict(),
   }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('market.resolve'),
+    params: z.object({ symbol: symbolSchema }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('market.search'),
+    params: z
+      .object({
+        query: z.string().trim().min(1).max(32),
+        limit: z.number().int().min(1).max(20).optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('market.getQuote'),
+    params: z.object({ symbol: symbolSchema }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('market.getQuotes'),
+    params: z.object({ symbols: z.array(symbolSchema).min(1).max(20) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('market.getSnapshot'),
+    params: z.object({ symbol: symbolSchema }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('market.listDividends'),
+    params: z
+      .object({
+        symbol: symbolSchema,
+        page: z.number().int().min(1).max(100).optional(),
+        pageSize: z.number().int().min(1).max(50).optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('market.listNews'),
+    params: z
+      .object({
+        symbol: symbolSchema,
+        pageSize: z.number().int().min(1).max(20).optional(),
+      })
+      .strict(),
+  }),
 ]);

@@ -116,6 +116,16 @@ const desktopApi: DesktopApi = {
       return () => ipcRenderer.removeListener(ipcChannels.updateState, handler);
     },
   },
+  market: {
+    resolve: (symbol) => ipcRenderer.invoke(ipcChannels.marketResolve, { symbol }),
+    search: (query, limit) => ipcRenderer.invoke(ipcChannels.marketSearch, { query, limit }),
+    getQuote: (symbol) => ipcRenderer.invoke(ipcChannels.marketGetQuote, { symbol }),
+    getQuotes: (symbols) => ipcRenderer.invoke(ipcChannels.marketGetQuotes, { symbols }),
+    getSnapshot: (symbol) => ipcRenderer.invoke(ipcChannels.marketGetSnapshot, { symbol }),
+    listDividends: (symbol, page, pageSize) =>
+      ipcRenderer.invoke(ipcChannels.marketListDividends, { symbol, page, pageSize }),
+    listNews: (symbol, pageSize) => ipcRenderer.invoke(ipcChannels.marketListNews, { symbol, pageSize }),
+  },
 };
 
 contextBridge.exposeInMainWorld('desktop', desktopApi);

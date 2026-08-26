@@ -217,6 +217,44 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     activeStreamCancels.delete(input.streamId);
   });
 
+  ipcMain.handle(ipcChannels.marketResolve, (event, input: { symbol: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('market.resolve', input);
+  });
+
+  ipcMain.handle(ipcChannels.marketSearch, (event, input: { query: string; limit?: number }) => {
+    assertTrustedSender(event, window);
+    return service.request('market.search', input);
+  });
+
+  ipcMain.handle(ipcChannels.marketGetQuote, (event, input: { symbol: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('market.getQuote', input);
+  });
+
+  ipcMain.handle(ipcChannels.marketGetQuotes, (event, input: { symbols: string[] }) => {
+    assertTrustedSender(event, window);
+    return service.request('market.getQuotes', input);
+  });
+
+  ipcMain.handle(ipcChannels.marketGetSnapshot, (event, input: { symbol: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('market.getSnapshot', input);
+  });
+
+  ipcMain.handle(
+    ipcChannels.marketListDividends,
+    (event, input: { symbol: string; page?: number; pageSize?: number }) => {
+      assertTrustedSender(event, window);
+      return service.request('market.listDividends', input);
+    },
+  );
+
+  ipcMain.handle(ipcChannels.marketListNews, (event, input: { symbol: string; pageSize?: number }) => {
+    assertTrustedSender(event, window);
+    return service.request('market.listNews', input);
+  });
+
   ipcMain.handle(ipcChannels.getUpdateState, (event) => {
     assertTrustedSender(event, window);
     return updater.getState();
@@ -276,6 +314,13 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     ipcMain.removeHandler(ipcChannels.previewLlmPrompt);
     ipcMain.removeHandler(ipcChannels.startLlmDebugStream);
     ipcMain.removeHandler(ipcChannels.cancelLlmStream);
+    ipcMain.removeHandler(ipcChannels.marketResolve);
+    ipcMain.removeHandler(ipcChannels.marketSearch);
+    ipcMain.removeHandler(ipcChannels.marketGetQuote);
+    ipcMain.removeHandler(ipcChannels.marketGetQuotes);
+    ipcMain.removeHandler(ipcChannels.marketGetSnapshot);
+    ipcMain.removeHandler(ipcChannels.marketListDividends);
+    ipcMain.removeHandler(ipcChannels.marketListNews);
     ipcMain.removeHandler(ipcChannels.getUpdateState);
     ipcMain.removeHandler(ipcChannels.checkForUpdates);
     ipcMain.removeHandler(ipcChannels.downloadUpdate);
