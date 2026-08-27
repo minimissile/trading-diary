@@ -20,7 +20,7 @@ import {
 import { App, Button, Progress, Skeleton } from 'antd';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import type { OverlapPoolItemLive, TradeAlert, TradingPlan, WorkspaceSnapshot } from '../../shared/api.types';
+import type { OverlapPoolItemLive, TradeAlert, TradeEpisodeView, TradingPlan, WorkspaceSnapshot } from '../../shared/api.types';
 import { PlanCreateModal } from '../components/trading/PlanCreateModal';
 import { formatAlertCondition, formatCurrency, formatPrice } from '../lib/trading-format';
 import { routePaths } from '../router/paths';
@@ -40,7 +40,7 @@ interface ActionItem {
   status: string;
   statusTone: 'warning' | 'success' | 'violet' | 'blue';
   action: string;
-  source?: TradingPlan | TradeAlert;
+  source?: TradingPlan | TradeAlert | TradeEpisodeView;
 }
 
 const previewActionItems: ActionItem[] = [
@@ -296,8 +296,8 @@ export function HomePage(): React.JSX.Element {
       action: plan.status === 'holding' ? '结束并复盘' : '确认入场',
       source: plan,
     }));
-    const reviews = snapshot.pendingReviewPlans.map((plan) => ({
-      id: `review-${plan.id}`,
+    const planReviews = snapshot.pendingReviewPlans.map((plan) => ({
+      id: `review-plan-${plan.id}`,
       priority: 'medium' as const,
       category: 'review' as const,
       type: '待复盘',
@@ -305,13 +305,28 @@ export function HomePage(): React.JSX.Element {
       code: plan.symbol,
       description: plan.thesis,
       price: formatPrice(plan.entryPrice),
-      change: '回合结束',
+      change: '计划已结束',
       status: '已完成',
       statusTone: 'success' as const,
       action: '开始复盘',
       source: plan,
     }));
-    return [...alerts, ...plans, ...reviews].slice(0, 5);
+    const episodeReviews = snapshot.pendingReviewEpisodes.map((episode) => ({
+      id: `review-episode-${episode.id}`,
+      priority: 'high' as const,
+      category: 'review' as const,
+      type: '待复盘',
+      symbol: episode.title,
+      code: episode.symbol,
+      description: `已实现 ${episode.realizedPnl === null ? '—' : formatCurrency(episode.realizedPnl)}`,
+      price: episode.avgExitPrice === null ? '—' : formatPrice(episode.avgExitPrice),
+      change: `${episode.closedQuantity} 股`,
+      status: '已平仓',
+      statusTone: 'success' as const,
+      action: '开始复盘',
+      source: episode,
+    }));
+    return [...alerts, ...episodeReviews, ...plans, ...planReviews].slice(0, 5);
   }, [snapshot]);
 
   const actionItems = realActionItems.length ? realActionItems : previewActionItems;
@@ -333,9 +348,15 @@ export function HomePage(): React.JSX.Element {
       await completeAlert(item.source);
       return;
     }
+    if (item.source && 'executions' in item.source) {
+      if (item.category === 'review') {
+        void navigate(routePaths.journal, { state: { episodeId: item.source.id, openReview: true } });
+        return;
+      }
+    }
     if (item.source && 'entryPrice' in item.source) {
       if (item.category === 'review') {
-        void navigate(routePaths.journal, { state: { planId: item.source.id } });
+        void navigate(routePaths.journal, { state: { planId: item.source.id, openReview: true } });
         return;
       }
       const nextStatus = item.source.status === 'watching' ? 'holding' : item.source.status === 'holding' ? 'completed' : null;

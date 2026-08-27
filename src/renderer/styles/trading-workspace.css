@@ -726,6 +726,160 @@
   gap: 12px;
 }
 
+.episode-list {
+  display: grid;
+  gap: 12px;
+}
+
+.journal-section {
+  margin-bottom: 24px;
+}
+
+.section-inline-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.section-inline-header h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.section-inline-header span {
+  color: var(--td-text-muted, #8fa3b8);
+  font-size: 12px;
+}
+
+.episode-card {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 28, 44, 0.72);
+}
+
+.episode-card--open {
+  border-color: rgba(66, 204, 139, 0.35);
+}
+
+.episode-card--pending {
+  border-color: rgba(245, 166, 35, 0.35);
+}
+
+.episode-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.episode-card-header h3 {
+  margin: 4px 0 0;
+  font-size: 15px;
+}
+
+.import-panel {
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 28, 44, 0.72);
+  display: grid;
+  gap: 16px;
+}
+
+.import-panel--done {
+  text-align: center;
+  justify-items: center;
+}
+
+.import-file-meta {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.import-mapping-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.import-form-row {
+  display: grid;
+  gap: 6px;
+}
+
+.import-form-row > span {
+  font-size: 12px;
+  color: var(--td-text-muted, #8fa3b8);
+}
+
+.import-sample-table {
+  display: grid;
+  gap: 8px;
+}
+
+.import-summary-tags {
+  display: flex;
+  gap: 8px;
+}
+
+.episode-timeline {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.episode-timeline-item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.episode-timeline-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.episode-timeline-item--buy .episode-timeline-icon {
+  color: #42cc8b;
+}
+
+.episode-timeline-item--sell .episode-timeline-icon {
+  color: #ff626f;
+}
+
+.episode-timeline-body {
+  display: grid;
+  gap: 2px;
+}
+
+.episode-timeline-body small {
+  color: var(--td-text-muted, #8fa3b8);
+}
+
+.episode-timeline-empty {
+  margin: 8px 0 0;
+  color: var(--td-text-muted, #8fa3b8);
+  font-size: 12px;
+}
+
+.review-list {
+  display: grid;
+  gap: 12px;
+}
+
 .alert-card {
   display: grid;
   grid-template-columns: 14px minmax(0, 1fr) auto;

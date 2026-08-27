@@ -83,11 +83,13 @@ export interface QuoteEvaluationResult {
   price: number;
   evaluatedCount: number;
   newlyTriggered: TradeAlert[];
+  newlyTriggeredEvents: import('./alerts/event-types').AlertEvent[];
 }
 
 export interface TradeReview {
   id: string;
   planId: string | null;
+  episodeId: string | null;
   symbol: string;
   title: string;
   direction: TradeDirection;
@@ -105,6 +107,7 @@ export interface TradeReview {
 
 export interface CreateTradeReviewInput {
   planId: string | null;
+  episodeId?: string | null;
   symbol: string;
   title: string;
   direction: TradeDirection;
@@ -116,18 +119,29 @@ export interface CreateTradeReviewInput {
   executionScore: number;
   summary: string;
   lesson: string;
+  saveToPlaybook?: boolean;
 }
+
+import type { TradeEpisodeView, CreateExecutionInput } from './episodes/types';
+import type {
+  CsvParseResult,
+  ExecutionImportCommitResult,
+  ExecutionImportInput,
+  ExecutionImportPreviewResult,
+} from './import/types';
 
 export interface WorkspaceSnapshot {
   activePlanCount: number;
   triggeredAlertCount: number;
   pendingReviewCount: number;
+  openEpisodeCount: number;
   reviewedTradeCount: number;
   totalPnl: number;
   averageExecutionScore: number | null;
   activePlans: TradingPlan[];
   triggeredAlerts: TradeAlert[];
   pendingReviewPlans: TradingPlan[];
+  pendingReviewEpisodes: TradeEpisodeView[];
   recentReviews: TradeReview[];
 }
 
@@ -299,6 +313,15 @@ export type {
 import type { WatchlistPoolId, WatchlistPoolMeta, WatchlistPoolSnapshot } from './watchlist/types';
 
 export type {
+  CreateExecutionInput,
+  Execution,
+  ExecutionSide,
+  ExecutionSource,
+  TradeEpisodeStatus,
+  TradeEpisodeView,
+} from './episodes/types';
+
+export type {
   CreatePortfolioLedgerInput,
   DividendCalendarDay,
   DividendRecordStatus,
@@ -309,6 +332,16 @@ export type {
   PortfolioRefreshResult,
   PortfolioSummaryView,
 } from './portfolio/types';
+
+export type {
+  CsvParseResult,
+  ExecutionColumnMapping,
+  ExecutionCsvField,
+  ExecutionImportCommitResult,
+  ExecutionImportInput,
+  ExecutionImportPreviewResult,
+  ExecutionImportPreviewRow,
+} from './import/types';
 
 export type {
   BackupExportInput,
@@ -340,6 +373,8 @@ export interface DesktopApi {
     create: (input: CreateTradeAlertInput) => Promise<TradeAlert>;
     setStatus: (id: string, status: TradeAlertStatus) => Promise<TradeAlert>;
     evaluatePrice: (symbol: string, price: number) => Promise<QuoteEvaluationResult>;
+    listEvents: (limit?: number) => Promise<import('./alerts/event-types').AlertEvent[]>;
+    setEventAction: (id: string, action: import('./alerts/event-types').AlertEventUserAction) => Promise<import('./alerts/event-types').AlertEvent>;
   };
   reviews: {
     list: () => Promise<TradeReview[]>;
@@ -435,5 +470,22 @@ export interface DesktopApi {
     export: (options?: { includeLicense?: boolean }) => Promise<import('./backup/types').BackupExportResult | null>;
     import: () => Promise<import('./backup/types').BackupImportResult | null>;
     relaunchApp: () => Promise<void>;
+  };
+  episodes: {
+    list: (accountId?: string) => Promise<TradeEpisodeView[]>;
+    get: (id: string) => Promise<TradeEpisodeView>;
+    addExecution: (input: CreateExecutionInput) => Promise<TradeEpisodeView>;
+  };
+  import: {
+    selectCsvFile: () => Promise<CsvParseResult | null>;
+    previewExecutions: (input: ExecutionImportInput) => Promise<ExecutionImportPreviewResult>;
+    commitExecutions: (input: ExecutionImportInput) => Promise<ExecutionImportCommitResult>;
+  };
+  playbook: {
+    list: (status?: import('./playbook/types').PlaybookRuleStatus) => Promise<import('./playbook/types').PlaybookRule[]>;
+    create: (input: import('./playbook/types').CreatePlaybookRuleInput) => Promise<import('./playbook/types').PlaybookRule>;
+    update: (id: string, input: import('./playbook/types').UpdatePlaybookRuleInput) => Promise<import('./playbook/types').PlaybookRule>;
+    archive: (id: string) => Promise<import('./playbook/types').PlaybookRule>;
+    activationChecklist: (symbol?: string) => Promise<import('./playbook/types').PlaybookRule[]>;
   };
 }

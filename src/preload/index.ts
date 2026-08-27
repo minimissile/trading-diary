@@ -163,6 +163,16 @@ const desktopApi: DesktopApi = {
     import: () => ipcRenderer.invoke(ipcChannels.backupImport),
     relaunchApp: () => ipcRenderer.invoke(ipcChannels.backupRelaunchApp),
   },
+  episodes: {
+    list: (accountId) => ipcRenderer.invoke(ipcChannels.episodesList, { accountId }),
+    get: (id) => ipcRenderer.invoke(ipcChannels.episodesGet, { id }),
+    addExecution: (input) => ipcRenderer.invoke(ipcChannels.episodesAddExecution, input),
+  },
+  import: {
+    selectCsvFile: () => ipcRenderer.invoke(ipcChannels.importSelectCsv),
+    previewExecutions: (input) => ipcRenderer.invoke(ipcChannels.importPreviewExecutions, input),
+    commitExecutions: (input) => ipcRenderer.invoke(ipcChannels.importCommitExecutions, input),
+  },
 };
 
 contextBridge.exposeInMainWorld('desktop', desktopApi);

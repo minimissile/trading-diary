@@ -15,6 +15,8 @@ import { AccountService } from './accounts/account-service';
 import { LicenseService } from './license/license-service';
 import { LicenseError } from '../shared/license/errors';
 import { BackupService } from './backup/backup-service';
+import { ExecutionImportService } from './import/execution-import-service';
+import { pollActiveAlerts } from './alerts/alert-poll-service';
 
 const reviewAiDraftParamsSchema = z
   .object({
@@ -56,6 +58,7 @@ export class AppService {
   private readonly accountService: AccountService;
   private readonly licenseService: LicenseService;
   private readonly backupService: BackupService;
+  private readonly executionImportService: ExecutionImportService;
 
   constructor(dataDir: string, appVersion: string) {
     this.database = new AppDatabase(path.join(dataDir, 'database', 'app.sqlite'));
@@ -65,6 +68,7 @@ export class AppService {
     this.accountService = new AccountService(this.database.accounts, this.portfolioService);
     this.licenseService = new LicenseService(dataDir);
     this.backupService = new BackupService(dataDir, this.database, appVersion);
+    this.executionImportService = new ExecutionImportService(this.database.episodes);
   }
 
   close(): void {
@@ -216,6 +220,34 @@ export class AppService {
         return this.backupService.exportBackup(request.params);
       case 'backup.import':
         return this.backupService.importBackup(request.params, () => this.database.close());
+      case 'episodes.list':
+        return this.database.episodes.listEpisodes(request.params.accountId);
+      case 'episodes.get':
+        return this.database.episodes.getEpisode(request.params.id);
+      case 'episodes.addExecution':
+        return this.database.episodes.addExecution(request.params);
+      case 'import.parseCsv':
+        return this.executionImportService.parseCsv(request.params.sourcePath);
+      case 'import.previewExecutions':
+        return this.executionImportService.preview(request.params);
+      case 'import.commitExecutions':
+        return this.executionImportService.commit(request.params);
+      case 'playbook.list':
+        return this.database.playbook.listRules(request.params.status);
+      case 'playbook.create':
+        return this.database.playbook.createRule(request.params);
+      case 'playbook.update':
+        return this.database.playbook.updateRule(request.params.id, request.params.input);
+      case 'playbook.archive':
+        return this.database.playbook.archiveRule(request.params.id);
+      case 'playbook.activationChecklist':
+        return this.database.playbook.listActivationChecklist(request.params.symbol);
+      case 'alerts.listEvents':
+        return this.database.alertEvents.listEvents(request.params.limit);
+      case 'alerts.setEventAction':
+        return this.database.alertEvents.setUserAction(request.params.id, request.params.action);
+      case 'alerts.pollActive':
+        return pollActiveAlerts(this.database);
     }
   }
 

@@ -257,4 +257,88 @@ export const migrations: readonly Migration[] = [
         AND stamp_duty_rate_ppm > 0;
     `,
   },
+  {
+    version: 9,
+    name: 'trade_episodes_executions',
+    sql: `
+      CREATE TABLE trade_episodes (
+        id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        direction TEXT NOT NULL CHECK (direction IN ('long', 'short')),
+        plan_id TEXT,
+        status TEXT NOT NULL CHECK (status IN ('open', 'closed')),
+        title TEXT NOT NULL DEFAULT '',
+        opened_at TEXT NOT NULL,
+        closed_at TEXT,
+        review_id TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (account_id) REFERENCES portfolio_accounts(id),
+        FOREIGN KEY (plan_id) REFERENCES trading_plans(id) ON DELETE SET NULL,
+        FOREIGN KEY (review_id) REFERENCES trade_reviews(id) ON DELETE SET NULL
+      ) STRICT;
+
+      CREATE INDEX trade_episodes_account_symbol_idx ON trade_episodes(account_id, symbol, status);
+
+      CREATE TABLE executions (
+        id TEXT PRIMARY KEY,
+        episode_id TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        side TEXT NOT NULL CHECK (side IN ('buy', 'sell')),
+        quantity_micros INTEGER NOT NULL CHECK (quantity_micros > 0),
+        price_micros INTEGER NOT NULL CHECK (price_micros > 0),
+        fees_cents INTEGER NOT NULL DEFAULT 0,
+        trade_at TEXT NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        idempotency_key TEXT UNIQUE,
+        source TEXT NOT NULL DEFAULT 'manual',
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (episode_id) REFERENCES trade_episodes(id) ON DELETE CASCADE,
+        FOREIGN KEY (account_id) REFERENCES portfolio_accounts(id)
+      ) STRICT;
+
+      CREATE INDEX executions_episode_idx ON executions(episode_id, trade_at);
+
+      ALTER TABLE trade_reviews ADD COLUMN episode_id TEXT REFERENCES trade_episodes(id) ON DELETE SET NULL;
+      CREATE INDEX trade_reviews_episode_idx ON trade_reviews(episode_id);
+    `,
+  },
+  {
+    version: 10,
+    name: 'playbook_rules_alert_events',
+    sql: `
+      CREATE TABLE playbook_rules (
+        id TEXT PRIMARY KEY,
+        content TEXT NOT NULL,
+        category TEXT NOT NULL CHECK (category IN ('entry', 'position', 'stop', 'exit', 'market', 'emotion', 'process')),
+        status TEXT NOT NULL CHECK (status IN ('active', 'archived')) DEFAULT 'active',
+        symbol TEXT,
+        check_timing TEXT NOT NULL CHECK (check_timing IN ('plan_activation', 'always')) DEFAULT 'plan_activation',
+        source_review_id TEXT REFERENCES trade_reviews(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      ) STRICT;
+
+      CREATE INDEX playbook_rules_status_idx ON playbook_rules(status, updated_at DESC);
+      CREATE INDEX playbook_rules_symbol_idx ON playbook_rules(symbol, status);
+
+      CREATE TABLE alert_events (
+        id TEXT PRIMARY KEY,
+        alert_rule_id TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        title TEXT NOT NULL,
+        condition TEXT NOT NULL CHECK (condition IN ('at_or_above', 'at_or_below')),
+        target_price_micros INTEGER NOT NULL CHECK (target_price_micros > 0),
+        trigger_price_micros INTEGER NOT NULL CHECK (trigger_price_micros > 0),
+        triggered_at TEXT NOT NULL,
+        user_action TEXT CHECK (user_action IN ('acknowledged', 'snoozed', 'dismissed', 'completed')),
+        FOREIGN KEY (alert_rule_id) REFERENCES alert_rules(id) ON DELETE CASCADE
+      ) STRICT;
+
+      CREATE INDEX alert_events_triggered_idx ON alert_events(triggered_at DESC);
+      CREATE INDEX alert_events_rule_idx ON alert_events(alert_rule_id, triggered_at DESC);
+    `,
+  },
 ];

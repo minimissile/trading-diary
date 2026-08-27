@@ -21,6 +21,9 @@ import type {
 import { migrations } from './migrations';
 import { PortfolioDatabase } from '../portfolio/portfolio-database';
 import { AccountDatabase } from '../accounts/account-database';
+import { EpisodeDatabase } from '../episodes/episode-database';
+import { PlaybookDatabase } from '../playbook/playbook-database';
+import { AlertEventDatabase } from '../alerts/alert-event-database';
 
 const PRICE_SCALE = 10_000;
 const QUANTITY_SCALE = 10_000;
@@ -100,6 +103,7 @@ interface TradeAlertRow {
 interface TradeReviewRow {
   id: string;
   plan_id: string | null;
+  episode_id: string | null;
   symbol: string;
   title: string;
   direction: TradeDirection;
@@ -127,6 +131,9 @@ export class AppDatabase {
   readonly filePath: string;
   readonly portfolio: PortfolioDatabase;
   readonly accounts: AccountDatabase;
+  readonly episodes: EpisodeDatabase;
+  readonly playbook: PlaybookDatabase;
+  readonly alertEvents: AlertEventDatabase;
   private readonly db: DatabaseSync;
 
   constructor(filePath: string) {
@@ -154,6 +161,9 @@ export class AppDatabase {
     this.applyMigrations();
     this.portfolio = new PortfolioDatabase(this.db);
     this.accounts = new AccountDatabase(this.db);
+    this.episodes = new EpisodeDatabase(this.db);
+    this.playbook = new PlaybookDatabase(this.db);
+    this.alertEvents = new AlertEventDatabase(this.db);
     if (this.schemaVersion() >= 3) {
       this.portfolio.ensureDefaultAccount();
     }
@@ -423,6 +433,13 @@ export class AppDatabase {
     return this.getTradeAlert(id);
   }
 
+  listActiveAlertSymbols(): string[] {
+    const rows = this.db
+      .prepare("SELECT DISTINCT symbol FROM alert_rules WHERE status = 'active' ORDER BY symbol")
+      .all() as Array<{ symbol: string }>;
+    return rows.map((row) => row.symbol);
+  }
+
   evaluatePrice(symbolInput: string, price: number): QuoteEvaluationResult {
     const symbol = normalizeSymbol(symbolInput);
     const priceMicros = toScaledInteger(price, PRICE_SCALE);
@@ -432,6 +449,7 @@ export class AppDatabase {
       .prepare("SELECT * FROM alert_rules WHERE symbol = ? AND status = 'active'")
       .all(symbol) as unknown as TradeAlertRow[];
     const triggeredIds: string[] = [];
+    const newlyTriggeredEvents = [];
     const now = new Date().toISOString();
 
     this.db.exec('BEGIN IMMEDIATE');
@@ -447,6 +465,17 @@ export class AppDatabase {
         if (matched) {
           triggerAlert.run(priceMicros, now, now, row.id);
           triggeredIds.push(row.id);
+          newlyTriggeredEvents.push(
+            this.alertEvents.recordTrigger({
+              alertRuleId: row.id,
+              symbol: row.symbol,
+              title: row.title,
+              condition: row.condition,
+              targetPriceMicros: row.target_price_micros,
+              triggerPriceMicros: priceMicros,
+              triggeredAt: now,
+            }),
+          );
         } else {
           updatePrice.run(priceMicros, now, row.id);
         }
@@ -457,11 +486,14 @@ export class AppDatabase {
       throw error;
     }
 
+    const newlyTriggered = triggeredIds.map((id) => this.getTradeAlert(id));
+
     return {
       symbol,
       price: fromScaledInteger(priceMicros, PRICE_SCALE),
       evaluatedCount: rows.length,
-      newlyTriggered: triggeredIds.map((id) => this.getTradeAlert(id)),
+      newlyTriggered,
+      newlyTriggeredEvents,
     };
   }
 
@@ -478,37 +510,51 @@ export class AppDatabase {
     if (entryPrice <= 0 || exitPrice <= 0 || quantity <= 0 || fees < 0) throw new Error('成交价格和数量必须大于 0');
 
     if (input.planId) this.getTradingPlan(input.planId);
+    if (input.episodeId) this.episodes.getEpisode(input.episodeId);
     const gross = (input.exitPrice - input.entryPrice) * input.quantity * (input.direction === 'long' ? 1 : -1);
     const pnl = Math.round((gross - input.fees) * MONEY_SCALE);
     const id = randomUUID();
     const now = new Date().toISOString();
 
-    this.db
-      .prepare(
-        `
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      this.db
+        .prepare(
+          `
         INSERT INTO trade_reviews (
-          id, plan_id, symbol, title, direction, planned, entry_price_micros, exit_price_micros,
+          id, plan_id, episode_id, symbol, title, direction, planned, entry_price_micros, exit_price_micros,
           quantity_micros, fees_cents, pnl_cents, execution_score, summary, lesson, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
-      )
-      .run(
-        id,
-        input.planId,
-        normalizeSymbol(input.symbol),
-        input.title.trim(),
-        input.direction,
-        input.planned ? 1 : 0,
-        entryPrice,
-        exitPrice,
-        quantity,
-        fees,
-        pnl,
-        input.executionScore,
-        input.summary.trim(),
-        input.lesson.trim(),
-        now,
-      );
+        )
+        .run(
+          id,
+          input.planId,
+          input.episodeId ?? null,
+          normalizeSymbol(input.symbol),
+          input.title.trim(),
+          input.direction,
+          input.planned ? 1 : 0,
+          entryPrice,
+          exitPrice,
+          quantity,
+          fees,
+          pnl,
+          input.executionScore,
+          input.summary.trim(),
+          input.lesson.trim(),
+          now,
+        );
+
+      if (input.episodeId) this.episodes.linkReview(input.episodeId, id);
+      if (input.saveToPlaybook !== false && input.lesson.trim()) {
+        this.playbook.createFromReview(id, normalizeSymbol(input.symbol), input.lesson.trim());
+      }
+      this.db.exec('COMMIT');
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
     return this.getTradeReview(id);
   }
 
@@ -518,6 +564,8 @@ export class AppDatabase {
     const reviews = this.listTradeReviews();
     const reviewedPlanIds = new Set(reviews.flatMap((review) => (review.planId ? [review.planId] : [])));
     const pendingReviewPlans = plans.filter((plan) => plan.status === 'completed' && !reviewedPlanIds.has(plan.id));
+    const pendingReviewEpisodes = this.episodes.listPendingReview();
+    const openEpisodes = this.episodes.listEpisodes().filter((episode) => episode.status === 'open');
     const activePlans = plans.filter((plan) => plan.status === 'watching' || plan.status === 'holding');
     const triggeredAlerts = alerts.filter((alert) => alert.status === 'triggered');
     const totalPnlCents = reviews.reduce((total, review) => total + toScaledInteger(review.pnl, MONEY_SCALE), 0);
@@ -526,13 +574,15 @@ export class AppDatabase {
     return {
       activePlanCount: activePlans.length,
       triggeredAlertCount: triggeredAlerts.length,
-      pendingReviewCount: pendingReviewPlans.length,
+      pendingReviewCount: pendingReviewPlans.length + pendingReviewEpisodes.length,
+      openEpisodeCount: openEpisodes.length,
       reviewedTradeCount: reviews.length,
       totalPnl: fromScaledInteger(totalPnlCents, MONEY_SCALE),
       averageExecutionScore: reviews.length === 0 ? null : totalScore / reviews.length,
       activePlans: activePlans.slice(0, 6),
       triggeredAlerts: triggeredAlerts.slice(0, 6),
       pendingReviewPlans: pendingReviewPlans.slice(0, 6),
+      pendingReviewEpisodes: pendingReviewEpisodes.slice(0, 6),
       recentReviews: reviews.slice(0, 5),
     };
   }
@@ -637,6 +687,7 @@ export class AppDatabase {
     return {
       id: row.id,
       planId: row.plan_id,
+      episodeId: row.episode_id,
       symbol: row.symbol,
       title: row.title,
       direction: row.direction,

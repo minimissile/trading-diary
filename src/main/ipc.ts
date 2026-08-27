@@ -10,6 +10,15 @@ import type {
   TradingPlanStatus,
 } from '../shared/api.types';
 import type { CreateTradingAccountInput, FeeEstimateInput, UpdateTradingAccountInput } from '../shared/accounts/types';
+import type { CreateExecutionInput } from '../shared/episodes/types';
+import type { ExecutionImportInput } from '../shared/import/types';
+import type { AlertEvent } from '../shared/alerts/event-types';
+import type {
+  CreatePlaybookRuleInput,
+  PlaybookRuleStatus,
+  UpdatePlaybookRuleInput,
+} from '../shared/playbook/types';
+import type { AlertEventUserAction } from '../shared/alerts/event-types';
 import { ipcChannels } from '../shared/ipc-channels';
 import type { ServiceHost } from './service-host';
 import type { UpdateManager } from './updater/update-manager';
@@ -426,6 +435,43 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     app.exit(0);
   });
 
+  ipcMain.handle(ipcChannels.episodesList, (event, input?: { accountId?: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('episodes.list', input ?? {});
+  });
+
+  ipcMain.handle(ipcChannels.episodesGet, (event, input: { id: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('episodes.get', input);
+  });
+
+  ipcMain.handle(ipcChannels.episodesAddExecution, (event, input: CreateExecutionInput) => {
+    assertTrustedSender(event, window);
+    return service.request('episodes.addExecution', input);
+  });
+
+  ipcMain.handle(ipcChannels.importSelectCsv, async (event) => {
+    assertTrustedSender(event, window);
+    const selection = await dialog.showOpenDialog(window, {
+      title: '选择成交 CSV 文件',
+      properties: ['openFile'],
+      filters: [{ name: 'CSV 文件', extensions: ['csv', 'txt'] }],
+    });
+    const sourcePath = selection.filePaths[0];
+    if (selection.canceled || !sourcePath) return null;
+    return service.request('import.parseCsv', { sourcePath });
+  });
+
+  ipcMain.handle(ipcChannels.importPreviewExecutions, (event, input: ExecutionImportInput) => {
+    assertTrustedSender(event, window);
+    return service.request('import.previewExecutions', input);
+  });
+
+  ipcMain.handle(ipcChannels.importCommitExecutions, (event, input: ExecutionImportInput) => {
+    assertTrustedSender(event, window);
+    return service.request('import.commitExecutions', input);
+  });
+
   ipcMain.handle(ipcChannels.getUpdateState, (event) => {
     assertTrustedSender(event, window);
     return updater.getState();
@@ -507,6 +553,12 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     ipcMain.removeHandler(ipcChannels.backupExport);
     ipcMain.removeHandler(ipcChannels.backupImport);
     ipcMain.removeHandler(ipcChannels.backupRelaunchApp);
+    ipcMain.removeHandler(ipcChannels.episodesList);
+    ipcMain.removeHandler(ipcChannels.episodesGet);
+    ipcMain.removeHandler(ipcChannels.episodesAddExecution);
+    ipcMain.removeHandler(ipcChannels.importSelectCsv);
+    ipcMain.removeHandler(ipcChannels.importPreviewExecutions);
+    ipcMain.removeHandler(ipcChannels.importCommitExecutions);
     ipcMain.removeHandler(ipcChannels.getUpdateState);
     ipcMain.removeHandler(ipcChannels.checkForUpdates);
     ipcMain.removeHandler(ipcChannels.downloadUpdate);

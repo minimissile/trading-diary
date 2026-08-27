@@ -1,7 +1,8 @@
 import type { TradeDirection } from '../../shared/api.types';
 
-/** 从持仓流水跳转复盘时的预填数据。 */
+/** 从持仓流水或回合跳转复盘时的预填数据。 */
 export interface JournalReviewDraft {
+  episodeId?: string;
   symbol: string;
   title: string;
   direction: TradeDirection;
@@ -15,6 +16,8 @@ export interface JournalReviewDraft {
 
 export interface JournalLocationState {
   planId?: string;
+  episodeId?: string;
   openReview?: boolean;
+  openExecution?: boolean;
   reviewDraft?: JournalReviewDraft;
 }

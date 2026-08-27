@@ -14,6 +14,7 @@ const routeByNavigationKey: Readonly<Record<string, string>> = {
   accounts: routePaths.accounts,
   alerts: routePaths.alerts,
   journal: routePaths.journal,
+  import: routePaths.import,
   analysis: routePaths.analysis,
   settings: routePaths.settings,
 };
@@ -119,7 +120,7 @@ export function AppShell(): React.JSX.Element {
             >
               新建计划
             </Button>
-            <Button className="record-trade-button" icon={<CalendarOutlined />} onClick={() => void navigate(routePaths.journal)}>
+            <Button className="record-trade-button" icon={<CalendarOutlined />} onClick={() => void navigate(routePaths.journal, { state: { openExecution: true } })}>
               记录成交 <DownOutlined />
             </Button>
             <Badge count={alertCount} size="small" overflowCount={99}>

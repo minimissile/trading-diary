@@ -88,9 +88,29 @@ const reviewAiDraftParamsSchema = z
   })
   .strict();
 
+const executionColumnMappingSchema = z
+  .object({
+    symbol: z.number().int().min(-1),
+    side: z.number().int().min(-1),
+    quantity: z.number().int().min(-1),
+    price: z.number().int().min(-1),
+    fees: z.number().int().min(-1),
+    tradeAt: z.number().int().min(-1),
+  })
+  .strict();
+
+const executionImportInputSchema = z
+  .object({
+    sourcePath: z.string().min(1),
+    accountId: z.string().trim().min(1).optional(),
+    mapping: executionColumnMappingSchema,
+  })
+  .strict();
+
 const createReviewParamsSchema = z
   .object({
     planId: z.uuid().nullable(),
+    episodeId: z.uuid().nullable().optional(),
     symbol: symbolSchema,
     title: z.string().trim().min(1).max(120),
     direction: directionSchema,
@@ -102,6 +122,32 @@ const createReviewParamsSchema = z
     executionScore: z.number().int().min(1).max(5),
     summary: z.string().trim().min(1).max(2_000),
     lesson: z.string().trim().min(1).max(2_000),
+    saveToPlaybook: z.boolean().optional(),
+  })
+  .strict();
+
+const playbookCategorySchema = z.enum(['entry', 'position', 'stop', 'exit', 'market', 'emotion', 'process']);
+const playbookStatusSchema = z.enum(['active', 'archived']);
+const playbookCheckTimingSchema = z.enum(['plan_activation', 'always']);
+const alertEventActionSchema = z.enum(['acknowledged', 'snoozed', 'dismissed', 'completed']);
+
+const createPlaybookRuleParamsSchema = z
+  .object({
+    content: z.string().trim().min(1).max(2_000),
+    category: playbookCategorySchema,
+    symbol: symbolSchema.nullable().optional(),
+    checkTiming: playbookCheckTimingSchema.optional(),
+    sourceReviewId: z.uuid().nullable().optional(),
+  })
+  .strict();
+
+const updatePlaybookRuleParamsSchema = z
+  .object({
+    content: z.string().trim().min(1).max(2_000).optional(),
+    category: playbookCategorySchema.optional(),
+    symbol: symbolSchema.nullable().optional(),
+    checkTiming: playbookCheckTimingSchema.optional(),
+    status: playbookStatusSchema.optional(),
   })
   .strict();
 
@@ -467,5 +513,88 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
     id: z.uuid(),
     method: z.literal('backup.import'),
     params: z.object({ sourcePath: z.string().min(1) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('episodes.list'),
+    params: z.object({ accountId: z.string().trim().min(1).optional() }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('episodes.get'),
+    params: z.object({ id: z.uuid() }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('episodes.addExecution'),
+    params: z
+      .object({
+        accountId: z.string().trim().min(1).optional(),
+        symbol: symbolSchema,
+        side: z.enum(['buy', 'sell']),
+        quantity: positiveNumberSchema,
+        price: positiveNumberSchema,
+        fees: nonNegativeNumberSchema.optional(),
+        tradeAt: z.string().trim().min(1),
+        planId: z.uuid().nullable().optional(),
+        note: z.string().trim().max(500).optional(),
+        source: z.enum(['manual', 'csv', 'plan']).optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('import.parseCsv'),
+    params: z.object({ sourcePath: z.string().min(1) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('import.previewExecutions'),
+    params: executionImportInputSchema,
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('import.commitExecutions'),
+    params: executionImportInputSchema,
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('playbook.list'),
+    params: z.object({ status: playbookStatusSchema.optional() }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('playbook.create'),
+    params: createPlaybookRuleParamsSchema,
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('playbook.update'),
+    params: z.object({ id: z.uuid(), input: updatePlaybookRuleParamsSchema }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('playbook.archive'),
+    params: z.object({ id: z.uuid() }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('playbook.activationChecklist'),
+    params: z.object({ symbol: symbolSchema.optional() }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('alerts.listEvents'),
+    params: z.object({ limit: z.number().int().min(1).max(500).optional() }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('alerts.setEventAction'),
+    params: z.object({ id: z.uuid(), action: alertEventActionSchema }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('alerts.pollActive'),
+    params: z.object({}).strict(),
   }),
 ]);

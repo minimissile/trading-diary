@@ -9,6 +9,7 @@ export const routePaths = {
   accounts: '/accounts',
   alerts: '/alerts',
   journal: '/journal',
+  import: '/import',
   analysis: '/analysis',
   settings: '/settings',
   devLlm: '/dev/llm',

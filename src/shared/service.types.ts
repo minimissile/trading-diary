@@ -51,6 +51,27 @@ import type {
 } from './accounts/types';
 import type { PromptId } from './llm/prompt-id';
 import type {
+  CreateExecutionInput,
+  TradeEpisodeView,
+} from './episodes/types';
+import type {
+  CsvParseResult,
+  ExecutionImportCommitResult,
+  ExecutionImportInput,
+  ExecutionImportPreviewResult,
+} from './import/types';
+import type {
+  AlertEvent,
+  AlertEventUserAction,
+  AlertPollResult,
+} from './alerts/event-types';
+import type {
+  CreatePlaybookRuleInput,
+  PlaybookRule,
+  PlaybookRuleStatus,
+  UpdatePlaybookRuleInput,
+} from './playbook/types';
+import type {
   BackupExportInput,
   BackupExportResult,
   BackupImportInput,
@@ -272,6 +293,62 @@ export interface ServiceContract {
   'backup.import': {
     params: BackupImportInput;
     result: BackupImportResult;
+  };
+  'episodes.list': {
+    params: { accountId?: string };
+    result: TradeEpisodeView[];
+  };
+  'episodes.get': {
+    params: { id: string };
+    result: TradeEpisodeView;
+  };
+  'episodes.addExecution': {
+    params: CreateExecutionInput;
+    result: TradeEpisodeView;
+  };
+  'import.parseCsv': {
+    params: { sourcePath: string };
+    result: CsvParseResult;
+  };
+  'import.previewExecutions': {
+    params: ExecutionImportInput;
+    result: ExecutionImportPreviewResult;
+  };
+  'import.commitExecutions': {
+    params: ExecutionImportInput;
+    result: ExecutionImportCommitResult;
+  };
+  'playbook.list': {
+    params: { status?: PlaybookRuleStatus };
+    result: PlaybookRule[];
+  };
+  'playbook.create': {
+    params: CreatePlaybookRuleInput;
+    result: PlaybookRule;
+  };
+  'playbook.update': {
+    params: { id: string; input: UpdatePlaybookRuleInput };
+    result: PlaybookRule;
+  };
+  'playbook.archive': {
+    params: { id: string };
+    result: PlaybookRule;
+  };
+  'playbook.activationChecklist': {
+    params: { symbol?: string };
+    result: PlaybookRule[];
+  };
+  'alerts.listEvents': {
+    params: { limit?: number };
+    result: AlertEvent[];
+  };
+  'alerts.setEventAction': {
+    params: { id: string; action: AlertEventUserAction };
+    result: AlertEvent;
+  };
+  'alerts.pollActive': {
+    params: Record<string, never>;
+    result: AlertPollResult;
   };
 }
 

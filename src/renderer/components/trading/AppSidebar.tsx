@@ -3,14 +3,12 @@ import {
   BarChartOutlined,
   BellOutlined,
   BookFilled,
-  CloudSyncOutlined,
   DashboardOutlined,
   HistoryOutlined,
   ImportOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   ProjectOutlined,
-  SafetyCertificateOutlined,
   WalletOutlined,
   StarOutlined,
   SettingOutlined,
@@ -25,10 +23,8 @@ const navItems = [
   { key: 'dividends', label: '股息与分红', icon: MoneyCollectOutlined },
   { key: 'accounts', label: '账户管理', icon: BankOutlined },
   { key: 'alerts', label: '提醒中心', icon: BellOutlined },
-  { key: 'settings', label: '成交导入', icon: ImportOutlined },
-  { key: 'journal', label: '交易回合', icon: HistoryOutlined },
-  { key: 'journal', label: '复盘中心', icon: CloudSyncOutlined },
-  { key: 'analysis', label: '规则库', icon: SafetyCertificateOutlined },
+  { key: 'import', label: '成交导入', icon: ImportOutlined },
+  { key: 'journal', label: '交易日记', icon: HistoryOutlined },
   { key: 'analysis', label: '分析报表', icon: BarChartOutlined },
   { key: 'settings', label: '数据与设置', icon: SettingOutlined },
 ] as const;
@@ -56,13 +52,13 @@ export function AppSidebar({ activeKey, alertCount, collapsed, onCollapse, onSel
       </div>
 
       <nav className="primary-nav" aria-label="主导航">
-        {navItems.map((item, index) => {
+        {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = item.key === activeKey && (activeKey !== 'journal' || index === 4);
+          const isActive = item.key === activeKey;
           return (
             <button
               className={isActive ? 'active' : ''}
-              key={`${item.label}-${item.key}`}
+              key={item.key}
               type="button"
               aria-current={isActive ? 'page' : undefined}
               title={collapsed ? item.label : undefined}
