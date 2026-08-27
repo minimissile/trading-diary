@@ -10,9 +10,9 @@
     "url": "https://github.com/minimissile/trading-diary.git"
   },
   "scripts": {
-    "predev": "npm run theme:generate && electron-vite build --logLevel error",
-    "dev": "electron-vite dev",
-    "start": "electron-vite preview",
+    "predev": "npm run theme:generate && electron-vite build --logLevel error && node scripts/prepare-dev-electron.mjs",
+    "dev": "node scripts/run-electron-vite.mjs dev",
+    "start": "node scripts/run-electron-vite.mjs preview",
     "prebuild": "npm run theme:generate",
     "build": "npm run typecheck && electron-vite build",
     "clean:dist": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",

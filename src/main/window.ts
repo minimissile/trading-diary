@@ -1,5 +1,7 @@
 import path from 'node:path';
 import { app, BrowserWindow } from 'electron';
+import { APP_NAME } from '../shared/brand';
+import { resolveWindowIconPath } from './app-branding';
 
 export function createMainWindow(): BrowserWindow {
   const window = new BrowserWindow({
@@ -8,7 +10,9 @@ export function createMainWindow(): BrowserWindow {
     minWidth: 760,
     minHeight: 520,
     show: false,
+    title: APP_NAME,
     backgroundColor: '#061521',
+    icon: resolveWindowIconPath(),
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,

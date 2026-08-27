@@ -8,7 +8,9 @@ import { AppProviders } from './providers/AppProviders';
 import { AppRouter } from './router';
 import { DesktopGate } from './components/DesktopGate';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { SplashScreen } from './components/SplashScreen';
 import './styles/global.css';
+import './styles/splash-screen.css';
 import './styles/trading-workspace.css';
 
 dayjs.locale('zh-cn');
@@ -21,7 +23,9 @@ createRoot(root).render(
     <ErrorBoundary>
       <AppProviders>
         <DesktopGate>
-          <AppRouter />
+          <SplashScreen>
+            <AppRouter />
+          </SplashScreen>
         </DesktopGate>
       </AppProviders>
     </ErrorBoundary>

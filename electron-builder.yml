@@ -1,5 +1,6 @@
 appId: com.tradingdiary.desktop
 productName: 交易日记
+icon: resources/icon.png
 
 directories:
   buildResources: resources
@@ -30,6 +31,7 @@ artifactName: trading-diary-${version}-${arch}-${os}.${ext}
 
 mac:
   category: public.app-category.finance
+  icon: resources/icon.png
   # 无 Developer ID 阶段使用 ad-hoc 签名，版本更新通过 DMG 手动覆盖安装。
   identity: '-'
   hardenedRuntime: true
@@ -46,6 +48,7 @@ mac:
         - x64
 win:
   executableName: JiaoYiRiJi
+  icon: resources/icon.ico
   target:
     - target: nsis
       arch:

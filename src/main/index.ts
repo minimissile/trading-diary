@@ -1,4 +1,5 @@
 import { app, BrowserWindow, protocol } from 'electron';
+import { applyAppBranding, applyDockBranding } from './app-branding';
 import { registerIpcHandlers } from './ipc';
 import { registerProtocolHandlers } from './protocols';
 import { ServiceHost } from './service-host';
@@ -26,6 +27,8 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
+applyAppBranding();
+
 const singleInstance = app.requestSingleInstanceLock();
 if (!singleInstance) app.quit();
 
@@ -38,6 +41,7 @@ let disposeProtocols: (() => void) | null = null;
 async function bootstrap(): Promise<void> {
   await app.whenReady();
   app.setAppUserModelId('com.tradingdiary.desktop');
+  applyDockBranding();
 
   await service.start(app.getPath('userData'));
   disposeProtocols = registerProtocolHandlers(service);

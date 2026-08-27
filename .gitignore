@@ -93,6 +93,9 @@ electron-builder.env
 # electron-vite 构建产物
 out/
 
+# 开发态定制 Electron.app（macOS 程序坞名称）
+.electron-dev/
+
 # electron-builder 打包产物
 dist/
 
