@@ -59,3 +59,6 @@ DOM 类名。
 - 大数据表格优先启用 Table 的虚拟滚动并设置明确的横向、纵向滚动尺寸。
 - 业务组件继续放在 `components/`，不要把页面状态或 IPC 调用封装进基础 UI 适配层。
 - 避免依赖 `.ant-*` 内部节点层级；优先使用 Token、`classNames` 和 `styles` 语义化接口。
+- **数值展示**（金额、价格、份额、涨跌幅）统一走 `ValueDisplay` 与 `trading-format` 预设，禁止页面手写
+  `toFixed` 或拼接 `¥`。格式规则详见 [数值展示规范](NUMBER_FORMAT.md)，字距/字体 Token 详见
+  [UI 主题配置](UI_THEME.md)。

@@ -2,9 +2,15 @@ import type { PromptId } from './prompt-id';
 
 export type LlmMessageRole = 'system' | 'user' | 'assistant';
 
+export type LlmContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+
+export type LlmMessageContent = string | LlmContentPart[];
+
 export interface LlmMessage {
   role: LlmMessageRole;
-  content: string;
+  content: LlmMessageContent;
 }
 
 export type LlmResponseFormat = 'markdown' | 'json' | 'text';

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { App, Button, Empty, Popconfirm, Skeleton, Switch, Tag } from 'antd';
-import { EditOutlined, PlusOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
+import { App, Button, Empty, Skeleton, Switch, Tag } from 'antd';
+import { EditOutlined, DeleteOutlined, PlusOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
 import type {
   CreateTradingAccountInput,
   FeeProfile,
@@ -9,7 +9,8 @@ import type {
 } from '../../shared/api.types';
 import { getBrokerLabel } from '../../shared/accounts/brokers';
 import { getAccountAlias } from '../../shared/accounts/account-display';
-import { formatCurrency } from '../lib/trading-format';
+import { ValueDisplay } from '../lib/trading-format';
+import { confirmDanger, withConfirmDefaults } from '../lib/confirm-dialog';
 import { AccountFormModal } from '../components/trading/AccountFormModal';
 import { BrokerAvatar } from '../components/trading/BrokerAvatar';
 
@@ -129,6 +130,11 @@ export function AccountsPage(): React.JSX.Element {
                 void message.success('账户已归档');
                 await load();
               }}
+              onDelete={async () => {
+                await window.desktop.accounts.delete(account.id);
+                void message.success('账户已删除');
+                await load();
+              }}
             />
           ))}
         </section>
@@ -154,9 +160,11 @@ interface AccountCardProps {
   onEdit: () => void;
   onSetDefault: () => void;
   onArchive: () => void;
+  onDelete: () => void;
 }
 
-function AccountCard({ account, onEdit, onSetDefault, onArchive }: AccountCardProps): React.JSX.Element {
+function AccountCard({ account, onEdit, onSetDefault, onArchive, onDelete }: AccountCardProps): React.JSX.Element {
+  const { modal } = App.useApp();
   const alias = getAccountAlias(account);
   const brokerLabel = getBrokerLabel(account.broker);
 
@@ -191,29 +199,58 @@ function AccountCard({ account, onEdit, onSetDefault, onArchive }: AccountCardPr
               </Button>
             ) : null}
             {!account.isDefault ? (
-              <Popconfirm title="归档后不再出现在下拉列表，流水数据保留。" onConfirm={onArchive}>
-                <Button type="text" danger>
-                  归档
-                </Button>
-              </Popconfirm>
+              <Button
+                type="text"
+                danger
+                onClick={() => {
+                  modal.confirm(
+                    withConfirmDefaults({
+                      title: '归档此账户？',
+                      content: '归档后不再出现在下拉列表，流水数据保留。',
+                      okText: '归档',
+                      onOk: onArchive,
+                    }),
+                  );
+                }}
+              >
+                归档
+              </Button>
             ) : null}
           </div>
-        ) : null}
+        ) : (
+          <div className="account-card-actions">
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => {
+                confirmDanger(modal.confirm, {
+                  title: '永久删除此账户？',
+                  content: `将删除 ${account.ledgerCount} 条流水与 ${account.positionCount} 个持仓标的的相关数据，且不可恢复。`,
+                  okText: '删除',
+                  onOk: onDelete,
+                });
+              }}
+            >
+              删除
+            </Button>
+          </div>
+        )}
       </header>
 
       <dl className="account-card-meta">
         <div className="account-card-meta-item account-card-meta-item--highlight">
           <dt>持仓市值</dt>
-          <dd>{formatCurrency(account.totalMarketValue)}</dd>
+          <dd><ValueDisplay kind="currency" value={account.totalMarketValue} /></dd>
         </div>
         <div className="account-card-meta-item">
           <dt>持仓成本</dt>
-          <dd>{formatCurrency(account.totalCost)}</dd>
+          <dd><ValueDisplay kind="currency" value={account.totalCost} /></dd>
         </div>
         <div className="account-card-meta-item">
           <dt>浮动盈亏</dt>
-          <dd className={account.unrealizedPnl >= 0 ? 'profit-text' : 'loss-text'}>
-            {formatCurrency(account.unrealizedPnl)}
+          <dd>
+            <ValueDisplay kind="pnl" value={account.unrealizedPnl} />
           </dd>
         </div>
         <div className="account-card-meta-item">

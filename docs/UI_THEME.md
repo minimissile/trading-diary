@@ -56,6 +56,32 @@ scripts/
 金额、百分比、时间、版本号和统计指标使用 `--td-font-numeric`，并启用
 `font-variant-numeric: tabular-nums`。正文不要全局使用等宽字体。
 
+### 数字排版（强制）
+
+数值展示的**格式**见 [数值展示规范](NUMBER_FORMAT.md)，**排版**遵循以下 Token 与类名：
+
+| Token / 类名 | 用途 | 默认值 |
+| --- | --- | --- |
+| `--td-font-numeric` | 金额、份额、指标数字 | 中文 sans + `tabular-nums`（非等宽 mono） |
+| `--td-numeric-letter-spacing` | 普通数字字距 | `0.02em` |
+| `--td-currency-letter-spacing` | 含 `¥` / `+/-` 的金额 | `0.03em` |
+| `--td-numeric-weight` | 指标数字字重 | `700` |
+| `.td-value` | 所有用户可见格式化数字 | 统一字体 + 字距 |
+
+**禁止**
+
+- 在数字、金额、`.td-value`、指标卡 `strong`、`.ant-statistic-content` 上使用**负** `letter-spacing`
+- 对金额使用 `font-weight: 780` 等超粗字重（改用 `--td-numeric-weight`）
+- 在页面 CSS 中为单个模块重写数字字体/字距（应改 Token 或 preset）
+
+**必须**
+
+- React 数字 UI 使用 `<ValueDisplay kind="…" />`（见 NUMBER_FORMAT.md）
+- Ant Design `Statistic` 金额使用 `formatter={statisticCurrencyFormatter}` 或内嵌 `ValueDisplay`
+- 指标区容器（`.portfolio-metric-card`、`.journal-stats`、`.portfolio-summary-grid` 等）已内置排版，不要覆盖
+
+修改字距/字重时只改 `theme.css` 中上述 Token，并运行 `npm run check`。
+
 ## 间距与圆角
 
 应用级间距基于 4px 网格，通过 `--td-space-1` 到 `--td-space-12` 使用。普通控件圆角为 6px，

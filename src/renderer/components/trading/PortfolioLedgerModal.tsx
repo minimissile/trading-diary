@@ -1,19 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
-import { App, Button, Checkbox, DatePicker, Form, Input, InputNumber, Modal, Radio } from 'antd';
-import dayjs, { type Dayjs } from 'dayjs';
+import { App, Button, Checkbox, Form, Input, InputNumber, Modal, Radio } from 'antd';
+import type { Dayjs } from 'dayjs';
 import { useNavigate } from 'react-router';
 import type { InstrumentInfo, MarketQuote } from '../../../shared/api.types';
+import type { PortfolioLedgerEntry } from '../../../shared/portfolio/types';
 import { routePaths } from '../../router/paths';
 import type { JournalReviewDraft } from '../../router/journal-state';
 import { SymbolSearchInput } from './SymbolSearchInput';
 import { AccountSelect } from './AccountSelect';
 import { LedgerTradeContextPanel } from './LedgerTradeContextPanel';
+import { TradeDatePicker } from './TradeDatePicker';
+import { defaultTradeAt, parseTradeAt, tradeAtToIso } from '../../lib/trade-date';
 
 interface PortfolioLedgerModalProps {
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
   defaultAccountId?: string;
+  /** 编辑已有流水时为非空。 */
+  editingEntry?: PortfolioLedgerEntry | null;
 }
 
 interface FormValues {
@@ -33,6 +38,7 @@ export function PortfolioLedgerModal({
   onClose,
   onSaved,
   defaultAccountId,
+  editingEntry = null,
 }: PortfolioLedgerModalProps): React.JSX.Element {
   const { message } = App.useApp();
   const navigate = useNavigate();
@@ -70,19 +76,44 @@ export function PortfolioLedgerModal({
       setQuoteLoading(false);
       return;
     }
+
+    if (editingEntry) {
+      form.setFieldsValue({
+        accountId: editingEntry.accountId,
+        symbol: editingEntry.symbol,
+        side: editingEntry.side === 'dividend_reinvest' ? 'buy' : editingEntry.side,
+        quantity: editingEntry.quantity,
+        price: editingEntry.price,
+        fees: editingEntry.fees,
+        tradeAt: parseTradeAt(editingEntry.tradeAt),
+        note: editingEntry.note,
+        reviewAfterSave: false,
+      });
+      void window.desktop.market
+        .resolve(editingEntry.symbol)
+        .then((instrument) => {
+          setResolved(instrument);
+          return loadQuote(instrument.symbol);
+        })
+        .catch(() => {
+          setResolved(null);
+        });
+      return;
+    }
+
     form.setFieldsValue({
       accountId: defaultAccountId,
       side: 'buy',
       fees: 0,
-      tradeAt: dayjs(),
+      tradeAt: defaultTradeAt(),
       reviewAfterSave: false,
     });
-  }, [defaultAccountId, form, open]);
+  }, [defaultAccountId, editingEntry, form, loadQuote, open]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || editingEntry) return;
     form.setFieldValue('reviewAfterSave', side === 'sell');
-  }, [form, open, side]);
+  }, [editingEntry, form, open, side]);
 
   const submit = async (): Promise<void> => {
     const values = await form.validateFields();
@@ -94,24 +125,36 @@ export function PortfolioLedgerModal({
         reviewDraft = await buildReviewDraft(values, symbol, resolved?.name);
       }
 
-      await window.desktop.portfolio.addLedgerEntry({
-        accountId: values.accountId,
-        symbol,
-        kind: resolved?.kind,
-        side: values.side,
-        quantity: values.quantity,
-        price: values.price,
-        fees: values.fees ?? 0,
-        tradeAt: values.tradeAt.toISOString(),
-        note: values.note?.trim(),
-        source: 'manual',
-      });
+      if (editingEntry) {
+        await window.desktop.portfolio.updateLedgerEntry(editingEntry.id, {
+          side: values.side,
+          quantity: values.quantity,
+          price: values.price,
+          fees: values.fees ?? 0,
+          tradeAt: tradeAtToIso(values.tradeAt),
+          note: values.note?.trim(),
+        });
+        void message.success('流水已更新');
+      } else {
+        await window.desktop.portfolio.addLedgerEntry({
+          accountId: values.accountId,
+          symbol,
+          kind: resolved?.kind,
+          side: values.side,
+          quantity: values.quantity,
+          price: values.price,
+          fees: values.fees ?? 0,
+          tradeAt: tradeAtToIso(values.tradeAt),
+          note: values.note?.trim(),
+          source: 'manual',
+        });
+        void message.success(values.side === 'buy' ? '买入记录已保存' : '卖出记录已保存');
+      }
 
-      void message.success(values.side === 'buy' ? '买入记录已保存' : '卖出记录已保存');
       onSaved();
       onClose();
 
-      if (reviewDraft) {
+      if (!editingEntry && reviewDraft) {
         void navigate(routePaths.journal, {
           state: {
             openReview: true,
@@ -146,7 +189,7 @@ export function PortfolioLedgerModal({
         exitPrice: values.price,
         quantity: values.quantity,
         fees: values.fees ?? 0,
-        tradeAt: values.tradeAt.toISOString(),
+        tradeAt: tradeAtToIso(values.tradeAt),
       };
     }
 
@@ -159,7 +202,7 @@ export function PortfolioLedgerModal({
       exitPrice: quote?.price ?? values.price,
       quantity: values.quantity,
       fees: values.fees ?? 0,
-      tradeAt: values.tradeAt.toISOString(),
+      tradeAt: tradeAtToIso(values.tradeAt),
     };
   };
 
@@ -205,7 +248,7 @@ export function PortfolioLedgerModal({
 
   return (
     <Modal
-      title="录入持仓流水"
+      title={editingEntry ? '编辑持仓流水' : '录入持仓流水'}
       open={open}
       okText="保存"
       cancelText="取消"
@@ -217,7 +260,7 @@ export function PortfolioLedgerModal({
     >
       <Form<FormValues> form={form} layout="vertical" className="trading-form portfolio-ledger-form">
         <Form.Item label="交易账户" name="accountId" rules={[{ required: true, message: '请选择账户' }]}>
-          <AccountSelect />
+          <AccountSelect disabled={Boolean(editingEntry)} />
         </Form.Item>
 
         <Form.Item
@@ -229,6 +272,7 @@ export function PortfolioLedgerModal({
         >
           <SymbolSearchInput
             placeholder="如 600941、510300、161725"
+            disabled={Boolean(editingEntry)}
             onResolveStart={() => {
               setResolving(true);
               setQuote(null);
@@ -271,10 +315,17 @@ export function PortfolioLedgerModal({
           <Form.Item label="数量" name="quantity" rules={[{ required: true, message: '请输入数量' }]}>
             <InputNumber className="full-width-input" min={0.0001} precision={4} />
           </Form.Item>
-          <Form.Item label="成交价" name="price" rules={[{ required: true, message: '请输入价格' }]}>
+          <Form.Item label="成交价" name="price" rules={[{ required: true, message: '请输入价格' }]} extra={side === 'buy' ? '不含佣金净价的成交均价；勿填摊薄成本' : undefined}>
             <InputNumber className="full-width-input" min={0.0001} precision={4} />
           </Form.Item>
         </div>
+
+        {side === 'buy' && price && quantity ? (
+          <p className="portfolio-ledger-amortized-cost">
+            摊薄成本（含费用）{' '}
+            {((price * quantity + (form.getFieldValue('fees') ?? 0)) / quantity).toFixed(4)} 元/份
+          </p>
+        ) : null}
 
         <div className="portfolio-form-row portfolio-form-row--fees">
           <Form.Item label="手续费" name="fees">
@@ -286,11 +337,11 @@ export function PortfolioLedgerModal({
             </Button>
           </Form.Item>
           <Form.Item label="成交时间" name="tradeAt" rules={[{ required: true }]}>
-            <DatePicker showTime className="full-width-input" />
+            <TradeDatePicker className="full-width-input" />
           </Form.Item>
         </div>
 
-        <Form.Item name="reviewAfterSave" valuePropName="checked">
+        <Form.Item name="reviewAfterSave" valuePropName="checked" hidden={Boolean(editingEntry)}>
           <Checkbox>
             保存后去复盘
             <span className="ledger-review-hint">

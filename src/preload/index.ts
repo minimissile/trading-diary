@@ -99,6 +99,13 @@ const desktopApi: DesktopApi = {
     getLlmUsage: () => ipcRenderer.invoke(ipcChannels.getLlmUsage),
     getLlmSettings: () => ipcRenderer.invoke(ipcChannels.getLlmSettings),
     saveLlmSettings: (settings) => ipcRenderer.invoke(ipcChannels.saveLlmSettings, settings),
+    getAccessLock: () => ipcRenderer.invoke(ipcChannels.getAccessLock),
+    verifyAccessLock: (password) => ipcRenderer.invoke(ipcChannels.verifyAccessLock, { password }),
+    enableAccessLock: (newPassword) => ipcRenderer.invoke(ipcChannels.enableAccessLock, { newPassword }),
+    enableExistingAccessLock: () => ipcRenderer.invoke(ipcChannels.enableExistingAccessLock),
+    disableAccessLock: (password) => ipcRenderer.invoke(ipcChannels.disableAccessLock, { password }),
+    changeAccessLockPassword: (currentPassword, newPassword) =>
+      ipcRenderer.invoke(ipcChannels.changeAccessLockPassword, { currentPassword, newPassword }),
   },
   llm: {
     previewPrompt: (promptId, variables) => ipcRenderer.invoke(ipcChannels.previewLlmPrompt, { promptId, variables }),
@@ -131,6 +138,8 @@ const desktopApi: DesktopApi = {
     listDividends: (symbol, page, pageSize) =>
       ipcRenderer.invoke(ipcChannels.marketListDividends, { symbol, page, pageSize }),
     listNews: (symbol, pageSize) => ipcRenderer.invoke(ipcChannels.marketListNews, { symbol, pageSize }),
+    listKlines: (symbol, period, adjust, limit) =>
+      ipcRenderer.invoke(ipcChannels.marketListKlines, { symbol, period, adjust, limit }),
   },
   watchlist: {
     listPools: () => ipcRenderer.invoke(ipcChannels.watchlistListPools),
@@ -144,8 +153,14 @@ const desktopApi: DesktopApi = {
     listDividends: (accountId, year, statuses) =>
       ipcRenderer.invoke(ipcChannels.portfolioListDividends, { accountId, year, statuses }),
     addLedgerEntry: (input) => ipcRenderer.invoke(ipcChannels.portfolioAddLedgerEntry, input),
-    confirmDividend: (id, confirmed, cashAmount) =>
-      ipcRenderer.invoke(ipcChannels.portfolioConfirmDividend, { id, confirmed, cashAmount }),
+    listLedgerEntries: (accountId, symbol) =>
+      ipcRenderer.invoke(ipcChannels.portfolioListLedgerEntries, { accountId, symbol }),
+    updateLedgerEntry: (id, input) => ipcRenderer.invoke(ipcChannels.portfolioUpdateLedgerEntry, { id, input }),
+    deleteLedgerEntry: (id) => ipcRenderer.invoke(ipcChannels.portfolioDeleteLedgerEntry, { id }),
+    deletePosition: (accountId, symbol) =>
+      ipcRenderer.invoke(ipcChannels.portfolioDeletePosition, { accountId, symbol }),
+    confirmDividend: (id, confirmed, cashAmount, accountId, year) =>
+      ipcRenderer.invoke(ipcChannels.portfolioConfirmDividend, { id, confirmed, cashAmount, accountId, year }),
     refreshDividends: (accountId, symbol) =>
       ipcRenderer.invoke(ipcChannels.portfolioRefreshDividends, { accountId, symbol }),
     syncMarketQuotes: (accountId) => ipcRenderer.invoke(ipcChannels.portfolioSyncMarketQuotes, { accountId }),
@@ -161,6 +176,7 @@ const desktopApi: DesktopApi = {
     update: (id, input) => ipcRenderer.invoke(ipcChannels.accountsUpdate, { id, input }),
     setDefault: (id) => ipcRenderer.invoke(ipcChannels.accountsSetDefault, { id }),
     archive: (id) => ipcRenderer.invoke(ipcChannels.accountsArchive, { id }),
+    delete: (id) => ipcRenderer.invoke(ipcChannels.accountsDelete, { id }),
     listFeeProfiles: () => ipcRenderer.invoke(ipcChannels.accountsListFeeProfiles),
     estimateFees: (input) => ipcRenderer.invoke(ipcChannels.accountsEstimateFees, input),
     estimateFeesForSymbol: (input) => ipcRenderer.invoke(ipcChannels.accountsEstimateFeesForSymbol, input),
@@ -186,6 +202,36 @@ const desktopApi: DesktopApi = {
     update: (id, input) => ipcRenderer.invoke(ipcChannels.playbookUpdate, { id, input }),
     archive: (id) => ipcRenderer.invoke(ipcChannels.playbookArchive, { id }),
     activationChecklist: (symbol) => ipcRenderer.invoke(ipcChannels.playbookActivationChecklist, { symbol }),
+  },
+  sip: {
+    listPlans: (statuses) => ipcRenderer.invoke(ipcChannels.sipListPlans, { statuses }),
+    getPlan: (id) => ipcRenderer.invoke(ipcChannels.sipGetPlan, { id }),
+    create: (input) => ipcRenderer.invoke(ipcChannels.sipCreatePlan, input),
+    update: (id, input) => ipcRenderer.invoke(ipcChannels.sipUpdatePlan, { id, input }),
+    setStatus: (id, status) => ipcRenderer.invoke(ipcChannels.sipSetStatus, { id, status }),
+    previewSchedule: (input) => ipcRenderer.invoke(ipcChannels.sipPreviewSchedule, input),
+    listOccurrences: (planId, from, to) =>
+      ipcRenderer.invoke(ipcChannels.sipListOccurrences, { planId, from, to }),
+    listOccurrenceViews: (planId, from, to) =>
+      ipcRenderer.invoke(ipcChannels.sipListOccurrenceViews, { planId, from, to }),
+    confirmOccurrence: (input) => ipcRenderer.invoke(ipcChannels.sipConfirmOccurrence, input),
+    skipOccurrence: (id, reason) => ipcRenderer.invoke(ipcChannels.sipSkipOccurrence, { id, reason }),
+    getSummary: () => ipcRenderer.invoke(ipcChannels.sipGetSummary),
+    scanDue: () => ipcRenderer.invoke(ipcChannels.sipScanDue),
+    getOccurrenceCalendar: (month) => ipcRenderer.invoke(ipcChannels.sipGetOccurrenceCalendar, { month }),
+    getPositionMeta: (accountId) => ipcRenderer.invoke(ipcChannels.sipGetPositionMeta, { accountId }),
+    getReviewTemplate: (planId) => ipcRenderer.invoke(ipcChannels.sipGetReviewTemplate, { planId }),
+    getPlanPositionLink: (planId) => ipcRenderer.invoke(ipcChannels.sipGetPlanPositionLink, { planId }),
+    listPlansBySymbol: (accountId, symbol) =>
+      ipcRenderer.invoke(ipcChannels.sipListPlansBySymbol, { accountId, symbol }),
+    parseImportCsv: (sourcePath) => ipcRenderer.invoke(ipcChannels.sipParseImportCsv, { sourcePath }),
+    previewImport: (input) => ipcRenderer.invoke(ipcChannels.sipPreviewImport, input),
+    commitImport: (input) => ipcRenderer.invoke(ipcChannels.sipCommitImport, input),
+    selectImportScreenshot: () => ipcRenderer.invoke(ipcChannels.sipSelectImportScreenshot),
+    recognizeImportScreenshot: (sourcePath) =>
+      ipcRenderer.invoke(ipcChannels.sipRecognizeImportScreenshot, { sourcePath }),
+    previewAiImport: (input) => ipcRenderer.invoke(ipcChannels.sipPreviewAiImport, input),
+    commitAiImport: (input) => ipcRenderer.invoke(ipcChannels.sipCommitAiImport, input),
   },
 };
 

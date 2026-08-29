@@ -341,4 +341,95 @@ export const migrations: readonly Migration[] = [
       CREATE INDEX alert_events_rule_idx ON alert_events(alert_rule_id, triggered_at DESC);
     `,
   },
+  {
+    version: 11,
+    name: 'fund_sip',
+    sql: `
+      CREATE TABLE fund_sip_plans (
+        id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        name TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK (kind IN ('stock','etf','lof','otc_fund')),
+        amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+        frequency TEXT NOT NULL CHECK (frequency IN ('weekly','biweekly','monthly')),
+        day_of_week INTEGER CHECK (day_of_week BETWEEN 1 AND 7),
+        day_of_month INTEGER CHECK (day_of_month BETWEEN 1 AND 28),
+        start_date TEXT NOT NULL,
+        end_date TEXT,
+        thesis TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('draft','active','paused','completed','cancelled')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (account_id) REFERENCES portfolio_accounts(id)
+      ) STRICT;
+
+      CREATE INDEX fund_sip_plans_status_idx ON fund_sip_plans(status, updated_at DESC);
+      CREATE INDEX fund_sip_plans_symbol_idx ON fund_sip_plans(symbol, updated_at DESC);
+
+      CREATE TABLE fund_sip_occurrences (
+        id TEXT PRIMARY KEY,
+        plan_id TEXT NOT NULL,
+        scheduled_date TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('scheduled','due','completed','skipped','missed')),
+        amount_cents INTEGER,
+        quantity_micros INTEGER,
+        nav_micros INTEGER,
+        fees_cents INTEGER,
+        ledger_entry_id TEXT,
+        skip_reason TEXT NOT NULL DEFAULT '',
+        confirmed_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (plan_id, scheduled_date),
+        FOREIGN KEY (plan_id) REFERENCES fund_sip_plans(id) ON DELETE CASCADE
+      ) STRICT;
+
+      CREATE INDEX fund_sip_occurrences_due_idx ON fund_sip_occurrences(status, scheduled_date);
+      CREATE INDEX fund_sip_occurrences_plan_idx ON fund_sip_occurrences(plan_id, scheduled_date DESC);
+
+      ALTER TABLE portfolio_ledger ADD COLUMN sip_occurrence_id TEXT REFERENCES fund_sip_occurrences(id) ON DELETE SET NULL;
+    `,
+  },
+  {
+    version: 12,
+    name: 'fee_profile_etf_market_commission',
+    sql: `
+      ALTER TABLE fee_profiles ADD COLUMN etf_sh_commission_rate_ppm INTEGER;
+      ALTER TABLE fee_profiles ADD COLUMN etf_sh_commission_min_cents INTEGER;
+      ALTER TABLE fee_profiles ADD COLUMN etf_sz_commission_rate_ppm INTEGER;
+      ALTER TABLE fee_profiles ADD COLUMN etf_sz_commission_min_cents INTEGER;
+    `,
+  },
+  {
+    version: 13,
+    name: 'fee_profile_commission_ppm_tenths',
+    sql: `
+      UPDATE fee_profiles SET commission_rate_ppm = commission_rate_ppm * 10;
+      UPDATE fee_profiles SET etf_commission_rate_ppm = etf_commission_rate_ppm * 10
+        WHERE etf_commission_rate_ppm IS NOT NULL;
+      UPDATE fee_profiles SET etf_sh_commission_rate_ppm = etf_sh_commission_rate_ppm * 10
+        WHERE etf_sh_commission_rate_ppm IS NOT NULL;
+      UPDATE fee_profiles SET etf_sz_commission_rate_ppm = etf_sz_commission_rate_ppm * 10
+        WHERE etf_sz_commission_rate_ppm IS NOT NULL;
+    `,
+  },
+  {
+    version: 14,
+    name: 'fee_profile_commission_wan_real',
+    sql: `
+      ALTER TABLE fee_profiles ADD COLUMN commission_wan REAL;
+      ALTER TABLE fee_profiles ADD COLUMN etf_commission_wan REAL;
+      ALTER TABLE fee_profiles ADD COLUMN etf_sh_commission_wan REAL;
+      ALTER TABLE fee_profiles ADD COLUMN etf_sz_commission_wan REAL;
+
+      UPDATE fee_profiles SET commission_wan = ROUND(commission_rate_ppm / 1000.0, 4);
+      UPDATE fee_profiles SET etf_commission_wan = ROUND(etf_commission_rate_ppm / 1000.0, 4)
+        WHERE etf_commission_rate_ppm IS NOT NULL;
+      UPDATE fee_profiles SET etf_sh_commission_wan = ROUND(etf_sh_commission_rate_ppm / 1000.0, 4)
+        WHERE etf_sh_commission_rate_ppm IS NOT NULL;
+      UPDATE fee_profiles SET etf_sz_commission_wan = ROUND(etf_sz_commission_rate_ppm / 1000.0, 4)
+        WHERE etf_sz_commission_rate_ppm IS NOT NULL;
+    `,
+  },
 ];

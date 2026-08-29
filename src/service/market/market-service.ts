@@ -1,11 +1,15 @@
 import type {
   DividendListResult,
+  KLineAdjust,
+  KLineListResult,
+  KLinePeriod,
   MarketNewsItem,
   MarketQuote,
   MarketSearchHit,
   MarketSnapshot,
 } from '../../shared/market/types';
 import { computeOtcFundDividendYield, listDividends, listUpcomingDividends } from './eastmoney/dividend-service';
+import { listKlines as fetchKlines } from './eastmoney/kline-service';
 import { listNews } from './eastmoney/news-service';
 import { getQuote as fetchQuote, getQuotes as fetchQuotes } from './eastmoney/quote-service';
 import { resolveInstrument, searchInstruments } from './eastmoney/search-service';
@@ -51,6 +55,15 @@ export class MarketService {
 
   listNews(symbol: string, pageSize?: number): Promise<MarketNewsItem[]> {
     return listNews(symbol, pageSize);
+  }
+
+  listKlines(
+    symbol: string,
+    period?: KLinePeriod,
+    adjust?: KLineAdjust,
+    limit?: number,
+  ): Promise<KLineListResult> {
+    return fetchKlines(symbol, period, adjust, limit);
   }
 }
 

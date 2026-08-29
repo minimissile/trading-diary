@@ -34,10 +34,18 @@ function devRendererCspPlugin(): Plugin {
 export default defineConfig({
   main: {
     build: {
-      // 原生扩展必须保持外部依赖，electron-builder 才能打包对应平台的二进制文件。
-      // 使用 ?modulePath 导入的后台服务模块会由 electron-vite 5 自动构建为独立入口。
+      // 原生扩展必须保持 external 依赖；shared 变更需触发主进程重编译以注册新 IPC。
       rollupOptions: {
         external: ['electron-updater', 'sharp'],
+      },
+      watch: {
+        include: [
+          'src/main/**',
+          'src/service/**',
+          'src/shared/ipc-channels.ts',
+          'src/shared/service.types.ts',
+          'src/shared/service.schemas.ts',
+        ],
       },
     },
     plugins: [copyServiceAssetsPlugin()],

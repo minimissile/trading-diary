@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { App, Button, Empty, Popconfirm, Segmented, Skeleton, Tag } from 'antd';
+import { App, Button, Empty, Segmented, Skeleton, Tag } from 'antd';
 import { useNavigate } from 'react-router';
 import type { TradingPlan, TradingPlanStatus } from '../../shared/api.types';
 import { PlanCreateModal } from '../components/trading/PlanCreateModal';
@@ -7,18 +7,19 @@ import { PlanActivationModal } from '../components/trading/PlanActivationModal';
 import {
   calculateExpectedR,
   directionLabels,
-  formatCurrency,
   formatDateTime,
   formatPrice,
   planStatusColors,
   planStatusLabels,
+  ValueDisplay,
 } from '../lib/trading-format';
+import { withConfirmDefaults } from '../lib/confirm-dialog';
 import { routePaths } from '../router/paths';
 
 type PlanFilter = 'all' | 'active' | 'closed';
 
 export function PlansPage(): React.JSX.Element {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const navigate = useNavigate();
   const [plans, setPlans] = useState<TradingPlan[]>([]);
   const [filter, setFilter] = useState<PlanFilter>('all');
@@ -154,7 +155,7 @@ export function PlansPage(): React.JSX.Element {
                 </div>
                 <div className="plan-card-meta">
                   <span>{directionLabels[plan.direction]}</span>
-                  <span>风险 {formatCurrency(plan.riskAmount)}</span>
+                  <span>风险 <ValueDisplay kind="currency" value={plan.riskAmount} /></span>
                   <span>{expectedR === null ? '未设置目标' : `${expectedR.toFixed(2)}R`}</span>
                   <span>{formatDateTime(plan.updatedAt)} 更新</span>
                 </div>
@@ -175,15 +176,21 @@ export function PlansPage(): React.JSX.Element {
                     </Button>
                   ) : null}
                   {['draft', 'watching', 'holding'].includes(plan.status) ? (
-                    <Popconfirm
-                      title="取消这份计划？"
-                      description="关联的监控提醒将同时停用。"
-                      okText="确认取消"
-                      cancelText="返回"
-                      onConfirm={() => void setStatus(plan, 'cancelled')}
+                    <Button
+                      onClick={() => {
+                        modal.confirm(
+                          withConfirmDefaults({
+                            title: '取消这份计划？',
+                            content: '关联的监控提醒将同时停用。',
+                            okText: '确认取消',
+                            cancelText: '返回',
+                            onOk: () => setStatus(plan, 'cancelled'),
+                          }),
+                        );
+                      }}
                     >
-                      <Button>取消计划</Button>
-                    </Popconfirm>
+                      取消计划
+                    </Button>
                   ) : null}
                 </div>
               </article>

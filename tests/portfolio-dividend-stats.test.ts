@@ -6,6 +6,7 @@ import type { PortfolioDividendRecord } from '../src/shared/portfolio/types';
 function record(partial: Partial<PortfolioDividendRecord> & Pick<PortfolioDividendRecord, 'cashAmount' | 'exDividendDate' | 'status'>): PortfolioDividendRecord {
   return {
     id: '1',
+    accountId: 'default',
     symbol: '600941',
     name: '中国移动',
     kind: 'stock',
@@ -41,5 +42,14 @@ describe('dividend milestones', () => {
     expect(states.find((item) => item.id === 'rice')?.lit).toBe(true);
     expect(states.find((item) => item.id === 'quilt')?.lit).toBe(false);
     expect(countLitMilestones(120)).toBe(6);
+  });
+
+  it('extends the wall to one million with three new tiers', () => {
+    expect(computeMilestoneStates(1_000_000).at(-1)).toMatchObject({
+      id: 'million',
+      threshold: 1_000_000,
+      lit: true,
+    });
+    expect(countLitMilestones(1_000_000)).toBe(18);
   });
 });

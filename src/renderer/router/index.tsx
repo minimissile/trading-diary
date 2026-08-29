@@ -12,8 +12,10 @@ import { AccountsPage } from '../pages/AccountsPage';
 import { WatchlistPage } from '../pages/WatchlistPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { PlansPage } from '../pages/PlansPage';
+import { SipPage } from '../pages/SipPage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { LlmDebugPage } from '../pages/LlmDebugPage';
+import { ChartTestPage } from '../pages/ChartTestPage';
 import { routePaths } from './paths';
 
 export function AppRouter(): React.JSX.Element {
@@ -27,6 +29,7 @@ export function AppRouter(): React.JSX.Element {
           <Route path={routePaths.positions} element={<PositionsPage />} />
           <Route path={routePaths.dividends} element={<DividendsPage />} />
           <Route path={routePaths.accounts} element={<AccountsPage />} />
+          <Route path={routePaths.sip} element={<SipPage />} />
           <Route path={routePaths.portfolio} element={<Navigate to={routePaths.positions} replace />} />
           <Route path={routePaths.alerts} element={<AlertsPage />} />
           <Route path={routePaths.import} element={<ImportPage />} />
@@ -35,6 +38,7 @@ export function AppRouter(): React.JSX.Element {
           <Route path={routePaths.analysis} element={<AnalysisPage />} />
           <Route path={routePaths.settings} element={<SettingsPage />} />
           {import.meta.env.DEV ? <Route path={routePaths.devLlm} element={<LlmDebugPage />} /> : null}
+          {import.meta.env.DEV ? <Route path={routePaths.devChart} element={<ChartTestPage />} /> : null}
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

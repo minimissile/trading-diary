@@ -28,13 +28,12 @@ export function TradePriceContextChart({
   quote,
 }: TradePriceContextChartProps): React.JSX.Element {
   const tradeDate = tradeAt.format('YYYY-MM-DD');
-  const tradeClock = tradeAt.format('HH:mm');
 
   if (!quote?.high || !quote.low || quote.high <= quote.low) {
     return (
       <div className="trade-price-chart trade-price-chart--empty">
         <small>
-          {tradeDate} {tradeClock} · 成交价 {formatPrice(tradePrice)}
+          {tradeDate} · 成交价 {formatPrice(tradePrice)}
         </small>
         <p>暂无当日高低价，无法绘制价格区间图</p>
       </div>
@@ -64,7 +63,7 @@ export function TradePriceContextChart({
       <div className="trade-price-chart-head">
         <strong>成交价格位置</strong>
         <span>
-          {tradeDate} {tradeClock} · 参考最新交易日行情
+          {tradeDate} · 参考最新交易日行情
         </span>
       </div>
       <div className="trade-price-chart-track" aria-hidden="true">

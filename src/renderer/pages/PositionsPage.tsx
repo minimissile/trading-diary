@@ -1,44 +1,76 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { App, Button, Empty, Segmented, Skeleton, Table, Tag } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { ReloadOutlined, PlusOutlined } from '@ant-design/icons';
-import type { PortfolioPositionView, PortfolioSummaryView } from '../../shared/api.types';
+import { App, Button, Dropdown, Empty, Segmented, Skeleton, Table, Tag } from 'antd';
+import type { ColumnsType, TableProps } from 'antd/es/table';
+import { EditOutlined, DeleteOutlined, MoreOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
+import type { InstrumentKind } from '../../shared/market/types';
+import type { PortfolioPositionView, PortfolioSummaryView } from '../../shared/portfolio/types';
+import { ALL_ACCOUNTS_ID } from '../../shared/accounts/constants';
+import { pricePresetForKind, quantityPresetForKind } from '../../shared/format/display-presets';
 import { PortfolioLedgerModal } from '../components/trading/PortfolioLedgerModal';
+import { PositionLedgerDrawer } from '../components/trading/PositionLedgerDrawer';
 import { AccountSelect } from '../components/trading/AccountSelect';
-import { useTradingAccountId } from '../hooks/useTradingAccountId';
-import { formatCurrency, formatPrice } from '../lib/trading-format';
+import { ValueDisplay, AnimatedValueDisplay, formatQuoteRefreshTime, formatFloatingPnlCaption, formatDailyPnlCaption } from '../lib/trading-format';
+import { useInterval } from '../hooks/useInterval';
+import { confirmDanger } from '../lib/confirm-dialog';
+import { deletePortfolioPosition } from '../lib/portfolio-actions';
 
-type PositionsTab = 'overview' | 'positions';
+type AssetCategory = 'all' | 'fund' | 'stock';
+type StockSubKind = 'all' | 'stock' | 'listed_fund';
+
+const QUOTE_REFRESH_INTERVAL_MS = 30_000;
 
 const kindLabels: Record<string, string> = {
   stock: 'A股',
   etf: 'ETF',
   lof: 'LOF',
-  otc_fund: '场外',
+  otc_fund: '场外基金',
 };
+
+function matchesAssetFilter(
+  position: PortfolioPositionView,
+  category: AssetCategory,
+  stockSubKind: StockSubKind,
+): boolean {
+  if (category === 'all') return true;
+  if (category === 'fund') return position.kind === 'otc_fund';
+  if (position.kind === 'otc_fund') return false;
+  if (stockSubKind === 'all') return true;
+  if (stockSubKind === 'stock') return position.kind === 'stock';
+  return position.kind === 'etf' || position.kind === 'lof';
+}
+
+function compareNullableNumber(a: number | null, b: number | null): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return a - b;
+}
 
 /**
  * 持仓中心页面，展示真实持仓与市值统计。
  */
 export function PositionsPage(): React.JSX.Element {
-  const { message } = App.useApp();
-  const [tab, setTab] = useState<PositionsTab>('overview');
+  const { message, modal } = App.useApp();
   const [summary, setSummary] = useState<PortfolioSummaryView | null>(null);
   const [positions, setPositions] = useState<PortfolioPositionView[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [ledgerOpen, setLedgerOpen] = useState(false);
-  const [accountId, setAccountId] = useTradingAccountId();
+  const [accountId, setAccountId] = useState<string>(ALL_ACCOUNTS_ID);
+  const [assetCategory, setAssetCategory] = useState<AssetCategory>('all');
+  const [stockSubKind, setStockSubKind] = useState<StockSubKind>('all');
+  const [editingPosition, setEditingPosition] = useState<PortfolioPositionView | null>(null);
+  const [deletingSymbol, setDeletingSymbol] = useState<string | null>(null);
+  const [pnlSortOrder, setPnlSortOrder] = useState<'ascend' | 'descend' | null>(null);
 
   const load = useCallback(async (silent = false): Promise<void> => {
-    if (!accountId) return;
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
       const year = new Date().getFullYear();
       const [nextSummary, nextPositions] = await Promise.all([
         window.desktop.portfolio.getSummary(accountId, year),
-        window.desktop.portfolio.listPositions(accountId),
+        window.desktop.portfolio.syncMarketQuotes(accountId),
       ]);
       setSummary(nextSummary);
       setPositions(nextPositions);
@@ -54,19 +86,64 @@ export function PositionsPage(): React.JSX.Element {
     void load();
   }, [load]);
 
-  const refreshQuotes = async (): Promise<void> => {
-    if (!accountId) return;
-    setRefreshing(true);
-    try {
-      setPositions(await window.desktop.portfolio.syncMarketQuotes(accountId));
-      setSummary(await window.desktop.portfolio.getSummary(accountId, new Date().getFullYear()));
-      void message.success('行情已刷新');
-    } catch (reason) {
-      void message.error(reason instanceof Error ? reason.message : '行情刷新失败');
-    } finally {
-      setRefreshing(false);
+  const filteredPositions = useMemo(
+    () => positions.filter((row) => matchesAssetFilter(row, assetCategory, stockSubKind)),
+    [assetCategory, positions, stockSubKind],
+  );
+
+  const sortedPositions = useMemo(() => {
+    if (!pnlSortOrder) return filteredPositions;
+    const rows = [...filteredPositions];
+    rows.sort((a, b) => {
+      const compared = compareNullableNumber(a.unrealizedPnl, b.unrealizedPnl);
+      return pnlSortOrder === 'ascend' ? compared : -compared;
+    });
+    return rows;
+  }, [filteredPositions, pnlSortOrder]);
+
+  const handleTableChange: TableProps<PortfolioPositionView>['onChange'] = (_pagination, _filters, sorter) => {
+    const active = Array.isArray(sorter) ? sorter[0] : sorter;
+    if (active?.columnKey === 'pnl') {
+      setPnlSortOrder(active.order ?? null);
     }
   };
+
+  const deletePosition = useCallback(
+    async (row: PortfolioPositionView): Promise<void> => {
+      setDeletingSymbol(row.symbol);
+      try {
+        await deletePortfolioPosition(accountId, row.symbol);
+        void message.success('持仓已删除');
+        await load(true);
+      } catch (reason) {
+        void message.error(reason instanceof Error ? reason.message : '删除失败');
+      } finally {
+        setDeletingSymbol(null);
+      }
+    },
+    [accountId, load, message],
+  );
+
+  const refreshQuotes = useCallback(
+    async (silent = false): Promise<void> => {
+      if (!silent) setRefreshing(true);
+      try {
+        setPositions(await window.desktop.portfolio.syncMarketQuotes(accountId));
+        setSummary(await window.desktop.portfolio.getSummary(accountId, new Date().getFullYear()));
+        if (!silent) void message.success('行情已刷新');
+      } catch (reason) {
+        if (!silent) void message.error(reason instanceof Error ? reason.message : '行情刷新失败');
+      } finally {
+        if (!silent) setRefreshing(false);
+      }
+    },
+    [accountId, message],
+  );
+
+  useInterval(() => {
+    if (document.hidden || loading) return;
+    void refreshQuotes(true);
+  }, QUOTE_REFRESH_INTERVAL_MS);
 
   const positionColumns = useMemo<ColumnsType<PortfolioPositionView>>(
     () => [
@@ -74,7 +151,7 @@ export function PositionsPage(): React.JSX.Element {
         title: '标的',
         key: 'symbol',
         fixed: 'left',
-        width: 140,
+        width: 200,
         render: (_, row) => (
           <span className="watchlist-symbol-button">
             <strong>{row.name}</strong>
@@ -85,50 +162,170 @@ export function PositionsPage(): React.JSX.Element {
       {
         title: '类型',
         dataIndex: 'kind',
-        width: 72,
-        render: (kind: string) => <Tag>{kindLabels[kind] ?? kind}</Tag>,
+        width: 88,
+        align: 'right',
+        render: (kind: InstrumentKind) => <Tag>{kindLabels[kind] ?? kind}</Tag>,
       },
       {
         title: '份额',
         dataIndex: 'quantity',
         width: 96,
         align: 'right',
-        render: (value: number) => formatPrice(value),
+        render: (value: number, row) => (
+          <ValueDisplay kind={quantityPresetForKind(row.kind)} value={value} />
+        ),
       },
       {
         title: '成本',
-        dataIndex: 'avgCost',
-        width: 88,
+        dataIndex: 'avgPrice',
+        width: 96,
         align: 'right',
-        render: (value: number) => formatPrice(value),
+        render: (value: number, row) => (
+          <ValueDisplay kind={pricePresetForKind(row.kind)} value={value} />
+        ),
       },
       {
         title: '现价',
         key: 'price',
-        width: 88,
+        width: 96,
         align: 'right',
-        render: (_, row) => (row.marketPrice === null ? '—' : formatPrice(row.marketPrice)),
+        render: (_, row) =>
+          row.marketPrice === null ? (
+            '—'
+          ) : (
+            <AnimatedValueDisplay
+              cacheKey={`positions:${accountId}:${row.symbol}:marketPrice`}
+              kind={pricePresetForKind(row.kind)}
+              value={row.marketPrice}
+            />
+          ),
       },
       {
         title: '市值',
         key: 'mv',
-        width: 100,
+        width: 116,
         align: 'right',
-        render: (_, row) => (row.marketValue === null ? '—' : formatCurrency(row.marketValue)),
+        render: (_, row) =>
+          row.marketValue === null ? (
+            '—'
+          ) : (
+            <AnimatedValueDisplay
+              cacheKey={`positions:${accountId}:${row.symbol}:marketValue`}
+              kind="currency"
+              value={row.marketValue}
+            />
+          ),
+      },
+      {
+        title: '日收益',
+        key: 'dailyPnl',
+        width: 116,
+        align: 'right',
+        render: (_, row) =>
+          row.dailyPnl === null ? (
+            '—'
+          ) : (
+            <AnimatedValueDisplay
+              cacheKey={`positions:${accountId}:${row.symbol}:dailyPnl`}
+              kind="pnl"
+              value={row.dailyPnl}
+            />
+          ),
       },
       {
         title: '浮盈',
         key: 'pnl',
-        width: 100,
+        dataIndex: 'unrealizedPnl',
+        width: 116,
+        align: 'right',
+        sorter: (a, b) => compareNullableNumber(a.unrealizedPnl, b.unrealizedPnl),
+        sortOrder: pnlSortOrder,
+        sortDirections: ['descend', 'ascend'],
+        showSorterTooltip: { title: pnlSortOrder === 'ascend' ? '点击降序' : '点击升序' },
+        render: (_, row) =>
+          row.unrealizedPnl === null ? (
+            '—'
+          ) : (
+            <AnimatedValueDisplay
+              cacheKey={`positions:${accountId}:${row.symbol}:unrealizedPnl`}
+              kind="pnl"
+              value={row.unrealizedPnl}
+            />
+          ),
+      },
+      {
+        title: '收益率',
+        key: 'returnRate',
+        width: 96,
         align: 'right',
         render: (_, row) =>
-          row.unrealizedPnl === null ? '—' : formatCurrency(row.unrealizedPnl),
+          row.unrealizedReturnPercent === null ? (
+            '—'
+          ) : (
+            <ValueDisplay kind="percent" value={row.unrealizedReturnPercent} />
+          ),
+      },
+      {
+        title: '操作',
+        key: 'actions',
+        width: 64,
+        fixed: 'right',
+        align: 'center',
+        render: (_, row) => (
+          <Dropdown
+            trigger={['click']}
+            menu={{
+              items: [
+                {
+                  key: 'edit',
+                  label: '编辑',
+                  icon: <EditOutlined />,
+                  onClick: () => setEditingPosition(row),
+                },
+                {
+                  key: 'delete',
+                  label: '删除',
+                  icon: <DeleteOutlined />,
+                  danger: true,
+                  onClick: () => {
+                    confirmDanger(modal.confirm, {
+                      title: '删除此持仓？',
+                      content:
+                        accountId === ALL_ACCOUNTS_ID
+                          ? `将删除所有账户中 ${row.symbol} 的全部流水，且不可恢复。`
+                          : `将删除当前账户中 ${row.symbol} 的全部流水，且不可恢复。`,
+                      okText: '删除',
+                      onOk: () => deletePosition(row),
+                    });
+                  },
+                },
+              ],
+            }}
+          >
+            <Button
+              type="text"
+              size="small"
+              icon={<MoreOutlined />}
+              loading={deletingSymbol === row.symbol}
+              aria-label="操作菜单"
+            />
+          </Dropdown>
+        ),
       },
     ],
-    [],
+    [accountId, deletePosition, deletingSymbol, modal, pnlSortOrder],
   );
 
   const unrealizedPnl = summary?.unrealizedPnl ?? 0;
+  const dailyPnl = summary?.dailyPnl ?? 0;
+  const missingQuoteCount = useMemo(
+    () => positions.filter((row) => row.marketPrice === null).length,
+    [positions],
+  );
+  const missingDailyPnlCount = useMemo(
+    () => positions.filter((row) => row.dailyPnl === null && row.quantity > 0).length,
+    [positions],
+  );
 
   return (
     <main className="workspace-page portfolio-page">
@@ -139,7 +336,12 @@ export function PositionsPage(): React.JSX.Element {
           <p className="page-intro">录入买入与卖出流水，跟踪真实持仓、成本与市值。</p>
         </div>
         <div className="portfolio-header-actions">
-          <AccountSelect value={accountId} onChange={setAccountId} className="portfolio-account-select" />
+          <AccountSelect
+            value={accountId}
+            onChange={setAccountId}
+            includeAllOption
+            className="portfolio-account-select"
+          />
           <Button icon={<ReloadOutlined spin={refreshing} />} loading={refreshing} onClick={() => void refreshQuotes()}>
             刷新行情
           </Button>
@@ -156,82 +358,112 @@ export function PositionsPage(): React.JSX.Element {
           <section className="portfolio-metrics">
             <article className="portfolio-metric-card portfolio-metric-card--primary">
               <small>持仓市值</small>
-              <strong>{formatCurrency(summary?.totalMarketValue ?? 0)}</strong>
-              <span>成本 {formatCurrency(summary?.totalCost ?? 0)}</span>
+              <AnimatedValueDisplay
+                as="strong"
+                cacheKey={`positions:${accountId}:summary:totalMarketValue`}
+                kind="currency"
+                value={summary?.totalMarketValue ?? 0}
+              />
+              <span>
+                成本 <ValueDisplay kind="currency" value={summary?.totalCost ?? 0} />
+              </span>
             </article>
             <article className="portfolio-metric-card">
               <small>浮动盈亏</small>
-              <strong>{formatCurrency(unrealizedPnl)}</strong>
-              <span>{unrealizedPnl >= 0 ? '未实现盈利' : '未实现亏损'}</span>
+              <AnimatedValueDisplay
+                as="strong"
+                cacheKey={`positions:${accountId}:summary:unrealizedPnl`}
+                kind="pnl"
+                value={unrealizedPnl}
+              />
+              <span>{formatFloatingPnlCaption(unrealizedPnl, { missingQuoteCount })}</span>
+            </article>
+            <article className="portfolio-metric-card">
+              <small>日收益</small>
+              <AnimatedValueDisplay
+                as="strong"
+                cacheKey={`positions:${accountId}:summary:dailyPnl`}
+                kind="pnl"
+                value={dailyPnl}
+              />
+              <span>{formatDailyPnlCaption(dailyPnl, { missingQuoteCount: missingDailyPnlCount })}</span>
             </article>
             <article className="portfolio-metric-card">
               <small>持仓数量</small>
-              <strong>{positions.length}</strong>
-              <span>当前有效标的</span>
+              <strong>{filteredPositions.length}</strong>
+              <span>{assetCategory === 'all' ? '当前有效标的' : `筛选后 / 共 ${positions.length}`}</span>
             </article>
             <article className="portfolio-metric-card">
               <small>行情更新</small>
               <strong>{summary?.lastRefreshedAt ? '已同步' : '待刷新'}</strong>
-              <span>{summary?.lastRefreshedAt ?? '点击刷新行情获取现价'}</span>
+              <span>{formatQuoteRefreshTime(summary?.lastRefreshedAt)}</span>
             </article>
           </section>
 
-          <div className="page-toolbar">
-            <Segmented<PositionsTab>
+          <div className="page-toolbar portfolio-filters">
+            <Segmented<AssetCategory>
               options={[
-                { label: '总览', value: 'overview' },
-                { label: `持仓 ${positions.length}`, value: 'positions' },
+                { label: '全部', value: 'all' },
+                { label: '基金', value: 'fund' },
+                { label: '股票', value: 'stock' },
               ]}
-              value={tab}
-              onChange={setTab}
+              value={assetCategory}
+              onChange={(value) => {
+                setAssetCategory(value);
+                if (value !== 'stock') setStockSubKind('all');
+              }}
             />
+            {assetCategory === 'stock' ? (
+              <div className="portfolio-filters__stock">
+                <Segmented<StockSubKind>
+                  options={[
+                    { label: '全部', value: 'all' },
+                    { label: 'A股', value: 'stock' },
+                    { label: '场内基金', value: 'listed_fund' },
+                  ]}
+                  value={stockSubKind}
+                  onChange={setStockSubKind}
+                />
+              </div>
+            ) : null}
           </div>
 
-          {tab === 'overview' ? (
-            <div className="portfolio-overview">
+          {filteredPositions.length === 0 ? (
+            <Empty description={positions.length === 0 ? '还没有持仓，录入第一笔买入流水开始跟踪' : '当前筛选条件下暂无持仓'}>
               {positions.length === 0 ? (
-                <Empty description="还没有持仓，录入第一笔买入流水开始跟踪">
-                  <Button type="primary" onClick={() => setLedgerOpen(true)}>
-                    录入买入
-                  </Button>
-                </Empty>
-              ) : (
-                <Table<PortfolioPositionView>
-                  className="watchlist-table"
-                  columns={positionColumns}
-                  dataSource={positions.slice(0, 8)}
-                  pagination={false}
-                  rowKey="symbol"
-                  size="small"
-                  scroll={{ x: 760 }}
-                />
-              )}
-            </div>
-          ) : null}
-
-          {tab === 'positions' ? (
-            positions.length === 0 ? (
-              <Empty description="暂无持仓" />
-            ) : (
-              <Table<PortfolioPositionView>
-                className="watchlist-table"
-                columns={positionColumns}
-                dataSource={positions}
-                pagination={false}
-                rowKey="symbol"
-                size="small"
-                scroll={{ x: 760 }}
-              />
-            )
-          ) : null}
+                <Button type="primary" onClick={() => setLedgerOpen(true)}>
+                  录入买入
+                </Button>
+              ) : null}
+            </Empty>
+          ) : (
+            <Table<PortfolioPositionView>
+              className="watchlist-table"
+              columns={positionColumns}
+              dataSource={sortedPositions}
+              pagination={false}
+              rowKey="symbol"
+              size="small"
+              scroll={{ x: 1024 }}
+              onChange={handleTableChange}
+            />
+          )}
         </>
       )}
 
       <PortfolioLedgerModal
         open={ledgerOpen}
-        defaultAccountId={accountId}
+        defaultAccountId={accountId === ALL_ACCOUNTS_ID ? undefined : accountId}
         onClose={() => setLedgerOpen(false)}
         onSaved={() => void load(true)}
+      />
+
+      <PositionLedgerDrawer
+        open={editingPosition !== null}
+        position={editingPosition}
+        accountId={accountId}
+        onClose={() => setEditingPosition(null)}
+        onChanged={() => void load(true)}
       />
     </main>
   );

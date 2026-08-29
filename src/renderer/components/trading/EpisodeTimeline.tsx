@@ -1,6 +1,6 @@
 import { ArrowDownOutlined, ArrowUpOutlined } from '@ant-design/icons';
 import type { Execution } from '../../../shared/api.types';
-import { formatCurrency, formatDateTime, formatPrice } from '../../lib/trading-format';
+import { formatCurrency, formatPrice, formatTradeDate } from '../../lib/trading-format';
 
 interface EpisodeTimelineProps {
   executions: Execution[];
@@ -27,7 +27,7 @@ export function EpisodeTimeline({ executions }: EpisodeTimelineProps): React.JSX
               {execution.quantity} @ {formatPrice(execution.price)}
             </span>
             <small>
-              费用 {formatCurrency(execution.fees)} · {formatDateTime(execution.tradeAt)}
+              费用 {formatCurrency(execution.fees)} · {formatTradeDate(execution.tradeAt)}
             </small>
             {execution.note ? <small>{execution.note}</small> : null}
           </div>

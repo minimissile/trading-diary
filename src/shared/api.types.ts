@@ -143,6 +143,9 @@ export interface WorkspaceSnapshot {
   pendingReviewPlans: TradingPlan[];
   pendingReviewEpisodes: TradeEpisodeView[];
   recentReviews: TradeReview[];
+  dueSipOccurrences: import('./sip/types').FundSipOccurrenceView[];
+  activeSipPlanCount: number;
+  dueSipOccurrenceCount: number;
 }
 
 export type UpdatePhase =
@@ -278,6 +281,9 @@ import type {
   DividendEvent,
   DividendListResult,
   InstrumentInfo,
+  KLineAdjust,
+  KLineListResult,
+  KLinePeriod,
   MarketNewsItem,
   MarketQuote,
   MarketSearchHit,
@@ -288,6 +294,10 @@ export type {
   DividendListResult,
   InstrumentInfo,
   InstrumentKind,
+  KLineAdjust,
+  KLineBar,
+  KLineListResult,
+  KLinePeriod,
   MarketNewsItem,
   MarketQuote,
   MarketSearchHit,
@@ -397,6 +407,15 @@ export interface DesktopApi {
     getLlmUsage: () => Promise<LlmUsageSummary>;
     getLlmSettings: () => Promise<LlmUserSettings>;
     saveLlmSettings: (settings: LlmUserSettings) => Promise<LlmUserSettings>;
+    getAccessLock: () => Promise<import('./security/access-lock.types').AccessLockSettingsView>;
+    verifyAccessLock: (password: string) => Promise<import('./security/access-lock.types').VerifyAccessLockResult>;
+    enableAccessLock: (newPassword: string) => Promise<import('./security/access-lock.types').AccessLockSettingsView>;
+    enableExistingAccessLock: () => Promise<import('./security/access-lock.types').AccessLockSettingsView>;
+    disableAccessLock: (password: string) => Promise<import('./security/access-lock.types').AccessLockSettingsView>;
+    changeAccessLockPassword: (
+      currentPassword: string,
+      newPassword: string,
+    ) => Promise<import('./security/access-lock.types').AccessLockSettingsView>;
   };
   llm: {
     previewPrompt: (promptId: string, variables: Record<string, string>) => Promise<LlmPromptPreview>;
@@ -426,6 +445,12 @@ export interface DesktopApi {
     getSnapshot: (symbol: string) => Promise<MarketSnapshotView>;
     listDividends: (symbol: string, page?: number, pageSize?: number) => Promise<DividendListResult>;
     listNews: (symbol: string, pageSize?: number) => Promise<MarketNewsItem[]>;
+    listKlines: (
+      symbol: string,
+      period?: KLinePeriod,
+      adjust?: KLineAdjust,
+      limit?: number,
+    ) => Promise<KLineListResult>;
   };
   watchlist: {
     listPools: () => Promise<WatchlistPoolMeta[]>;
@@ -441,7 +466,23 @@ export interface DesktopApi {
       statuses?: import('./portfolio/types').DividendRecordStatus[],
     ) => Promise<import('./portfolio/types').PortfolioDividendRecord[]>;
     addLedgerEntry: (input: import('./portfolio/types').CreatePortfolioLedgerInput) => Promise<import('./portfolio/types').PortfolioPositionView[]>;
-    confirmDividend: (id: string, confirmed: boolean, cashAmount?: number) => Promise<import('./portfolio/types').PortfolioDividendRecord[]>;
+    listLedgerEntries: (
+      accountId?: string,
+      symbol?: string,
+    ) => Promise<import('./portfolio/types').PortfolioLedgerEntry[]>;
+    updateLedgerEntry: (
+      id: string,
+      input: import('./portfolio/types').UpdatePortfolioLedgerInput,
+    ) => Promise<import('./portfolio/types').PortfolioLedgerEntry>;
+    deleteLedgerEntry: (id: string) => Promise<import('./portfolio/types').PortfolioPositionView[]>;
+    deletePosition: (accountId: string | undefined, symbol: string) => Promise<import('./portfolio/types').PortfolioPositionView[]>;
+    confirmDividend: (
+      id: string,
+      confirmed: boolean,
+      cashAmount?: number,
+      accountId?: string,
+      year?: number,
+    ) => Promise<import('./portfolio/types').PortfolioDividendRecord[]>;
     refreshDividends: (accountId?: string, symbol?: string) => Promise<import('./portfolio/types').PortfolioRefreshResult>;
     syncMarketQuotes: (accountId?: string) => Promise<import('./portfolio/types').PortfolioPositionView[]>;
   };
@@ -456,6 +497,7 @@ export interface DesktopApi {
     update: (id: string, input: UpdateTradingAccountInput) => Promise<TradingAccountSummary>;
     setDefault: (id: string) => Promise<TradingAccountSummary>;
     archive: (id: string) => Promise<TradingAccountSummary>;
+    delete: (id: string) => Promise<void>;
     listFeeProfiles: () => Promise<FeeProfile[]>;
     estimateFees: (input: FeeEstimateInput) => Promise<FeeEstimateResult>;
     estimateFeesForSymbol: (input: {
@@ -488,5 +530,31 @@ export interface DesktopApi {
     update: (id: string, input: import('./playbook/types').UpdatePlaybookRuleInput) => Promise<import('./playbook/types').PlaybookRule>;
     archive: (id: string) => Promise<import('./playbook/types').PlaybookRule>;
     activationChecklist: (symbol?: string) => Promise<import('./playbook/types').PlaybookRule[]>;
+  };
+  sip: {
+    listPlans: (statuses?: import('./sip/types').SipPlanStatus[]) => Promise<import('./sip/types').FundSipPlanView[]>;
+    getPlan: (id: string) => Promise<import('./sip/types').FundSipPlanDetailView>;
+    create: (input: import('./sip/types').CreateFundSipPlanInput) => Promise<import('./sip/types').FundSipPlanView>;
+    update: (id: string, input: import('./sip/types').UpdateFundSipPlanInput) => Promise<import('./sip/types').FundSipPlanView>;
+    setStatus: (id: string, status: import('./sip/types').SipPlanStatus) => Promise<import('./sip/types').FundSipPlanView>;
+    previewSchedule: (input: import('./sip/types').CreateFundSipPlanInput) => Promise<import('./sip/types').FundSipOccurrencePreview[]>;
+    listOccurrences: (planId?: string, from?: string, to?: string) => Promise<import('./sip/types').FundSipOccurrence[]>;
+    listOccurrenceViews: (planId?: string, from?: string, to?: string) => Promise<import('./sip/types').FundSipOccurrenceView[]>;
+    confirmOccurrence: (input: import('./sip/types').ConfirmFundSipOccurrenceInput) => Promise<import('./sip/types').ConfirmFundSipOccurrenceResult>;
+    skipOccurrence: (id: string, reason: string) => Promise<import('./sip/types').FundSipOccurrence>;
+    getSummary: () => Promise<import('./sip/types').SipSummaryView>;
+    scanDue: () => Promise<import('./sip/types').SipScanResult>;
+    getOccurrenceCalendar: (month: string) => Promise<import('./sip/types').SipOccurrenceCalendarDay[]>;
+    getPositionMeta: (accountId?: string) => Promise<import('./sip/types').SipPositionMeta[]>;
+    getReviewTemplate: (planId: string) => Promise<import('./sip/types').SipReviewTemplate>;
+    getPlanPositionLink: (planId: string) => Promise<import('./sip/types').SipPlanPositionLink>;
+    listPlansBySymbol: (accountId: string, symbol: string) => Promise<import('./sip/types').FundSipPlanView[]>;
+    parseImportCsv: (sourcePath: string) => Promise<import('./sip/import-types').SipCsvParseResult>;
+    previewImport: (input: import('./sip/import-types').SipImportInput) => Promise<import('./sip/import-types').SipImportPreviewResult>;
+    commitImport: (input: import('./sip/import-types').SipImportInput) => Promise<import('./sip/import-types').SipImportCommitResult>;
+    selectImportScreenshot: () => Promise<{ sourcePath: string; fileName: string } | null>;
+    recognizeImportScreenshot: (sourcePath: string) => Promise<import('./sip/import-types').SipAiRecognizeResult>;
+    previewAiImport: (input: import('./sip/import-types').SipAiImportInput) => Promise<import('./sip/import-types').SipImportPreviewResult>;
+    commitAiImport: (input: import('./sip/import-types').SipAiImportInput) => Promise<import('./sip/import-types').SipImportCommitResult>;
   };
 }

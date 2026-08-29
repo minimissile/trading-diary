@@ -3,11 +3,11 @@ import type { TradingPlan } from '../../../shared/api.types';
 import {
   calculateExpectedR,
   directionLabels,
-  formatCurrency,
   formatDateTime,
   formatPrice,
   planStatusColors,
   planStatusLabels,
+  ValueDisplay,
 } from '../../lib/trading-format';
 
 interface PlanDetailPanelProps {
@@ -55,7 +55,7 @@ export function PlanDetailPanel({ plan }: PlanDetailPanelProps): React.JSX.Eleme
         </div>
         <div>
           <dt>最大计划风险</dt>
-          <dd>{formatCurrency(plan.riskAmount)}</dd>
+          <dd><ValueDisplay kind="currency" value={plan.riskAmount} /></dd>
         </div>
         <div>
           <dt>预期 R 倍数</dt>

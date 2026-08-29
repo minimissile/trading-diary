@@ -1,6 +1,7 @@
 import type { InstrumentInfo, InstrumentKind, MarketSearchHit } from '../../../shared/market/types';
 import { MarketNotFoundError } from '../../../shared/market/errors';
 import { eastMoneyFetchJson } from './client';
+import { EASTMONEY_QUOTE_REFERER, eastMoneyPushUrl } from './endpoints';
 import {
   classifyExchangeCode,
   detectExchangeMarket,
@@ -92,29 +93,36 @@ export async function resolveInstrument(symbolInput: string): Promise<Instrument
   let name = symbol;
   let securityTypeName: string | null = null;
 
-  const searchHits = await searchInstruments(symbol, 5);
-  const exact = searchHits.find((hit) => hit.symbol === symbol);
-  if (exact) {
-    name = exact.name;
-    securityTypeName = exact.securityTypeName;
+  try {
+    const searchHits = await searchInstruments(symbol, 5);
+    const exact = searchHits.find((hit) => hit.symbol === symbol);
+    if (exact) {
+      name = exact.name;
+      securityTypeName = exact.securityTypeName;
+    }
+  } catch {
+    // 搜索接口失败时不阻断后续 secid / 基金解析
   }
 
-  if (secid) {
-    const exchangeQuote = await fetchExchangeName(secid);
-    if (exchangeQuote) {
-      name = exchangeQuote.name;
-      const kind = classifyExchangeCode(symbol);
-      return {
-        symbol,
-        name,
-        kind,
-        market,
-        secid,
-        f10Code,
-        securityTypeName,
-        source: 'eastmoney',
-      };
+  if (secid && market) {
+    try {
+      const exchangeQuote = await fetchExchangeName(secid);
+      if (exchangeQuote) {
+        name = exchangeQuote.name;
+      }
+    } catch {
+      // 行情接口失败时仍返回可识别的交易所标的
     }
+    return {
+      symbol,
+      name,
+      kind: classifyExchangeCode(symbol),
+      market,
+      secid,
+      f10Code,
+      securityTypeName,
+      source: 'eastmoney',
+    };
   }
 
   const fundInfo = await fetchFundName(symbol);
@@ -151,12 +159,12 @@ async function inferKindFromQuote(symbol: string, securityTypeName?: string): Pr
 }
 
 async function fetchExchangeName(secid: string): Promise<{ name: string } | null> {
-  const url = new URL('https://push2.eastmoney.com/api/qt/ulist.np/get');
+  const url = eastMoneyPushUrl('/api/qt/ulist.np/get');
   url.searchParams.set('fltt', '2');
   url.searchParams.set('fields', 'f12,f14');
   url.searchParams.set('secids', secid);
 
-  const payload = await eastMoneyFetchJson<UlistResponse>(url, { referer: 'https://quote.eastmoney.com/' });
+  const payload = await eastMoneyFetchJson<UlistResponse>(url, { referer: EASTMONEY_QUOTE_REFERER });
   if (payload.rc !== 0 || !payload.data?.diff?.[0]?.f14) return null;
   return { name: payload.data.diff[0].f14 };
 }

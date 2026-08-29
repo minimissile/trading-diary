@@ -7,7 +7,10 @@ import {
   STAMP_DUTY_RATE_PPM,
   TRANSFER_FEE_RATE_PPM,
 } from '../../shared/accounts/fee-presets';
-import { commissionWanToPpm, formatCommissionWan } from '../../shared/accounts/fee-utils';
+import {
+  formatCommissionWan,
+  roundCommissionWan,
+} from '../../shared/accounts/fee-utils';
 import type {
   AccountBroker,
   AccountCustomFeeInput,
@@ -49,9 +52,17 @@ interface FeeProfileRow {
   id: string;
   name: string;
   commission_rate_ppm: number;
+  commission_wan: number | null;
   commission_min_cents: number;
   etf_commission_rate_ppm: number | null;
+  etf_commission_wan: number | null;
   etf_commission_min_cents: number | null;
+  etf_sh_commission_rate_ppm: number | null;
+  etf_sh_commission_wan: number | null;
+  etf_sh_commission_min_cents: number | null;
+  etf_sz_commission_rate_ppm: number | null;
+  etf_sz_commission_wan: number | null;
+  etf_sz_commission_min_cents: number | null;
   stamp_duty_rate_ppm: number;
   transfer_fee_rate_ppm: number;
   transfer_fee_min_cents: number;
@@ -224,6 +235,33 @@ export class AccountDatabase {
     return this.getAccount(id);
   }
 
+  /**
+   * 永久删除已归档账户及其关联流水、分红与交易回合。
+   * @param id 账户 ID
+   * @throws 账户未归档、仍为默认账户，或删除过程中违反外键约束
+   */
+  deleteAccount(id: string): void {
+    const account = this.getAccount(id);
+    if (!account.isArchived) throw new Error('仅已归档账户可删除');
+    if (account.isDefault) throw new Error('默认账户不能删除');
+
+    const feeProfileId = account.feeProfileId;
+
+    this.db.exec('BEGIN');
+    try {
+      this.db.prepare('DELETE FROM executions WHERE account_id = ?').run(id);
+      this.db.prepare('DELETE FROM trade_episodes WHERE account_id = ?').run(id);
+      this.db.prepare('DELETE FROM portfolio_ledger WHERE account_id = ?').run(id);
+      this.db.prepare('DELETE FROM portfolio_dividends WHERE account_id = ?').run(id);
+      this.db.prepare('DELETE FROM portfolio_accounts WHERE id = ?').run(id);
+      if (feeProfileId) this.deleteOrphanCustomFeeProfile(feeProfileId);
+      this.db.exec('COMMIT');
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
   listFeeProfiles(): FeeProfile[] {
     const rows = this.db
       .prepare('SELECT * FROM fee_profiles ORDER BY is_builtin DESC, name ASC')
@@ -255,19 +293,25 @@ export class AccountDatabase {
     this.db
       .prepare(
         `INSERT INTO fee_profiles (
-          id, name, commission_rate_ppm, commission_min_cents,
-          etf_commission_rate_ppm, etf_commission_min_cents,
+          id, name, commission_rate_ppm, commission_wan, commission_min_cents,
+          etf_commission_rate_ppm, etf_commission_wan, etf_commission_min_cents,
+          etf_sh_commission_rate_ppm, etf_sh_commission_wan, etf_sh_commission_min_cents,
+          etf_sz_commission_rate_ppm, etf_sz_commission_wan, etf_sz_commission_min_cents,
           stamp_duty_rate_ppm, transfer_fee_rate_ppm, transfer_fee_min_cents, other_fee_cents, slippage_bps,
           is_builtin, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)`,
+        ) VALUES (?, ?, 0, ?, ?, 0, ?, ?, 0, ?, ?, 0, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)`,
       )
       .run(
         id,
         name,
-        rates.commissionRatePpm,
+        rates.commissionWan,
         rates.commissionMinCents,
-        rates.etfCommissionRatePpm,
+        rates.etfCommissionWan,
         rates.etfCommissionMinCents,
+        rates.etfShCommissionWan,
+        rates.etfShCommissionMinCents,
+        rates.etfSzCommissionWan,
+        rates.etfSzCommissionMinCents,
         rates.stampDutyRatePpm,
         rates.transferFeeRatePpm,
         rates.transferFeeMinCents,
@@ -292,18 +336,24 @@ export class AccountDatabase {
     this.db
       .prepare(
         `UPDATE fee_profiles SET
-          name = ?, commission_rate_ppm = ?, commission_min_cents = ?,
-          etf_commission_rate_ppm = ?, etf_commission_min_cents = ?,
+          name = ?, commission_rate_ppm = 0, commission_wan = ?, commission_min_cents = ?,
+          etf_commission_rate_ppm = 0, etf_commission_wan = ?, etf_commission_min_cents = ?,
+          etf_sh_commission_rate_ppm = 0, etf_sh_commission_wan = ?, etf_sh_commission_min_cents = ?,
+          etf_sz_commission_rate_ppm = 0, etf_sz_commission_wan = ?, etf_sz_commission_min_cents = ?,
           stamp_duty_rate_ppm = ?, transfer_fee_rate_ppm = ?, transfer_fee_min_cents = ?,
           other_fee_cents = ?, updated_at = ?
          WHERE id = ?`,
       )
       .run(
         name,
-        rates.commissionRatePpm,
+        rates.commissionWan,
         rates.commissionMinCents,
-        rates.etfCommissionRatePpm,
+        rates.etfCommissionWan,
         rates.etfCommissionMinCents,
+        rates.etfShCommissionWan,
+        rates.etfShCommissionMinCents,
+        rates.etfSzCommissionWan,
+        rates.etfSzCommissionMinCents,
         rates.stampDutyRatePpm,
         rates.transferFeeRatePpm,
         rates.transferFeeMinCents,
@@ -338,6 +388,20 @@ export class AccountDatabase {
       totalTurnover: fromCents(Number(stats.total_turnover_cents ?? 0)),
       positionCount: Number(stats.position_count ?? 0),
     };
+  }
+
+  private deleteOrphanCustomFeeProfile(id: string): void {
+    const row = this.db.prepare('SELECT is_builtin FROM fee_profiles WHERE id = ?').get(id) as
+      | { is_builtin: number }
+      | undefined;
+    if (!row || row.is_builtin === 1) return;
+
+    const stillUsed = this.db
+      .prepare('SELECT id FROM portfolio_accounts WHERE fee_profile_id = ? LIMIT 1')
+      .get(id) as { id: string } | undefined;
+    if (stillUsed) return;
+
+    this.db.prepare('DELETE FROM fee_profiles WHERE id = ?').run(id);
   }
 
   private hasDefaultAccount(): boolean {
@@ -378,14 +442,36 @@ export class AccountDatabase {
     };
   }
 
+  private readCommissionWan(wan: number | null | undefined, legacyPpm: number | null | undefined): number {
+    if (wan != null && !Number.isNaN(wan)) {
+      return roundCommissionWan(wan);
+    }
+    if (legacyPpm == null) return 0;
+    // v13 之前：ppm = wan × 100；v13 临时放大 10 倍后：ppm = wan × 1000
+    return roundCommissionWan(legacyPpm >= 1000 ? legacyPpm / 1000 : legacyPpm / 100);
+  }
+
   private mapFeeProfile(row: FeeProfileRow): FeeProfile {
     return {
       id: row.id,
       name: row.name,
-      commissionRatePpm: row.commission_rate_ppm,
+      commissionWan: this.readCommissionWan(row.commission_wan, row.commission_rate_ppm),
       commissionMinCents: row.commission_min_cents,
-      etfCommissionRatePpm: row.etf_commission_rate_ppm ?? null,
+      etfCommissionWan:
+        row.etf_commission_wan != null || row.etf_commission_rate_ppm != null
+          ? this.readCommissionWan(row.etf_commission_wan, row.etf_commission_rate_ppm)
+          : null,
       etfCommissionMinCents: row.etf_commission_min_cents ?? null,
+      etfShCommissionWan:
+        row.etf_sh_commission_wan != null || row.etf_sh_commission_rate_ppm != null
+          ? this.readCommissionWan(row.etf_sh_commission_wan, row.etf_sh_commission_rate_ppm)
+          : null,
+      etfShCommissionMinCents: row.etf_sh_commission_min_cents ?? null,
+      etfSzCommissionWan:
+        row.etf_sz_commission_wan != null || row.etf_sz_commission_rate_ppm != null
+          ? this.readCommissionWan(row.etf_sz_commission_wan, row.etf_sz_commission_rate_ppm)
+          : null,
+      etfSzCommissionMinCents: row.etf_sz_commission_min_cents ?? null,
       stampDutyRatePpm: row.stamp_duty_rate_ppm,
       transferFeeRatePpm: row.transfer_fee_rate_ppm,
       transferFeeMinCents: row.transfer_fee_min_cents,
@@ -399,10 +485,14 @@ export class AccountDatabase {
 
   private mapFeeProfileRates(profile: FeeProfile): FeeProfileRates {
     return {
-      commissionRatePpm: profile.commissionRatePpm,
+      commissionWan: profile.commissionWan,
       commissionMinCents: profile.commissionMinCents,
-      etfCommissionRatePpm: profile.etfCommissionRatePpm,
+      etfCommissionWan: profile.etfCommissionWan,
       etfCommissionMinCents: profile.etfCommissionMinCents,
+      etfShCommissionWan: profile.etfShCommissionWan,
+      etfShCommissionMinCents: profile.etfShCommissionMinCents,
+      etfSzCommissionWan: profile.etfSzCommissionWan,
+      etfSzCommissionMinCents: profile.etfSzCommissionMinCents,
       stampDutyRatePpm: profile.stampDutyRatePpm,
       transferFeeRatePpm: profile.transferFeeRatePpm,
       transferFeeMinCents: profile.transferFeeMinCents,
@@ -440,16 +530,20 @@ export class AccountDatabase {
   }
 
   private customFeeToRates(accountKind: AccountKind, input: AccountCustomFeeInput): FeeProfileRates {
-    const commissionRatePpm = commissionWanToPpm(input.commissionWan);
+    const commissionWan = roundCommissionWan(input.commissionWan);
     const commissionMinCents =
       accountKind === 'fund' || input.noCommissionMin ? 0 : toCents(input.commissionMinYuan ?? 5);
-    const etfRates = this.resolveEtfRates(accountKind, input);
+    const etfRates = this.resolveEtfProfileRates(accountKind, input);
     if (accountKind === 'fund') {
       return {
-        commissionRatePpm,
+        commissionWan,
         commissionMinCents: 0,
-        etfCommissionRatePpm: null,
+        etfCommissionWan: null,
         etfCommissionMinCents: null,
+        etfShCommissionWan: null,
+        etfShCommissionMinCents: null,
+        etfSzCommissionWan: null,
+        etfSzCommissionMinCents: null,
         stampDutyRatePpm: 0,
         transferFeeRatePpm: 0,
         transferFeeMinCents: 0,
@@ -457,7 +551,7 @@ export class AccountDatabase {
       };
     }
     return {
-      commissionRatePpm,
+      commissionWan,
       commissionMinCents,
       ...etfRates,
       stampDutyRatePpm: STAMP_DUTY_RATE_PPM,
@@ -467,16 +561,61 @@ export class AccountDatabase {
     };
   }
 
-  private resolveEtfRates(
+  private resolveEtfProfileRates(
     accountKind: AccountKind,
     input: AccountCustomFeeInput,
-  ): Pick<FeeProfileRates, 'etfCommissionRatePpm' | 'etfCommissionMinCents'> {
-    if (accountKind !== 'securities') {
-      return { etfCommissionRatePpm: null, etfCommissionMinCents: null };
-    }
+  ): Pick<
+    FeeProfileRates,
+    | 'etfCommissionWan'
+    | 'etfCommissionMinCents'
+    | 'etfShCommissionWan'
+    | 'etfShCommissionMinCents'
+    | 'etfSzCommissionWan'
+    | 'etfSzCommissionMinCents'
+  > {
+    const empty = {
+      etfCommissionWan: null,
+      etfCommissionMinCents: null,
+      etfShCommissionWan: null,
+      etfShCommissionMinCents: null,
+      etfSzCommissionWan: null,
+      etfSzCommissionMinCents: null,
+    } as const;
+    if (accountKind !== 'securities') return { ...empty };
+
+    const fallbackWan = input.etfCommissionWan ?? input.commissionWan;
+    const sh = this.etfMarketRatesFromInput(
+      input.etfShCommissionWan,
+      input.etfShCommissionMinYuan,
+      input.etfShNoCommissionMin,
+      fallbackWan,
+    );
+    const sz = this.etfMarketRatesFromInput(
+      input.etfSzCommissionWan,
+      input.etfSzCommissionMinYuan,
+      input.etfSzNoCommissionMin,
+      fallbackWan,
+    );
+
     return {
-      etfCommissionRatePpm: commissionWanToPpm(input.etfCommissionWan ?? input.commissionWan),
-      etfCommissionMinCents: input.etfNoCommissionMin ? 0 : toCents(input.etfCommissionMinYuan ?? 5),
+      etfCommissionWan: null,
+      etfCommissionMinCents: null,
+      etfShCommissionWan: sh.commissionWan,
+      etfShCommissionMinCents: sh.minCents,
+      etfSzCommissionWan: sz.commissionWan,
+      etfSzCommissionMinCents: sz.minCents,
+    };
+  }
+
+  private etfMarketRatesFromInput(
+    wan: number | undefined,
+    minYuan: number | undefined,
+    noMin: boolean | undefined,
+    fallbackWan: number,
+  ): { commissionWan: number; minCents: number } {
+    return {
+      commissionWan: roundCommissionWan(wan ?? fallbackWan),
+      minCents: noMin ? 0 : toCents(minYuan ?? 5),
     };
   }
 
@@ -486,15 +625,20 @@ export class AccountDatabase {
     input: AccountCustomFeeInput,
   ): string {
     const prefix = accountKind === 'fund' ? '基金' : '股票';
-    const wan = formatCommissionWan(commissionWanToPpm(input.commissionWan));
+    const wan = formatCommissionWan(input.commissionWan);
     const min =
       accountKind === 'fund' || input.noCommissionMin
         ? '无最低'
         : `最低${input.commissionMinYuan ?? 5}元`;
     if (accountKind === 'securities') {
-      const etfWan = formatCommissionWan(commissionWanToPpm(input.etfCommissionWan ?? input.commissionWan));
-      const etfMin = input.etfNoCommissionMin ? '无最低' : `最低${input.etfCommissionMinYuan ?? 5}元`;
-      return `${accountName} · 股票${wan} · ${min} · ETF${etfWan} · ${etfMin}`;
+      const shWan = formatCommissionWan(input.etfShCommissionWan ?? input.etfCommissionWan ?? input.commissionWan);
+      const szWan = formatCommissionWan(input.etfSzCommissionWan ?? input.etfCommissionWan ?? input.commissionWan);
+      const shMin = input.etfShNoCommissionMin ? '无最低' : `最低${input.etfShCommissionMinYuan ?? 5}元`;
+      const szMin = input.etfSzNoCommissionMin ? '无最低' : `最低${input.etfSzCommissionMinYuan ?? 5}元`;
+      if (shWan === szWan && shMin === szMin) {
+        return `${accountName} · 股票${wan} · ${min} · ETF${shWan} · ${shMin}`;
+      }
+      return `${accountName} · 股票${wan} · ${min} · 沪ETF${shWan} · ${shMin} · 深ETF${szWan} · ${szMin}`;
     }
     return `${accountName} · ${prefix}${wan} · ${min}`;
   }

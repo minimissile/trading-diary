@@ -80,3 +80,30 @@ export interface MarketSearchHit {
   kind: InstrumentKind | 'unknown';
   source: 'eastmoney';
 }
+
+/** K 线周期，与看盘软件常用粒度对齐。 */
+export type KLinePeriod = '1m' | '5m' | '15m' | '30m' | '60m' | '1d' | '1w' | '1M';
+
+/** K 线复权方式。 */
+export type KLineAdjust = 'none' | 'forward' | 'backward';
+
+/** 单根 K 线，字段与 klinecharts 数据模型兼容。 */
+export interface KLineBar {
+  timestamp: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  turnover: number;
+  [key: string]: unknown;
+}
+
+/** K 线查询结果。 */
+export interface KLineListResult {
+  symbol: string;
+  name: string;
+  period: KLinePeriod;
+  adjust: KLineAdjust;
+  bars: KLineBar[];
+}

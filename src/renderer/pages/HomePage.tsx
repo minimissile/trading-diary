@@ -21,8 +21,9 @@ import { App, Button, Progress, Skeleton } from 'antd';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import type { OverlapPoolItemLive, TradeAlert, TradeEpisodeView, TradingPlan, WorkspaceSnapshot } from '../../shared/api.types';
+import type { FundSipOccurrenceView } from '../../shared/sip/types';
 import { PlanCreateModal } from '../components/trading/PlanCreateModal';
-import { formatAlertCondition, formatCurrency, formatPrice } from '../lib/trading-format';
+import { formatAlertCondition, formatCurrency, formatPrice, ValueDisplay } from '../lib/trading-format';
 import { routePaths } from '../router/paths';
 
 type QueueCategory = 'all' | 'reminder' | 'due' | 'review' | 'risk';
@@ -40,7 +41,7 @@ interface ActionItem {
   status: string;
   statusTone: 'warning' | 'success' | 'violet' | 'blue';
   action: string;
-  source?: TradingPlan | TradeAlert | TradeEpisodeView;
+  source?: TradingPlan | TradeAlert | TradeEpisodeView | FundSipOccurrenceView;
 }
 
 const previewActionItems: ActionItem[] = [
@@ -187,12 +188,6 @@ const ruleRows = [
   ['市场环境过滤', '大盘趋势向上，量能正常', '量能较昨日下降 18%'],
 ] as const;
 
-function formatChangePercent(value: number | null | undefined): string {
-  if (value === null || value === undefined) return '—';
-  const prefix = value > 0 ? '+' : '';
-  return `${prefix}${value.toFixed(2)}%`;
-}
-
 export function HomePage(): React.JSX.Element {
   const { message } = App.useApp();
   const location = useLocation();
@@ -326,7 +321,22 @@ export function HomePage(): React.JSX.Element {
       action: '开始复盘',
       source: episode,
     }));
-    return [...alerts, ...episodeReviews, ...plans, ...planReviews].slice(0, 5);
+    const sipDue = snapshot.dueSipOccurrences.map((occurrence) => ({
+      id: `sip-${occurrence.id}`,
+      priority: 'high' as const,
+      category: 'due' as const,
+      type: '待执行定投',
+      symbol: occurrence.planName,
+      code: occurrence.symbol,
+      description: `计划扣款 ${formatCurrency(occurrence.plannedAmount)} · ${occurrence.scheduledDate}`,
+      price: formatCurrency(occurrence.plannedAmount),
+      change: '待确认',
+      status: '已到期',
+      statusTone: 'warning' as const,
+      action: '确认扣款',
+      source: occurrence,
+    }));
+    return [...alerts, ...sipDue, ...episodeReviews, ...plans, ...planReviews].slice(0, 6);
   }, [snapshot]);
 
   const actionItems = realActionItems.length ? realActionItems : previewActionItems;
@@ -344,6 +354,10 @@ export function HomePage(): React.JSX.Element {
   };
 
   const handleAction = async (item: ActionItem): Promise<void> => {
+    if (item.source && 'plannedAmount' in item.source) {
+      void navigate(routePaths.sip, { state: { confirmOccurrenceId: item.source.id } });
+      return;
+    }
     if (item.source && 'condition' in item.source) {
       await completeAlert(item.source);
       return;
@@ -370,7 +384,13 @@ export function HomePage(): React.JSX.Element {
       }
     }
     void navigate(
-      item.category === 'review' ? routePaths.journal : item.category === 'reminder' ? routePaths.alerts : routePaths.plans,
+      item.category === 'review'
+        ? routePaths.journal
+        : item.category === 'reminder'
+          ? routePaths.alerts
+          : item.type === '待执行定投'
+            ? routePaths.sip
+            : routePaths.plans,
     );
   };
 
@@ -631,7 +651,8 @@ export function HomePage(): React.JSX.Element {
           </div>
           <div className="review-metrics">
             <span>
-              本周净盈亏<strong className={reviewPnl >= 0 ? 'market-up' : 'market-down'}>{formatCurrency(reviewPnl)}</strong>
+              本周净盈亏
+              <ValueDisplay as="strong" kind="pnl" value={reviewPnl} />
               <small>(+1.74%)</small>
             </span>
             <span>
@@ -694,7 +715,6 @@ export function HomePage(): React.JSX.Element {
             ) : (
               overlapPreview.map((row) => {
                 const change = row.quote?.changePercent;
-                const changeText = formatChangePercent(change);
                 const yieldText =
                   row.liveYieldPercent !== null && row.liveYieldPercent !== undefined
                     ? `股息 ${row.liveYieldPercent.toFixed(2)}%`
@@ -708,9 +728,7 @@ export function HomePage(): React.JSX.Element {
                       <small>{row.symbol}</small>
                     </span>
                     <b>{row.quote?.price === null || row.quote?.price === undefined ? '—' : formatPrice(row.quote.price)}</b>
-                    <b className={change !== null && change !== undefined && change < 0 ? 'market-down' : 'market-up'}>
-                      {changeText}
-                    </b>
+                    <ValueDisplay as="b" kind="percent" value={change} />
                     <small>{yieldText}</small>
                     <span className="watch-stars">
                       {Array.from({ length: 5 }, (_, index) => (

@@ -51,6 +51,8 @@ export function buildPortfolioSummary(input: {
   expectedDividend: number;
   totalMarketValue: number;
   totalCost: number;
+  dailyPnl: number;
+  unrealizedPnl: number;
   lastRefreshedAt: string | null;
   now?: Date;
 }): PortfolioSummaryView {
@@ -62,7 +64,8 @@ export function buildPortfolioSummary(input: {
     dailyAverage: computeDailyAverage(ytdReceived, input.year, input.now),
     totalMarketValue: input.totalMarketValue,
     totalCost: input.totalCost,
-    unrealizedPnl: input.totalMarketValue - input.totalCost,
+    unrealizedPnl: input.unrealizedPnl,
+    dailyPnl: input.dailyPnl,
     milestones: computeMilestoneStates(ytdReceived),
     litMilestoneCount: countLitMilestones(ytdReceived),
     lastRefreshedAt: input.lastRefreshedAt,
@@ -87,6 +90,7 @@ export function buildDividendCalendar(
   for (const record of records) {
     if (record.status === 'rejected') continue;
     push(record.exDividendDate, {
+      accountId: record.accountId,
       symbol: record.symbol,
       name: record.name,
       kind: record.kind,

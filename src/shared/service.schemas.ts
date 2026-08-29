@@ -8,7 +8,9 @@ const nonNegativeNumberSchema = z.coerce.number().finite().nonnegative();
 const symbolSchema = z.string().trim().min(1).max(32);
 const accountBrokerSchema = z.enum(ACCOUNT_BROKER_IDS);
 const accountKindSchema = z.enum(['securities', 'fund']);
-const accountCustomFeeSchema = z
+
+/** 账户自定义费率（含沪/深 ETF 分市场佣金）。 */
+export const accountCustomFeeSchema = z
   .object({
     commissionWan: nonNegativeNumberSchema,
     commissionMinYuan: nonNegativeNumberSchema.optional(),
@@ -16,6 +18,12 @@ const accountCustomFeeSchema = z
     etfCommissionWan: nonNegativeNumberSchema.optional(),
     etfCommissionMinYuan: nonNegativeNumberSchema.optional(),
     etfNoCommissionMin: z.boolean().optional(),
+    etfShCommissionWan: nonNegativeNumberSchema.optional(),
+    etfShCommissionMinYuan: nonNegativeNumberSchema.optional(),
+    etfShNoCommissionMin: z.boolean().optional(),
+    etfSzCommissionWan: nonNegativeNumberSchema.optional(),
+    etfSzCommissionMinYuan: nonNegativeNumberSchema.optional(),
+    etfSzNoCommissionMin: z.boolean().optional(),
   })
   .strict();
 const accountAliasSchema = z.string().trim().max(80);
@@ -267,6 +275,41 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
   }),
   z.object({
     id: z.uuid(),
+    method: z.literal('settings.getAccessLock'),
+    params: z.object({}).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('settings.verifyAccessLock'),
+    params: z.object({ password: z.string().min(1).max(64) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('settings.enableAccessLock'),
+    params: z.object({ newPassword: z.string().min(4).max(64) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('settings.enableExistingAccessLock'),
+    params: z.object({}).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('settings.disableAccessLock'),
+    params: z.object({ password: z.string().min(1).max(64) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('settings.changeAccessLockPassword'),
+    params: z
+      .object({
+        currentPassword: z.string().min(1).max(64),
+        newPassword: z.string().min(4).max(64),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
     method: z.literal('llm.previewPrompt'),
     params: z
       .object({
@@ -323,6 +366,18 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
       .object({
         symbol: symbolSchema,
         pageSize: z.number().int().min(1).max(20).optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('market.listKlines'),
+    params: z
+      .object({
+        symbol: symbolSchema,
+        period: z.enum(['1m', '5m', '15m', '30m', '60m', '1d', '1w', '1M']).optional(),
+        adjust: z.enum(['none', 'forward', 'backward']).optional(),
+        limit: z.number().int().min(1).max(1023).optional(),
       })
       .strict(),
   }),
@@ -391,7 +446,52 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
         tradeAt: z.string().trim().min(1).max(40),
         planId: z.uuid().nullable().optional(),
         note: z.string().trim().max(500).optional(),
-        source: z.enum(['manual', 'csv', 'plan']).optional(),
+        source: z.enum(['manual', 'csv', 'plan', 'sip']).optional(),
+        sipOccurrenceId: z.uuid().nullable().optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('portfolio.listLedgerEntries'),
+    params: z
+      .object({
+        accountId: z.string().trim().min(1).max(64).optional(),
+        symbol: symbolSchema.optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('portfolio.updateLedgerEntry'),
+    params: z
+      .object({
+        id: z.uuid(),
+        input: z
+          .object({
+            side: z.enum(['buy', 'sell', 'dividend_reinvest']).optional(),
+            quantity: positiveNumberSchema.optional(),
+            price: positiveNumberSchema.optional(),
+            fees: nonNegativeNumberSchema.optional(),
+            tradeAt: z.string().trim().min(1).max(40).optional(),
+            note: z.string().trim().max(500).optional(),
+          })
+          .strict(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('portfolio.deleteLedgerEntry'),
+    params: z.object({ id: z.uuid() }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('portfolio.deletePosition'),
+    params: z
+      .object({
+        accountId: z.string().trim().min(1).max(64).optional(),
+        symbol: symbolSchema,
       })
       .strict(),
   }),
@@ -403,6 +503,8 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
         id: z.uuid(),
         confirmed: z.boolean(),
         cashAmount: nonNegativeNumberSchema.optional(),
+        accountId: z.string().trim().min(1).max(64).optional(),
+        year: z.number().int().min(2000).max(2100).optional(),
       })
       .strict(),
   }),
@@ -464,6 +566,11 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
   z.object({
     id: z.uuid(),
     method: z.literal('accounts.archive'),
+    params: z.object({ id: z.string().trim().min(1).max(64) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('accounts.delete'),
     params: z.object({ id: z.string().trim().min(1).max(64) }).strict(),
   }),
   z.object({
@@ -596,5 +703,259 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
     id: z.uuid(),
     method: z.literal('alerts.pollActive'),
     params: z.object({}).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.listPlans'),
+    params: z
+      .object({
+        statuses: z.array(z.enum(['draft', 'active', 'paused', 'completed', 'cancelled'])).optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.getPlan'),
+    params: z.object({ id: z.uuid() }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.createPlan'),
+    params: z
+      .object({
+        accountId: z.string().trim().min(1).max(64).optional(),
+        symbol: symbolSchema,
+        amount: nonNegativeNumberSchema.refine((value) => value > 0, '每期金额必须大于 0'),
+        frequency: z.enum(['weekly', 'biweekly', 'monthly']),
+        dayOfWeek: z.number().int().min(1).max(7).optional(),
+        dayOfMonth: z.number().int().min(1).max(28).optional(),
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+        thesis: z.string().trim().min(1).max(2_000),
+        activateNow: z.boolean().optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.updatePlan'),
+    params: z
+      .object({
+        id: z.uuid(),
+        input: z
+          .object({
+            amount: nonNegativeNumberSchema.optional(),
+            frequency: z.enum(['weekly', 'biweekly', 'monthly']).optional(),
+            dayOfWeek: z.number().int().min(1).max(7).nullable().optional(),
+            dayOfMonth: z.number().int().min(1).max(28).nullable().optional(),
+            endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+            thesis: z.string().trim().min(1).max(2_000).optional(),
+          })
+          .strict(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.setStatus'),
+    params: z
+      .object({
+        id: z.uuid(),
+        status: z.enum(['draft', 'active', 'paused', 'completed', 'cancelled']),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.previewSchedule'),
+    params: z
+      .object({
+        accountId: z.string().trim().min(1).max(64).optional(),
+        symbol: symbolSchema,
+        amount: nonNegativeNumberSchema,
+        frequency: z.enum(['weekly', 'biweekly', 'monthly']),
+        dayOfWeek: z.number().int().min(1).max(7).optional(),
+        dayOfMonth: z.number().int().min(1).max(28).optional(),
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+        thesis: z.string().trim().min(1).max(2_000),
+        activateNow: z.boolean().optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.listOccurrences'),
+    params: z
+      .object({
+        planId: z.uuid().optional(),
+        from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.listOccurrenceViews'),
+    params: z
+      .object({
+        planId: z.uuid().optional(),
+        from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.confirmOccurrence'),
+    params: z
+      .object({
+        id: z.uuid(),
+        nav: nonNegativeNumberSchema.refine((value) => value > 0, '净值必须大于 0'),
+        quantity: nonNegativeNumberSchema.optional(),
+        fees: nonNegativeNumberSchema.optional(),
+        tradeAt: z.string().datetime().optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.skipOccurrence'),
+    params: z.object({ id: z.uuid(), reason: z.string().trim().min(1).max(500) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.getSummary'),
+    params: z.object({}).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.scanDue'),
+    params: z.object({}).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.getOccurrenceCalendar'),
+    params: z.object({ month: z.string().regex(/^\d{4}-\d{2}$/) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.getPositionMeta'),
+    params: z.object({ accountId: z.string().trim().min(1).max(64).optional() }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.getReviewTemplate'),
+    params: z.object({ planId: z.uuid() }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.getPlanPositionLink'),
+    params: z.object({ planId: z.uuid() }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.listPlansBySymbol'),
+    params: z.object({ accountId: z.string().trim().min(1).max(64), symbol: z.string().trim().min(1).max(32) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.parseImportCsv'),
+    params: z.object({ sourcePath: z.string().trim().min(1).max(4096) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.previewImport'),
+    params: z
+      .object({
+        sourcePath: z.string().trim().min(1).max(4096),
+        accountId: z.string().trim().min(1).max(64).optional(),
+        planId: z.uuid().optional(),
+        mapping: z
+          .object({
+            symbol: z.number().int().min(-1),
+            tradeAt: z.number().int().min(-1),
+            nav: z.number().int().min(-1),
+            amount: z.number().int().min(-1),
+            quantity: z.number().int().min(-1),
+            fees: z.number().int().min(-1),
+          })
+          .strict(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.commitImport'),
+    params: z
+      .object({
+        sourcePath: z.string().trim().min(1).max(4096),
+        accountId: z.string().trim().min(1).max(64).optional(),
+        planId: z.uuid().optional(),
+        mapping: z
+          .object({
+            symbol: z.number().int().min(-1),
+            tradeAt: z.number().int().min(-1),
+            nav: z.number().int().min(-1),
+            amount: z.number().int().min(-1),
+            quantity: z.number().int().min(-1),
+            fees: z.number().int().min(-1),
+          })
+          .strict(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.recognizeImportScreenshot'),
+    params: z.object({ sourcePath: z.string().trim().min(1).max(4096) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.previewAiImport'),
+    params: z
+      .object({
+        accountId: z.string().trim().min(1).max(64).optional(),
+        planId: z.uuid().optional(),
+        records: z.array(
+          z
+            .object({
+              rowIndex: z.number().int().positive(),
+              symbol: z.string().trim().max(32).nullable(),
+              fundName: z.string().trim().max(120).nullable(),
+              tradeAt: z.string().trim().max(64).nullable(),
+              nav: z.number().finite().nullable(),
+              amount: z.number().finite().nullable(),
+              quantity: z.number().finite().nullable(),
+              fees: z.number().finite().nullable(),
+            })
+            .strict(),
+        ),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.commitAiImport'),
+    params: z
+      .object({
+        accountId: z.string().trim().min(1).max(64).optional(),
+        planId: z.uuid().optional(),
+        records: z.array(
+          z
+            .object({
+              rowIndex: z.number().int().positive(),
+              symbol: z.string().trim().max(32).nullable(),
+              fundName: z.string().trim().max(120).nullable(),
+              tradeAt: z.string().trim().max(64).nullable(),
+              nav: z.number().finite().nullable(),
+              amount: z.number().finite().nullable(),
+              quantity: z.number().finite().nullable(),
+              fees: z.number().finite().nullable(),
+            })
+            .strict(),
+        ),
+      })
+      .strict(),
   }),
 ]);

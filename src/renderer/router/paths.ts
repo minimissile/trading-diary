@@ -7,6 +7,7 @@ export const routePaths = {
   /** @deprecated 兼容旧链接，路由层重定向至 positions */
   portfolio: '/portfolio',
   accounts: '/accounts',
+  sip: '/sip',
   alerts: '/alerts',
   journal: '/journal',
   import: '/import',
@@ -14,4 +15,5 @@ export const routePaths = {
   analysis: '/analysis',
   settings: '/settings',
   devLlm: '/dev/llm',
+  devChart: '/dev/chart',
 } as const;

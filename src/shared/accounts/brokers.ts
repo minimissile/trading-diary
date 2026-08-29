@@ -1,11 +1,11 @@
-import type { AccountBroker } from './types';
+import type { AccountBroker, AccountKind } from './types';
 
 export interface BrokerMeta {
   id: AccountBroker;
   label: string;
   /** 用于拉取 favicon 的域名。 */
   domain?: string;
-  group: 'head' | 'regional' | 'internet' | 'other';
+  group: 'head' | 'regional' | 'internet' | 'fund' | 'bank' | 'other';
   /** 搜索别名：简称、拼音、常用 APP 名等。 */
   keywords?: string[];
 }
@@ -33,11 +33,49 @@ export const BROKER_REGISTRY: readonly BrokerMeta[] = [
   { id: 'glzq', label: '国联证券', domain: 'glzq.com.cn', group: 'head', keywords: ['国联', 'glzq', '国联尊宝'] },
   { id: 'ghzq', label: '国海证券', domain: 'ghzq.com.cn', group: 'head', keywords: ['国海', 'ghzq'] },
 
-  { id: 'eastmoney', label: '东方财富', domain: 'eastmoney.com', group: 'internet', keywords: ['东财', 'eastmoney', '天天基金', '东方财富证券'] },
-  { id: 'ths', label: '同花顺', domain: '10jqka.com.cn', group: 'internet', keywords: ['同花顺', 'ths', '10jqka'] },
-  { id: 'xueqiu', label: '雪球', domain: 'xueqiu.com', group: 'internet', keywords: ['雪球', 'xueqiu', '蛋卷'] },
-  { id: 'futu', label: '富途证券', domain: 'futunn.com', group: 'internet', keywords: ['富途', 'futu', 'moomoo', '牛牛'] },
+  { id: 'eastmoney', label: '东方财富', domain: 'eastmoney.com', group: 'internet', keywords: ['东财', 'eastmoney', '东方财富证券', '天天基金网'] },
+  { id: 'ths', label: '同花顺', domain: '10jqka.com.cn', group: 'internet', keywords: ['同花顺', 'ths', '10jqka', '爱基金', '同花顺基金', 'iFund'] },
+  { id: 'xueqiu', label: '雪球', domain: 'xueqiu.com', group: 'internet', keywords: ['雪球', 'xueqiu', '蛋卷', '蛋卷基金', '雪球基金'] },
+  { id: 'futu', label: '富途证券', domain: 'futunn.com', group: 'internet', keywords: ['富途', 'futu', 'moomoo', '牛牛', '富途基金'] },
   { id: 'tiger', label: '老虎证券', domain: 'itiger.com', group: 'internet', keywords: ['老虎', 'tiger', 'itiger'] },
+
+  { id: 'ttfund', label: '天天基金', domain: 'fund.eastmoney.com', group: 'fund', keywords: ['天天', 'ttjj', '东财基金', 'fund.eastmoney', '天天基金网'] },
+  { id: 'antfortune', label: '蚂蚁财富', domain: 'fund.antfortune.com', group: 'fund', keywords: ['蚂蚁', '支付宝', 'alipay', 'antfortune', '蚂蚁基金', '余额宝'] },
+  { id: 'qieman', label: '且慢', domain: 'qieman.com', group: 'fund', keywords: ['qieman', '且慢基金', '盈米且慢', '长赢'] },
+  { id: 'licaitong', label: '微信理财通', domain: 'txfund.com', group: 'fund', keywords: ['理财通', '微信', 'wechat', 'txfund', '腾讯理财', '腾安基金'] },
+  { id: 'jdjr', label: '京东金融', domain: 'jr.jd.com', group: 'fund', keywords: ['京东', 'jd', '京东金融', '京东基金', 'jdjr'] },
+  { id: 'howbuy', label: '好买基金', domain: 'howbuy.com', group: 'fund', keywords: ['好买', 'howbuy', '好买网', '储蓄罐'] },
+  { id: 'yingmi', label: '盈米基金', domain: 'yingmi.cn', group: 'fund', keywords: ['盈米', 'yingmi', '盈米销售'] },
+  { id: 'youzhiyouxing', label: '有知有行', domain: 'youzhiyouxing.com', group: 'fund', keywords: ['有知有行', '孟岩', '知行'] },
+  { id: 'fundbean', label: '基金豆', domain: 'fundbean.cn', group: 'fund', keywords: ['基金豆', 'fundbean', '豆'] },
+  { id: 'lufund', label: '陆基金', domain: 'lu.com', group: 'fund', keywords: ['陆基金', '陆金所', 'lufund', 'lu.com'] },
+  { id: 'duxiaoman', label: '度小满金融', domain: 'duxiaoman.com', group: 'fund', keywords: ['度小满', 'duxiaoman', '百度金融', '百度理财', '有钱花'] },
+  { id: 'simuwang', label: '私募排排网', domain: 'simuwang.com', group: 'fund', keywords: ['私募', 'simuwang', '排排网', '私募排排'] },
+  { id: 'zhonglu', label: '众禄基金', domain: 'zhonglu.com', group: 'fund', keywords: ['众禄', 'zhonglu', '众禄基金网'] },
+  { id: 'aifund', label: '同花顺爱基金', domain: 'fund.10jqka.com.cn', group: 'fund', keywords: ['爱基金', 'ifund', '同花顺爱基金', '爱基金网'] },
+  { id: 'fund123', label: '基金123', domain: 'fund123.cn', group: 'fund', keywords: ['基金123', 'fund123', '壹贰叁'] },
+  { id: 'efunds', label: '易方达 e 钱包', domain: 'efunds.com.cn', group: 'fund', keywords: ['易方达', 'efunds', 'e钱包', '易方达基金'] },
+  { id: 'chinaamc', label: '华夏基金', domain: 'chinaamc.com', group: 'fund', keywords: ['华夏基金', 'chinaamc', '华夏直销'] },
+  { id: 'nffund', label: '南方基金', domain: 'nffund.com', group: 'fund', keywords: ['南方基金', 'nffund', '南方直销'] },
+  { id: 'harvestfund', label: '嘉实基金', domain: 'harvest.com.cn', group: 'fund', keywords: ['嘉实', 'harvest', '嘉实基金'] },
+  { id: 'gtfund', label: '国泰基金', domain: 'gtfund.com', group: 'fund', keywords: ['国泰基金', 'gtfund', '国泰直销'] },
+  { id: 'phfund', label: '鹏华基金', domain: 'phfund.com.cn', group: 'fund', keywords: ['鹏华', 'phfund', '鹏华基金', 'AISHU'] },
+  { id: 'bosera', label: '博时基金', domain: 'bosera.com', group: 'fund', keywords: ['博时', 'bosera', '博时基金'] },
+
+  { id: 'cmb', label: '招商银行', domain: 'cmbchina.com', group: 'bank', keywords: ['招行', 'cmb', '招商银行', '掌上生活', '朝朝宝'] },
+  { id: 'icbc', label: '工商银行', domain: 'icbc.com.cn', group: 'bank', keywords: ['工行', 'icbc', '工商银行', '融e联'] },
+  { id: 'ccb', label: '建设银行', domain: 'ccb.com', group: 'bank', keywords: ['建行', 'ccb', '建设银行', '龙支付'] },
+  { id: 'abc', label: '农业银行', domain: 'abchina.com', group: 'bank', keywords: ['农行', 'abc', '农业银行', '掌上银行'] },
+  { id: 'boc', label: '中国银行', domain: 'boc.cn', group: 'bank', keywords: ['中行', 'boc', '中国银行', '中银'] },
+  { id: 'bocom', label: '交通银行', domain: 'bankcomm.com', group: 'bank', keywords: ['交行', 'bocom', '交通银行', '买单吧'] },
+  { id: 'cibbank', label: '兴业银行', domain: 'cib.com.cn', group: 'bank', keywords: ['兴业', 'cib', '兴业银行', '钱大掌柜'] },
+  { id: 'spdb', label: '浦发银行', domain: 'spdb.com.cn', group: 'bank', keywords: ['浦发', 'spdb', '浦发银行'] },
+  { id: 'cmbc', label: '民生银行', domain: 'cmbc.com.cn', group: 'bank', keywords: ['民生', 'cmbc', '民生银行', '民生财富'] },
+  { id: 'citicbank', label: '中信银行', domain: 'citicbank.com', group: 'bank', keywords: ['中信', 'citicbank', '中信银行', '动卡空间'] },
+  { id: 'webank', label: '微众银行', domain: 'webank.com', group: 'bank', keywords: ['微众', 'webank', '微众银行', '微粒贷'] },
+  { id: 'mybank', label: '网商银行', domain: 'mybank.cn', group: 'bank', keywords: ['网商', 'mybank', '网商银行'] },
+  { id: 'psbc', label: '邮储银行', domain: 'psbc.com', group: 'bank', keywords: ['邮储', 'psbc', '邮政储蓄', '邮储银行'] },
+  { id: 'bob', label: '北京银行', domain: 'bankofbeijing.com.cn', group: 'bank', keywords: ['北京银行', 'bob', '京行'] },
 
   { id: 'cjsc', label: '长江证券', domain: 'cjsc.com.cn', group: 'regional', keywords: ['长江', 'cjsc', '长江e号'] },
   { id: 'zszq', label: '浙商证券', domain: 'stocke.com.cn', group: 'regional', keywords: ['浙商', 'zszq', '浙商汇金'] },
@@ -167,6 +205,27 @@ export function getBrokerIconUrl(id: AccountBroker): string | null {
 export const BROKER_GROUP_LABELS: Record<BrokerMeta['group'], string> = {
   head: '头部券商',
   internet: '互联网渠道',
+  fund: '基金销售平台',
+  bank: '银行渠道',
   regional: '区域券商',
   other: '其他',
 };
+
+const FUND_ACCOUNT_GROUPS: readonly BrokerMeta['group'][] = ['fund', 'bank', 'internet', 'other'];
+const SECURITIES_ACCOUNT_GROUPS: readonly BrokerMeta['group'][] = ['head', 'regional', 'internet', 'other'];
+
+/** 按账户类型返回可选渠道列表。 */
+export function listBrokersForAccountKind(kind: AccountKind): readonly BrokerMeta[] {
+  const groups = kind === 'fund' ? FUND_ACCOUNT_GROUPS : SECURITIES_ACCOUNT_GROUPS;
+  return BROKER_REGISTRY.filter((item) => groups.includes(item.group));
+}
+
+/** 新建账户时的默认渠道。 */
+export function defaultBrokerForAccountKind(kind: AccountKind): AccountBroker {
+  return kind === 'fund' ? 'ttfund' : 'huatai';
+}
+
+/** 判断渠道是否适用于指定账户类型。 */
+export function isBrokerAllowedForAccountKind(broker: AccountBroker, kind: AccountKind): boolean {
+  return listBrokersForAccountKind(kind).some((item) => item.id === broker);
+}

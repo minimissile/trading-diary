@@ -24,6 +24,9 @@ import type {
   WorkspaceSnapshot,
   DividendListResult,
   InstrumentInfo,
+  KLineAdjust,
+  KLineListResult,
+  KLinePeriod,
   MarketNewsItem,
   MarketQuote,
   MarketSearchHit,
@@ -31,7 +34,13 @@ import type {
   WatchlistPoolMeta,
   WatchlistPoolSnapshot,
 } from './api.types';
-import type { WatchlistPoolId } from './watchlist/types';
+import type {
+  AccessLockSettingsView,
+  ChangeAccessLockPasswordInput,
+  DisableAccessLockInput,
+  EnableAccessLockInput,
+  VerifyAccessLockResult,
+} from './security/access-lock.types';
 import type {
   CreatePortfolioLedgerInput,
   DividendCalendarDay,
@@ -71,6 +80,32 @@ import type {
   PlaybookRuleStatus,
   UpdatePlaybookRuleInput,
 } from './playbook/types';
+import type {
+  ConfirmFundSipOccurrenceInput,
+  ConfirmFundSipOccurrenceResult,
+  CreateFundSipPlanInput,
+  FundSipOccurrence,
+  FundSipOccurrencePreview,
+  FundSipOccurrenceView,
+  FundSipPlanDetailView,
+  FundSipPlanView,
+  SipOccurrenceCalendarDay,
+  SipPlanStatus,
+  SipPositionMeta,
+  SipReviewTemplate,
+  SipPlanPositionLink,
+  SipScanResult,
+  SipSummaryView,
+  UpdateFundSipPlanInput,
+} from './sip/types';
+import type {
+  SipCsvParseResult,
+  SipImportCommitResult,
+  SipImportInput,
+  SipImportPreviewResult,
+  SipAiImportInput,
+  SipAiRecognizeResult,
+} from './sip/import-types';
 import type {
   BackupExportInput,
   BackupExportResult,
@@ -163,6 +198,30 @@ export interface ServiceContract {
     params: LlmUserSettings;
     result: LlmUserSettings;
   };
+  'settings.getAccessLock': {
+    params: Record<string, never>;
+    result: AccessLockSettingsView;
+  };
+  'settings.verifyAccessLock': {
+    params: { password: string };
+    result: VerifyAccessLockResult;
+  };
+  'settings.enableAccessLock': {
+    params: EnableAccessLockInput;
+    result: AccessLockSettingsView;
+  };
+  'settings.enableExistingAccessLock': {
+    params: Record<string, never>;
+    result: AccessLockSettingsView;
+  };
+  'settings.disableAccessLock': {
+    params: DisableAccessLockInput;
+    result: AccessLockSettingsView;
+  };
+  'settings.changeAccessLockPassword': {
+    params: ChangeAccessLockPasswordInput;
+    result: AccessLockSettingsView;
+  };
   'llm.previewPrompt': {
     params: { promptId: PromptId; variables: Record<string, string> };
     result: LlmPromptPreview;
@@ -195,6 +254,10 @@ export interface ServiceContract {
     params: { symbol: string; pageSize?: number };
     result: MarketNewsItem[];
   };
+  'market.listKlines': {
+    params: { symbol: string; period?: KLinePeriod; adjust?: KLineAdjust; limit?: number };
+    result: KLineListResult;
+  };
   'watchlist.listPools': {
     params: Record<string, never>;
     result: WatchlistPoolMeta[];
@@ -223,8 +286,24 @@ export interface ServiceContract {
     params: CreatePortfolioLedgerInput;
     result: PortfolioPositionView[];
   };
+  'portfolio.listLedgerEntries': {
+    params: { accountId?: string; symbol?: string };
+    result: import('./portfolio/types').PortfolioLedgerEntry[];
+  };
+  'portfolio.updateLedgerEntry': {
+    params: { id: string; input: import('./portfolio/types').UpdatePortfolioLedgerInput };
+    result: import('./portfolio/types').PortfolioLedgerEntry;
+  };
+  'portfolio.deleteLedgerEntry': {
+    params: { id: string };
+    result: PortfolioPositionView[];
+  };
+  'portfolio.deletePosition': {
+    params: { accountId?: string; symbol: string };
+    result: PortfolioPositionView[];
+  };
   'portfolio.confirmDividend': {
-    params: { id: string; confirmed: boolean; cashAmount?: number };
+    params: { id: string; confirmed: boolean; cashAmount?: number; accountId?: string; year?: number };
     result: PortfolioDividendRecord[];
   };
   'portfolio.refreshDividends': {
@@ -266,6 +345,10 @@ export interface ServiceContract {
   'accounts.archive': {
     params: { id: string };
     result: TradingAccountSummary;
+  };
+  'accounts.delete': {
+    params: { id: string };
+    result: void;
   };
   'accounts.listFeeProfiles': {
     params: Record<string, never>;
@@ -349,6 +432,98 @@ export interface ServiceContract {
   'alerts.pollActive': {
     params: Record<string, never>;
     result: AlertPollResult;
+  };
+  'sip.listPlans': {
+    params: { statuses?: SipPlanStatus[] };
+    result: FundSipPlanView[];
+  };
+  'sip.getPlan': {
+    params: { id: string };
+    result: FundSipPlanDetailView;
+  };
+  'sip.createPlan': {
+    params: CreateFundSipPlanInput;
+    result: FundSipPlanView;
+  };
+  'sip.updatePlan': {
+    params: { id: string; input: UpdateFundSipPlanInput };
+    result: FundSipPlanView;
+  };
+  'sip.setStatus': {
+    params: { id: string; status: SipPlanStatus };
+    result: FundSipPlanView;
+  };
+  'sip.previewSchedule': {
+    params: CreateFundSipPlanInput;
+    result: FundSipOccurrencePreview[];
+  };
+  'sip.listOccurrences': {
+    params: { planId?: string; from?: string; to?: string };
+    result: FundSipOccurrence[];
+  };
+  'sip.listOccurrenceViews': {
+    params: { planId?: string; from?: string; to?: string };
+    result: FundSipOccurrenceView[];
+  };
+  'sip.confirmOccurrence': {
+    params: ConfirmFundSipOccurrenceInput;
+    result: ConfirmFundSipOccurrenceResult;
+  };
+  'sip.skipOccurrence': {
+    params: { id: string; reason: string };
+    result: FundSipOccurrence;
+  };
+  'sip.getSummary': {
+    params: Record<string, never>;
+    result: SipSummaryView;
+  };
+  'sip.scanDue': {
+    params: Record<string, never>;
+    result: SipScanResult;
+  };
+  'sip.getOccurrenceCalendar': {
+    params: { month: string };
+    result: SipOccurrenceCalendarDay[];
+  };
+  'sip.getPositionMeta': {
+    params: { accountId?: string };
+    result: SipPositionMeta[];
+  };
+  'sip.getReviewTemplate': {
+    params: { planId: string };
+    result: SipReviewTemplate;
+  };
+  'sip.getPlanPositionLink': {
+    params: { planId: string };
+    result: SipPlanPositionLink;
+  };
+  'sip.listPlansBySymbol': {
+    params: { accountId: string; symbol: string };
+    result: FundSipPlanView[];
+  };
+  'sip.parseImportCsv': {
+    params: { sourcePath: string };
+    result: SipCsvParseResult;
+  };
+  'sip.previewImport': {
+    params: SipImportInput;
+    result: SipImportPreviewResult;
+  };
+  'sip.commitImport': {
+    params: SipImportInput;
+    result: SipImportCommitResult;
+  };
+  'sip.recognizeImportScreenshot': {
+    params: { sourcePath: string };
+    result: SipAiRecognizeResult;
+  };
+  'sip.previewAiImport': {
+    params: SipAiImportInput;
+    result: SipImportPreviewResult;
+  };
+  'sip.commitAiImport': {
+    params: SipAiImportInput;
+    result: SipImportCommitResult;
   };
 }
 

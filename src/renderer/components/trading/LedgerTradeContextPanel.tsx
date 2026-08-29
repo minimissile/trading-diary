@@ -1,7 +1,7 @@
 import { Skeleton } from 'antd';
 import type { Dayjs } from 'dayjs';
 import type { InstrumentInfo, MarketQuote } from '../../../shared/api.types';
-import { changeClass, formatCurrency, formatPercent, formatPrice } from '../../lib/trading-format';
+import { ValueDisplay } from '../../lib/trading-format';
 import { TradePriceContextChart } from './TradePriceContextChart';
 
 const kindLabels: Record<string, string> = {
@@ -50,8 +50,10 @@ export function LedgerTradeContextPanel({
           <Skeleton.Input active size="small" style={{ width: 120 }} />
         ) : quote?.price !== null && quote?.price !== undefined ? (
           <div className="ledger-trade-context-quote">
-            <span>现价 {formatPrice(quote.price)}</span>
-            <span className={changeClass(quote.changePercent)}>{formatPercent(quote.changePercent)}</span>
+            <span>
+              现价 <ValueDisplay kind="price" value={quote.price} />
+            </span>
+            <ValueDisplay kind="percent" value={quote.changePercent} />
           </div>
         ) : (
           <span className="ledger-trade-context-muted">暂无行情</span>
@@ -61,15 +63,15 @@ export function LedgerTradeContextPanel({
       <div className="ledger-trade-context-metrics">
         <article>
           <small>{side === 'buy' ? '买入金额' : '卖出金额'}</small>
-          <strong>{tradeAmount === null ? '—' : formatCurrency(tradeAmount)}</strong>
+          <ValueDisplay as="strong" kind="currency" value={tradeAmount} />
         </article>
         <article>
           <small>现价市值</small>
-          <strong>{marketValue === null ? '—' : formatCurrency(marketValue)}</strong>
+          <ValueDisplay as="strong" kind="currency" value={marketValue} />
         </article>
         <article>
           <small>{side === 'buy' ? '相对现价' : '卖出相对现价'}</small>
-          <strong className={changeClass(priceDelta)}>{priceDelta === null ? '—' : formatPercent(priceDelta)}</strong>
+          <ValueDisplay as="strong" kind="percent" value={priceDelta} />
         </article>
       </div>
 

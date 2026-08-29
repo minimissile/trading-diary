@@ -1,8 +1,19 @@
 import type { InstrumentInfo, MarketQuote } from '../../../shared/market/types';
 import { MarketNotFoundError } from '../../../shared/market/errors';
 import { eastMoneyFetchJson } from './client';
+import { EASTMONEY_QUOTE_REFERER, eastMoneyPushUrl } from './endpoints';
 import { resolveInstrument } from './search-service';
-import { asNumber, normalizeSymbol, scalePrice, toSecid } from './symbols';
+import {
+  asNumber,
+  classifyExchangeCode,
+  deriveDayMoveFromPercent,
+  detectExchangeMarket,
+  isPlausiblePrevClose,
+  normalizeSymbol,
+  scalePrice,
+  toF10Code,
+  toSecid,
+} from './symbols';
 
 interface UlistRow {
   f2?: number;
@@ -59,23 +70,109 @@ export async function getQuote(symbolInput: string): Promise<MarketQuote> {
 
 export async function getQuotes(symbols: string[]): Promise<MarketQuote[]> {
   const unique = [...new Set(symbols.map(normalizeSymbol))];
-  const results = await Promise.all(
-    unique.map(async (symbol) => {
-      try {
-        return await getQuote(symbol);
-      } catch {
-        return null;
-      }
-    }),
+  const exchangeSymbols = unique.filter((symbol) => Boolean(toSecid(symbol)));
+  const fundSymbols = unique.filter((symbol) => !toSecid(symbol));
+
+  const [exchangeQuotes, fundQuotes] = await Promise.all([
+    fetchExchangeQuotesBatch(exchangeSymbols),
+    Promise.all(
+      fundSymbols.map(async (symbol) => {
+        try {
+          return await getQuote(symbol);
+        } catch {
+          return null;
+        }
+      }),
+    ),
+  ]);
+
+  return [...exchangeQuotes, ...fundQuotes.filter((item): item is MarketQuote => item !== null)];
+}
+
+function buildExchangeInstrument(symbol: string): InstrumentInfo {
+  const market = detectExchangeMarket(symbol);
+  const secid = toSecid(symbol);
+  if (!market || !secid) {
+    throw new MarketNotFoundError(`无法解析行情代码：${symbol}`);
+  }
+
+  return {
+    symbol,
+    name: symbol,
+    kind: classifyExchangeCode(symbol),
+    market,
+    secid,
+    f10Code: toF10Code(symbol),
+    securityTypeName: null,
+    source: 'eastmoney',
+  };
+}
+
+async function fetchExchangeQuotesBatch(symbols: string[]): Promise<MarketQuote[]> {
+  if (symbols.length === 0) return [];
+
+  const secidBySymbol = new Map<string, string>();
+  for (const symbol of symbols) {
+    const secid = toSecid(symbol);
+    if (secid) secidBySymbol.set(symbol, secid);
+  }
+
+  const url = eastMoneyPushUrl('/api/qt/ulist.np/get');
+  url.searchParams.set('fltt', '2');
+  url.searchParams.set(
+    'fields',
+    'f2,f3,f9,f12,f14,f23,f43,f44,f45,f46,f47,f48,f57,f58,f60,f133,f169,f170',
   );
-  return results.filter((item): item is MarketQuote => item !== null);
+  url.searchParams.set('secids', [...secidBySymbol.values()].join(','));
+
+  try {
+    const payload = await eastMoneyFetchJson<UlistResponse>(url, { referer: EASTMONEY_QUOTE_REFERER });
+    const rows = payload.rc === 0 ? (payload.data?.diff ?? []) : [];
+    const rowBySymbol = new Map(
+      rows
+        .map((row) => [normalizeSymbol(row.f12 ?? ''), row] as const)
+        .filter(([symbol]) => symbol.length > 0),
+    );
+
+    const quotes: MarketQuote[] = [];
+    for (const symbol of symbols) {
+      const instrument = buildExchangeInstrument(symbol);
+      const row = rowBySymbol.get(symbol);
+      if (row) {
+        quotes.push(mapExchangeQuote(instrument, row));
+        continue;
+      }
+
+      const secid = secidBySymbol.get(symbol);
+      if (!secid) continue;
+
+      try {
+        quotes.push(await fetchExchangeQuoteFallback(instrument, secid));
+      } catch {
+        // 单个标的失败时不影响其它标的
+      }
+    }
+    return quotes;
+  } catch {
+    const results = await Promise.all(
+      symbols.map(async (symbol) => {
+        try {
+          const instrument = buildExchangeInstrument(symbol);
+          return await fetchExchangeQuote(instrument);
+        } catch {
+          return null;
+        }
+      }),
+    );
+    return results.filter((item): item is MarketQuote => item !== null);
+  }
 }
 
 async function fetchExchangeQuote(instrument: InstrumentInfo): Promise<MarketQuote> {
   const secid = instrument.secid ?? toSecid(instrument.symbol);
   if (!secid) throw new MarketNotFoundError(`无法解析行情代码：${instrument.symbol}`);
 
-  const url = new URL('https://push2.eastmoney.com/api/qt/ulist.np/get');
+  const url = eastMoneyPushUrl('/api/qt/ulist.np/get');
   url.searchParams.set('fltt', '2');
   url.searchParams.set(
     'fields',
@@ -83,7 +180,7 @@ async function fetchExchangeQuote(instrument: InstrumentInfo): Promise<MarketQuo
   );
   url.searchParams.set('secids', secid);
 
-  const payload = await eastMoneyFetchJson<UlistResponse>(url, { referer: 'https://quote.eastmoney.com/' });
+  const payload = await eastMoneyFetchJson<UlistResponse>(url, { referer: EASTMONEY_QUOTE_REFERER });
   const row = payload.rc === 0 ? payload.data?.diff?.[0] : undefined;
   if (!row) {
     return fetchExchangeQuoteFallback(instrument, secid);
@@ -93,25 +190,28 @@ async function fetchExchangeQuote(instrument: InstrumentInfo): Promise<MarketQuo
 }
 
 async function fetchExchangeQuoteFallback(instrument: InstrumentInfo, secid: string): Promise<MarketQuote> {
-  const url = new URL('https://push2.eastmoney.com/api/qt/stock/get');
+  const url = eastMoneyPushUrl('/api/qt/stock/get');
   url.searchParams.set('secid', secid);
   url.searchParams.set('fields', 'f43,f44,f45,f46,f47,f48,f57,f58,f60,f169,f170');
 
-  const payload = await eastMoneyFetchJson<StockGetResponse>(url, { referer: 'https://quote.eastmoney.com/' });
+  const payload = await eastMoneyFetchJson<StockGetResponse>(url, { referer: EASTMONEY_QUOTE_REFERER });
   if (!payload.data) throw new MarketNotFoundError(`行情为空：${instrument.symbol}`);
 
   const row = payload.data;
+  const price = scalePrice(row.f43) ?? asNumber(row.f2);
+  const changePercentRaw = asNumber(row.f170);
+  const changePercent = changePercentRaw !== null ? changePercentRaw / 100 : null;
   return {
     symbol: instrument.symbol,
     name: row.f58 ?? instrument.name,
     kind: instrument.kind,
-    price: scalePrice(row.f43) ?? asNumber(row.f2),
+    price,
     open: scalePrice(row.f46),
     high: scalePrice(row.f44),
     low: scalePrice(row.f45),
     prevClose: scalePrice(row.f60),
     change: scalePrice(row.f169),
-    changePercent: asNumber(row.f170),
+    changePercent,
     volume: asNumber(row.f47),
     amount: asNumber(row.f48),
     peTtm: null,
@@ -127,17 +227,28 @@ async function fetchExchangeQuoteFallback(instrument: InstrumentInfo, secid: str
 }
 
 function mapExchangeQuote(instrument: InstrumentInfo, row: UlistRow): MarketQuote {
+  const price = asNumber(row.f2) ?? scalePrice(row.f43);
+  const changePercent = asNumber(row.f3) ?? (asNumber(row.f170) !== null ? asNumber(row.f170)! / 100 : null);
+  let prevClose = scalePrice(row.f60);
+  let change = scalePrice(row.f169);
+
+  if (price !== null && changePercent !== null && !isPlausiblePrevClose(prevClose, price)) {
+    const derived = deriveDayMoveFromPercent(price, changePercent);
+    prevClose = derived.prevClose;
+    change = derived.change;
+  }
+
   return {
-    symbol: row.f12 ?? instrument.symbol,
+    symbol: instrument.symbol,
     name: row.f14 ?? instrument.name,
     kind: instrument.kind,
-    price: asNumber(row.f2) ?? scalePrice(row.f43),
+    price,
     open: scalePrice(row.f46),
     high: scalePrice(row.f44),
     low: scalePrice(row.f45),
-    prevClose: scalePrice(row.f60),
-    change: scalePrice(row.f169),
-    changePercent: asNumber(row.f3) ?? asNumber(row.f170),
+    prevClose,
+    change,
+    changePercent,
     volume: asNumber(row.f47),
     amount: asNumber(row.f48),
     peTtm: asNumber(row.f9),
@@ -203,11 +314,11 @@ export async function probeExchangeQuote(symbol: string): Promise<boolean> {
   const secid = toSecid(symbol);
   if (!secid) return false;
 
-  const url = new URL('https://push2.eastmoney.com/api/qt/ulist.np/get');
+  const url = eastMoneyPushUrl('/api/qt/ulist.np/get');
   url.searchParams.set('fltt', '2');
   url.searchParams.set('fields', 'f12,f14');
   url.searchParams.set('secids', secid);
 
-  const payload = await eastMoneyFetchJson<UlistResponse>(url, { referer: 'https://quote.eastmoney.com/' });
+  const payload = await eastMoneyFetchJson<UlistResponse>(url, { referer: EASTMONEY_QUOTE_REFERER });
   return payload.rc === 0 && Boolean(payload.data?.diff?.[0]?.f12);
 }

@@ -2,8 +2,8 @@ import {
   BankOutlined,
   BarChartOutlined,
   BellOutlined,
-  BookFilled,
   DashboardOutlined,
+  FundOutlined,
   HistoryOutlined,
   ImportOutlined,
   SafetyCertificateOutlined,
@@ -14,6 +14,7 @@ import {
   StarOutlined,
   SettingOutlined,
   MoneyCollectOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons';
 
 const navItems = [
@@ -22,6 +23,7 @@ const navItems = [
   { key: 'watchlist', label: '自选观察池', icon: StarOutlined },
   { key: 'positions', label: '持仓中心', icon: WalletOutlined },
   { key: 'dividends', label: '股息与分红', icon: MoneyCollectOutlined },
+  { key: 'sip', label: '基金定投', icon: FundOutlined },
   { key: 'accounts', label: '账户管理', icon: BankOutlined },
   { key: 'alerts', label: '提醒中心', icon: BellOutlined },
   { key: 'import', label: '成交导入', icon: ImportOutlined },
@@ -78,15 +80,20 @@ export function AppSidebar({ activeKey, alertCount, collapsed, onCollapse, onSel
         })}
       </nav>
 
-      <blockquote className="sidebar-quote">
-        <span>今日语录</span>
-        <p>
-          专注流程，控制风险，
-          <br />
-          让概率替你赚钱。
-        </p>
-        <BookFilled aria-hidden="true" />
-      </blockquote>
+      {import.meta.env.DEV ? (
+        <nav className="primary-nav sidebar-dev-nav" aria-label="开发工具">
+          <button
+            className={activeKey === 'devChart' ? 'active' : ''}
+            type="button"
+            aria-current={activeKey === 'devChart' ? 'page' : undefined}
+            title={collapsed ? '图表测试' : undefined}
+            onClick={() => onSelect('devChart')}
+          >
+            <LineChartOutlined className="nav-icon" aria-hidden="true" />
+            <span className="nav-label">图表测试</span>
+          </button>
+        </nav>
+      ) : null}
 
       <button className="sidebar-collapse sidebar-collapse--bottom" type="button" aria-label="折叠侧栏" onClick={onCollapse}>
         {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}

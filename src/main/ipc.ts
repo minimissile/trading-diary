@@ -1,4 +1,5 @@
 import { app, dialog, ipcMain, Notification, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
+import path from 'node:path';
 import type {
   CreateTradeAlertInput,
   CreateTradeReviewInput,
@@ -18,9 +19,18 @@ import type {
   PlaybookRuleStatus,
   UpdatePlaybookRuleInput,
 } from '../shared/playbook/types';
-import { ipcChannels } from '../shared/ipc-channels';
+import type { KLineAdjust, KLinePeriod } from '../shared/market/types';
+import type { FundSipOccurrenceView } from '../shared/sip/types';
 import type { ServiceHost } from './service-host';
 import type { UpdateManager } from './updater/update-manager';
+import { ipcChannels } from '../shared/ipc-channels';
+
+/** 仅用于 webContents.send 的通道，不是 ipcMain.handle 目标。 */
+const IPC_PUSH_CHANNELS = new Set<string>([
+  ipcChannels.workspaceChanged,
+  ipcChannels.updateState,
+  ipcChannels.llmStreamEvent,
+]);
 
 const activeStreamCancels = new Map<string, () => void>();
 const ALERT_POLL_INTERVAL_MS = 60_000;
@@ -33,6 +43,29 @@ function notifyTriggeredAlerts(window: BrowserWindow, events: readonly AlertEven
       const notification = new Notification({
         title: `${event.symbol} · 提醒已触发`,
         body: `${event.title}｜触发价 ${event.triggerPrice}，目标价 ${event.targetPrice}`,
+      });
+      notification.on('click', () => {
+        if (window.isMinimized()) window.restore();
+        window.show();
+        window.focus();
+      });
+      notification.show();
+    }
+  }
+
+  if (!window.isDestroyed()) {
+    window.webContents.send(ipcChannels.workspaceChanged);
+  }
+}
+
+function notifyDueSipOccurrences(window: BrowserWindow, occurrences: readonly FundSipOccurrenceView[]): void {
+  if (occurrences.length === 0) return;
+
+  if (Notification.isSupported()) {
+    for (const occurrence of occurrences) {
+      const notification = new Notification({
+        title: `${occurrence.symbol} · 定投待确认`,
+        body: `${occurrence.planName}｜计划扣款 ¥${occurrence.plannedAmount.toFixed(2)} · ${occurrence.scheduledDate}`,
       });
       notification.on('click', () => {
         if (window.isMinimized()) window.restore();
@@ -196,6 +229,36 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     return service.request('settings.saveLlmSettings', settings);
   });
 
+  ipcMain.handle(ipcChannels.getAccessLock, (event) => {
+    assertTrustedSender(event, window);
+    return service.request('settings.getAccessLock', {});
+  });
+
+  ipcMain.handle(ipcChannels.verifyAccessLock, (event, input: { password: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('settings.verifyAccessLock', input);
+  });
+
+  ipcMain.handle(ipcChannels.enableAccessLock, (event, input: { newPassword: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('settings.enableAccessLock', input);
+  });
+
+  ipcMain.handle(ipcChannels.enableExistingAccessLock, (event) => {
+    assertTrustedSender(event, window);
+    return service.request('settings.enableExistingAccessLock', {});
+  });
+
+  ipcMain.handle(ipcChannels.disableAccessLock, (event, input: { password: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('settings.disableAccessLock', input);
+  });
+
+  ipcMain.handle(ipcChannels.changeAccessLockPassword, (event, input: { currentPassword: string; newPassword: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('settings.changeAccessLockPassword', input);
+  });
+
   ipcMain.handle(
     ipcChannels.previewLlmPrompt,
     (event, input: { promptId: string; variables: Record<string, string> }) => {
@@ -275,6 +338,22 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     return service.request('market.listNews', input);
   });
 
+  ipcMain.handle(
+    ipcChannels.marketListKlines,
+    (
+      event,
+      input: {
+        symbol: string;
+        period?: KLinePeriod;
+        adjust?: KLineAdjust;
+        limit?: number;
+      },
+    ) => {
+      assertTrustedSender(event, window);
+      return service.request('market.listKlines', input);
+    },
+  );
+
   ipcMain.handle(ipcChannels.watchlistListPools, (event) => {
     assertTrustedSender(event, window);
     return service.request('watchlist.listPools', {});
@@ -317,8 +396,37 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
   });
 
   ipcMain.handle(
+    ipcChannels.portfolioListLedgerEntries,
+    (event, input: { accountId?: string; symbol?: string }) => {
+      assertTrustedSender(event, window);
+      return service.request('portfolio.listLedgerEntries', input);
+    },
+  );
+
+  ipcMain.handle(
+    ipcChannels.portfolioUpdateLedgerEntry,
+    (event, input: { id: string; input: Record<string, unknown> }) => {
+      assertTrustedSender(event, window);
+      return service.request('portfolio.updateLedgerEntry', input as never);
+    },
+  );
+
+  ipcMain.handle(ipcChannels.portfolioDeleteLedgerEntry, (event, input: { id: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('portfolio.deleteLedgerEntry', input);
+  });
+
+  ipcMain.handle(
+    ipcChannels.portfolioDeletePosition,
+    (event, input: { accountId?: string; symbol: string }) => {
+      assertTrustedSender(event, window);
+      return service.request('portfolio.deletePosition', input);
+    },
+  );
+
+  ipcMain.handle(
     ipcChannels.portfolioConfirmDividend,
-    (event, input: { id: string; confirmed: boolean; cashAmount?: number }) => {
+    (event, input: { id: string; confirmed: boolean; cashAmount?: number; accountId?: string; year?: number }) => {
       assertTrustedSender(event, window);
       return service.request('portfolio.confirmDividend', input);
     },
@@ -378,6 +486,11 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
   ipcMain.handle(ipcChannels.accountsArchive, (event, input: { id: string }) => {
     assertTrustedSender(event, window);
     return service.request('accounts.archive', input);
+  });
+
+  ipcMain.handle(ipcChannels.accountsDelete, (event, input: { id: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('accounts.delete', input);
   });
 
   ipcMain.handle(ipcChannels.accountsListFeeProfiles, (event) => {
@@ -524,18 +637,165 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     return result;
   });
 
-  const alertPollTimer = setInterval(() => {
+  ipcMain.handle(ipcChannels.sipListPlans, (event, input?: { statuses?: import('../shared/sip/types').SipPlanStatus[] }) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.listPlans', input ?? {});
+  });
+
+  ipcMain.handle(ipcChannels.sipGetPlan, (event, input: { id: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.getPlan', input);
+  });
+
+  ipcMain.handle(ipcChannels.sipCreatePlan, (event, input: Record<string, unknown>) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.createPlan', input as never);
+  });
+
+  ipcMain.handle(ipcChannels.sipUpdatePlan, (event, input: { id: string; input: Record<string, unknown> }) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.updatePlan', input as never);
+  });
+
+  ipcMain.handle(ipcChannels.sipSetStatus, (event, input: { id: string; status: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.setStatus', input as never);
+  });
+
+  ipcMain.handle(ipcChannels.sipPreviewSchedule, (event, input: Record<string, unknown>) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.previewSchedule', input as never);
+  });
+
+  ipcMain.handle(
+    ipcChannels.sipListOccurrences,
+    (event, input?: { planId?: string; from?: string; to?: string }) => {
+      assertTrustedSender(event, window);
+      return service.request('sip.listOccurrences', input ?? {});
+    },
+  );
+
+  ipcMain.handle(
+    ipcChannels.sipListOccurrenceViews,
+    (event, input?: { planId?: string; from?: string; to?: string }) => {
+      assertTrustedSender(event, window);
+      return service.request('sip.listOccurrenceViews', input ?? {});
+    },
+  );
+
+  ipcMain.handle(ipcChannels.sipConfirmOccurrence, async (event, input: Record<string, unknown>) => {
+    assertTrustedSender(event, window);
+    const result = await service.request('sip.confirmOccurrence', input as never);
+    if (!window.isDestroyed()) window.webContents.send(ipcChannels.workspaceChanged);
+    return result;
+  });
+
+  ipcMain.handle(ipcChannels.sipSkipOccurrence, async (event, input: { id: string; reason: string }) => {
+    assertTrustedSender(event, window);
+    const result = await service.request('sip.skipOccurrence', input);
+    if (!window.isDestroyed()) window.webContents.send(ipcChannels.workspaceChanged);
+    return result;
+  });
+
+  ipcMain.handle(ipcChannels.sipGetSummary, (event) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.getSummary', {});
+  });
+
+  ipcMain.handle(ipcChannels.sipScanDue, (event) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.scanDue', {});
+  });
+
+  ipcMain.handle(ipcChannels.sipGetOccurrenceCalendar, (event, input: { month: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.getOccurrenceCalendar', input);
+  });
+
+  ipcMain.handle(ipcChannels.sipGetPositionMeta, (event, input?: { accountId?: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.getPositionMeta', input ?? {});
+  });
+
+  ipcMain.handle(ipcChannels.sipGetReviewTemplate, (event, input: { planId: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.getReviewTemplate', input);
+  });
+
+  ipcMain.handle(ipcChannels.sipGetPlanPositionLink, (event, input: { planId: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.getPlanPositionLink', input);
+  });
+
+  ipcMain.handle(
+    ipcChannels.sipListPlansBySymbol,
+    (event, input: { accountId: string; symbol: string }) => {
+      assertTrustedSender(event, window);
+      return service.request('sip.listPlansBySymbol', input);
+    },
+  );
+
+  ipcMain.handle(ipcChannels.sipParseImportCsv, (event, input: { sourcePath: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.parseImportCsv', input);
+  });
+
+  ipcMain.handle(ipcChannels.sipPreviewImport, (event, input: Record<string, unknown>) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.previewImport', input as never);
+  });
+
+  ipcMain.handle(ipcChannels.sipCommitImport, async (event, input: Record<string, unknown>) => {
+    assertTrustedSender(event, window);
+    const result = await service.request('sip.commitImport', input as never);
+    if (!window.isDestroyed()) window.webContents.send(ipcChannels.workspaceChanged);
+    return result;
+  });
+
+  ipcMain.handle(ipcChannels.sipSelectImportScreenshot, async (event) => {
+    assertTrustedSender(event, window);
+    const selection = await dialog.showOpenDialog(window, {
+      title: '选择定投记录截图',
+      properties: ['openFile'],
+      filters: [{ name: '图片文件', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
+    });
+    const sourcePath = selection.filePaths[0];
+    if (selection.canceled || !sourcePath) return null;
+    return { sourcePath, fileName: path.basename(sourcePath) };
+  });
+
+  ipcMain.handle(ipcChannels.sipRecognizeImportScreenshot, (event, input: { sourcePath: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.recognizeImportScreenshot', input);
+  });
+
+  ipcMain.handle(ipcChannels.sipPreviewAiImport, (event, input: Record<string, unknown>) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.previewAiImport', input as never);
+  });
+
+  ipcMain.handle(ipcChannels.sipCommitAiImport, async (event, input: Record<string, unknown>) => {
+    assertTrustedSender(event, window);
+    const result = await service.request('sip.commitAiImport', input as never);
+    if (!window.isDestroyed()) window.webContents.send(ipcChannels.workspaceChanged);
+    return result;
+  });
+
+  const pollBackgroundTasks = (): void => {
     if (window.isDestroyed()) return;
     void service
       .request('alerts.pollActive', {})
       .then((result) => notifyTriggeredAlerts(window, result.newlyTriggered))
       .catch(() => undefined);
-  }, ALERT_POLL_INTERVAL_MS);
+    void service
+      .request('sip.scanDue', {})
+      .then((result) => notifyDueSipOccurrences(window, result.newlyDueOccurrences))
+      .catch(() => undefined);
+  };
 
-  void service
-    .request('alerts.pollActive', {})
-    .then((result) => notifyTriggeredAlerts(window, result.newlyTriggered))
-    .catch(() => undefined);
+  const alertPollTimer = setInterval(pollBackgroundTasks, ALERT_POLL_INTERVAL_MS);
+
+  pollBackgroundTasks();
 
   ipcMain.handle(ipcChannels.getUpdateState, (event) => {
     assertTrustedSender(event, window);
@@ -573,70 +833,9 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
       activeStreamCancels.get(streamId)?.();
       activeStreamCancels.delete(streamId);
     }
-    ipcMain.removeHandler(ipcChannels.health);
-    ipcMain.removeHandler(ipcChannels.assetStats);
-    ipcMain.removeHandler(ipcChannels.importImage);
-    ipcMain.removeHandler(ipcChannels.workspaceSnapshot);
-    ipcMain.removeHandler(ipcChannels.listPlans);
-    ipcMain.removeHandler(ipcChannels.createPlan);
-    ipcMain.removeHandler(ipcChannels.setPlanStatus);
-    ipcMain.removeHandler(ipcChannels.listAlerts);
-    ipcMain.removeHandler(ipcChannels.createAlert);
-    ipcMain.removeHandler(ipcChannels.setAlertStatus);
-    ipcMain.removeHandler(ipcChannels.evaluateAlertPrice);
-    ipcMain.removeHandler(ipcChannels.listReviews);
-    ipcMain.removeHandler(ipcChannels.createReview);
-    ipcMain.removeHandler(ipcChannels.generateReviewAiDraft);
-    ipcMain.removeHandler(ipcChannels.startReviewAiDraftStream);
-    ipcMain.removeHandler(ipcChannels.getLlmStatus);
-    ipcMain.removeHandler(ipcChannels.saveLlmApiKey);
-    ipcMain.removeHandler(ipcChannels.testLlmConnection);
-    ipcMain.removeHandler(ipcChannels.getLlmUsage);
-    ipcMain.removeHandler(ipcChannels.getLlmSettings);
-    ipcMain.removeHandler(ipcChannels.saveLlmSettings);
-    ipcMain.removeHandler(ipcChannels.previewLlmPrompt);
-    ipcMain.removeHandler(ipcChannels.startLlmDebugStream);
-    ipcMain.removeHandler(ipcChannels.cancelLlmStream);
-    ipcMain.removeHandler(ipcChannels.marketResolve);
-    ipcMain.removeHandler(ipcChannels.marketSearch);
-    ipcMain.removeHandler(ipcChannels.marketGetQuote);
-    ipcMain.removeHandler(ipcChannels.marketGetQuotes);
-    ipcMain.removeHandler(ipcChannels.marketGetSnapshot);
-    ipcMain.removeHandler(ipcChannels.marketListDividends);
-    ipcMain.removeHandler(ipcChannels.marketListNews);
-    ipcMain.removeHandler(ipcChannels.watchlistListPools);
-    ipcMain.removeHandler(ipcChannels.watchlistGetPoolSnapshot);
-    ipcMain.removeHandler(ipcChannels.portfolioListPositions);
-    ipcMain.removeHandler(ipcChannels.portfolioGetSummary);
-    ipcMain.removeHandler(ipcChannels.portfolioGetDividendCalendar);
-    ipcMain.removeHandler(ipcChannels.portfolioListDividends);
-    ipcMain.removeHandler(ipcChannels.portfolioAddLedgerEntry);
-    ipcMain.removeHandler(ipcChannels.portfolioConfirmDividend);
-    ipcMain.removeHandler(ipcChannels.portfolioRefreshDividends);
-    ipcMain.removeHandler(ipcChannels.portfolioSyncMarketQuotes);
-    ipcMain.removeHandler(ipcChannels.licenseGetStatus);
-    ipcMain.removeHandler(ipcChannels.licenseActivate);
-    ipcMain.removeHandler(ipcChannels.backupExport);
-    ipcMain.removeHandler(ipcChannels.backupImport);
-    ipcMain.removeHandler(ipcChannels.backupRelaunchApp);
-    ipcMain.removeHandler(ipcChannels.episodesList);
-    ipcMain.removeHandler(ipcChannels.episodesGet);
-    ipcMain.removeHandler(ipcChannels.episodesAddExecution);
-    ipcMain.removeHandler(ipcChannels.importSelectCsv);
-    ipcMain.removeHandler(ipcChannels.importPreviewExecutions);
-    ipcMain.removeHandler(ipcChannels.importCommitExecutions);
-    ipcMain.removeHandler(ipcChannels.playbookList);
-    ipcMain.removeHandler(ipcChannels.playbookCreate);
-    ipcMain.removeHandler(ipcChannels.playbookUpdate);
-    ipcMain.removeHandler(ipcChannels.playbookArchive);
-    ipcMain.removeHandler(ipcChannels.playbookActivationChecklist);
-    ipcMain.removeHandler(ipcChannels.alertsListEvents);
-    ipcMain.removeHandler(ipcChannels.alertsSetEventAction);
-    ipcMain.removeHandler(ipcChannels.alertsPollActive);
-    ipcMain.removeHandler(ipcChannels.getUpdateState);
-    ipcMain.removeHandler(ipcChannels.checkForUpdates);
-    ipcMain.removeHandler(ipcChannels.downloadUpdate);
-    ipcMain.removeHandler(ipcChannels.installUpdate);
-    ipcMain.removeHandler(ipcChannels.openUpdateRelease);
+    for (const channel of Object.values(ipcChannels)) {
+      if (IPC_PUSH_CHANNELS.has(channel)) continue;
+      ipcMain.removeHandler(channel);
+    }
   };
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, App, Button, Checkbox, Descriptions, Input, InputNumber, Modal, Space, Switch, Tag } from 'antd';
 import { Link } from 'react-router';
 import type { AssetStats, BackupExportResult, HealthResult, ImportedAsset, LicenseStatus, LlmUsageSummary, LlmUserSettings, UpdateState } from '../../shared/api.types';
+import type { AccessLockSettingsView } from '../../shared/security/access-lock.types';
 import { AssetWorkspace } from '../components/AssetWorkspace';
 import { UpdaterPanel } from '../components/UpdaterPanel';
 import { aiClient } from '../lib/ai/ai-client';
@@ -39,6 +40,14 @@ export function SettingsPage(): React.JSX.Element {
   const [backupBusy, setBackupBusy] = useState(false);
   const [includeLicenseInBackup, setIncludeLicenseInBackup] = useState(true);
   const [lastBackup, setLastBackup] = useState<BackupExportResult | null>(null);
+  const [accessLock, setAccessLock] = useState<AccessLockSettingsView | null>(null);
+  const [accessLockBusy, setAccessLockBusy] = useState(false);
+  const [newAccessPassword, setNewAccessPassword] = useState('');
+  const [confirmAccessPassword, setConfirmAccessPassword] = useState('');
+  const [currentAccessPassword, setCurrentAccessPassword] = useState('');
+  const [changeAccessPassword, setChangeAccessPassword] = useState('');
+  const [confirmChangeAccessPassword, setConfirmChangeAccessPassword] = useState('');
+  const [disableAccessLockOpen, setDisableAccessLockOpen] = useState(false);
   const statusLoadSeq = useRef(0);
 
   const refreshRuntime = useCallback(async (): Promise<void> => {
@@ -65,6 +74,10 @@ export function SettingsPage(): React.JSX.Element {
     setLlmSettings(settings);
   }, []);
 
+  const refreshAccessLockPanel = useCallback(async (): Promise<void> => {
+    setAccessLock(await window.desktop.settings.getAccessLock());
+  }, []);
+
   useEffect(() => {
     let active = true;
     const seq = ++statusLoadSeq.current;
@@ -76,8 +89,9 @@ export function SettingsPage(): React.JSX.Element {
       aiClient.getLlmUsage(),
       aiClient.getLlmSettings(),
       window.desktop.license.getStatus(),
+      window.desktop.settings.getAccessLock(),
     ])
-      .then(([nextHealth, nextStats, nextUpdateState, llmStatus, usage, settings, nextLicenseStatus]) => {
+      .then(([nextHealth, nextStats, nextUpdateState, llmStatus, usage, settings, nextLicenseStatus, nextAccessLock]) => {
         if (!active || seq !== statusLoadSeq.current) return;
         setHealth(nextHealth);
         setStats(nextStats);
@@ -86,6 +100,7 @@ export function SettingsPage(): React.JSX.Element {
         setLlmUsage(usage);
         setLlmSettings(settings);
         setLicenseStatus(nextLicenseStatus);
+        setAccessLock(nextAccessLock);
       })
       .catch((reason: unknown) => {
         if (active && seq === statusLoadSeq.current) {
@@ -257,6 +272,96 @@ export function SettingsPage(): React.JSX.Element {
     });
   };
 
+  const enableAccessLock = async (): Promise<void> => {
+    if (newAccessPassword.length < 4) {
+      void message.warning('访问密码至少 4 位');
+      return;
+    }
+    if (newAccessPassword !== confirmAccessPassword) {
+      void message.warning('两次输入的密码不一致');
+      return;
+    }
+    setAccessLockBusy(true);
+    try {
+      setAccessLock(await window.desktop.settings.enableAccessLock(newAccessPassword));
+      setNewAccessPassword('');
+      setConfirmAccessPassword('');
+      void message.success('访问密码已启用');
+    } catch (reason) {
+      void message.error(reason instanceof Error ? reason.message : '启用失败');
+    } finally {
+      setAccessLockBusy(false);
+    }
+  };
+
+  const toggleAccessLock = async (checked: boolean): Promise<void> => {
+    if (checked) {
+      if (!accessLock?.hasPassword) {
+        void message.warning('请先设置并保存访问密码');
+        return;
+      }
+      setAccessLockBusy(true);
+      try {
+        setAccessLock(await window.desktop.settings.enableExistingAccessLock());
+        void message.success('访问密码保护已开启');
+      } catch (reason) {
+        void message.error(reason instanceof Error ? reason.message : '开启失败');
+      } finally {
+        setAccessLockBusy(false);
+      }
+      return;
+    }
+
+    setDisableAccessLockOpen(true);
+  };
+
+  const disableAccessLock = async (): Promise<void> => {
+    if (!currentAccessPassword.trim()) {
+      void message.warning('请输入当前密码');
+      return;
+    }
+    setAccessLockBusy(true);
+    try {
+      setAccessLock(await window.desktop.settings.disableAccessLock(currentAccessPassword));
+      setCurrentAccessPassword('');
+      setDisableAccessLockOpen(false);
+      void message.success('访问密码保护已关闭');
+    } catch (reason) {
+      void message.error(reason instanceof Error ? reason.message : '关闭失败');
+    } finally {
+      setAccessLockBusy(false);
+    }
+  };
+
+  const changeAccessLockPassword = async (): Promise<void> => {
+    if (changeAccessPassword.length < 4) {
+      void message.warning('新密码至少 4 位');
+      return;
+    }
+    if (changeAccessPassword !== confirmChangeAccessPassword) {
+      void message.warning('两次输入的新密码不一致');
+      return;
+    }
+    if (!currentAccessPassword.trim()) {
+      void message.warning('请输入当前密码');
+      return;
+    }
+    setAccessLockBusy(true);
+    try {
+      setAccessLock(
+        await window.desktop.settings.changeAccessLockPassword(currentAccessPassword, changeAccessPassword),
+      );
+      setCurrentAccessPassword('');
+      setChangeAccessPassword('');
+      setConfirmChangeAccessPassword('');
+      void message.success('访问密码已更新');
+    } catch (reason) {
+      void message.error(reason instanceof Error ? reason.message : '修改失败');
+    } finally {
+      setAccessLockBusy(false);
+    }
+  };
+
   return (
     <main className="workspace-page">
       <header className="page-header">
@@ -376,6 +481,86 @@ export function SettingsPage(): React.JSX.Element {
               刷新状态
             </Button>
           </Space>
+        </Space>
+      </section>
+
+      <section className="settings-panel">
+        <div className="section-heading">
+          <div>
+            <span className="section-label">安全</span>
+            <h2>启动访问密码</h2>
+          </div>
+          <Tag color={accessLock?.enabled ? 'green' : 'default'}>{accessLock?.enabled ? '已开启' : '未开启'}</Tag>
+        </div>
+        <p className="page-intro">
+          开启后，启动页结束需输入密码才能进入工作台。密码哈希保存在本机 userData，不会写入 SQLite 或备份文件。
+        </p>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Space wrap align="center">
+            <span>启动时需要密码</span>
+            <Switch
+              checked={accessLock?.enabled ?? false}
+              loading={accessLockBusy}
+              onChange={(checked) => void toggleAccessLock(checked)}
+            />
+          </Space>
+
+          {!accessLock?.hasPassword ? (
+            <>
+              <Input.Password
+                placeholder="设置访问密码（至少 4 位）"
+                value={newAccessPassword}
+                autoComplete="new-password"
+                onChange={(event) => setNewAccessPassword(event.target.value)}
+              />
+              <Input.Password
+                placeholder="确认访问密码"
+                value={confirmAccessPassword}
+                autoComplete="new-password"
+                onChange={(event) => setConfirmAccessPassword(event.target.value)}
+              />
+              <Button type="primary" loading={accessLockBusy} onClick={() => void enableAccessLock()}>
+                保存并启用
+              </Button>
+            </>
+          ) : (
+            <>
+              {!accessLock.enabled ? (
+                <Alert
+                  type="info"
+                  showIcon
+                  title="访问密码已设置"
+                  description="打开上方开关即可在启动时要求输入密码。"
+                />
+              ) : null}
+              <Input.Password
+                placeholder="当前访问密码"
+                value={currentAccessPassword}
+                autoComplete="current-password"
+                onChange={(event) => setCurrentAccessPassword(event.target.value)}
+              />
+              <Input.Password
+                placeholder="新访问密码（至少 4 位）"
+                value={changeAccessPassword}
+                autoComplete="new-password"
+                onChange={(event) => setChangeAccessPassword(event.target.value)}
+              />
+              <Input.Password
+                placeholder="确认新密码"
+                value={confirmChangeAccessPassword}
+                autoComplete="new-password"
+                onChange={(event) => setConfirmChangeAccessPassword(event.target.value)}
+              />
+              <Space wrap>
+                <Button loading={accessLockBusy} onClick={() => void changeAccessLockPassword()}>
+                  修改密码
+                </Button>
+                <Button loading={accessLockBusy} onClick={() => void refreshAccessLockPanel()}>
+                  刷新状态
+                </Button>
+              </Space>
+            </>
+          )}
         </Space>
       </section>
 
@@ -524,7 +709,10 @@ export function SettingsPage(): React.JSX.Element {
               </Button>
             </Space>
             {import.meta.env.DEV ? (
-              <Link to={routePaths.devLlm}>打开 Prompt 调试面板（仅开发模式）</Link>
+              <Space orientation="vertical">
+                <Link to={routePaths.devLlm}>打开 Prompt 调试面板（仅开发模式）</Link>
+                <Link to={routePaths.devChart}>打开图表测试页（仅开发模式）</Link>
+              </Space>
             ) : null}
           </Space>
         ) : null}
@@ -540,6 +728,27 @@ export function SettingsPage(): React.JSX.Element {
       />
 
       <AssetWorkspace stats={stats} lastAsset={lastAsset} busy={assetBusy} error={error} onImport={() => void importImage()} />
+
+      <Modal
+        title="关闭访问密码"
+        open={disableAccessLockOpen}
+        okText="确认关闭"
+        confirmLoading={accessLockBusy}
+        onCancel={() => {
+          setDisableAccessLockOpen(false);
+          setCurrentAccessPassword('');
+        }}
+        onOk={() => void disableAccessLock()}
+      >
+        <p>关闭后，启动时将不再要求输入密码。</p>
+        <Input.Password
+          placeholder="当前访问密码"
+          value={currentAccessPassword}
+          autoComplete="current-password"
+          onChange={(event) => setCurrentAccessPassword(event.target.value)}
+          onPressEnter={() => void disableAccessLock()}
+        />
+      </Modal>
     </main>
   );
 }

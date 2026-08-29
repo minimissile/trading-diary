@@ -1,7 +1,10 @@
 :root {
   color-scheme: dark;
   --td-font-sans: MiSans, 'HarmonyOS Sans SC', 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
-  --td-font-numeric: 'DIN Alternate', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  --td-font-numeric: MiSans, 'HarmonyOS Sans SC', 'PingFang SC', 'Microsoft YaHei UI', sans-serif;
+  --td-numeric-letter-spacing: 0;
+  --td-currency-letter-spacing: 0.01em;
+  --td-numeric-weight: 700;
 
   --td-color-canvas: #061521;
   --td-color-surface: #0d2231;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { App, Button, Empty, Form, Input, Modal, Popconfirm, Segmented, Select, Skeleton, Tag } from 'antd';
+import { App, Button, Empty, Form, Input, Modal, Segmented, Select, Skeleton, Tag } from 'antd';
 import type {
   CreatePlaybookRuleInput,
   PlaybookCheckTiming,
@@ -7,6 +7,7 @@ import type {
   PlaybookRuleCategory,
 } from '../../shared/playbook/types';
 import { formatDateTime, playbookCategoryLabels, playbookCheckTimingLabels } from '../lib/trading-format';
+import { withConfirmDefaults } from '../lib/confirm-dialog';
 
 type RuleFilter = 'active' | 'archived';
 
@@ -18,7 +19,7 @@ interface RuleFormValues {
 }
 
 export function PlaybookPage(): React.JSX.Element {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [form] = Form.useForm<RuleFormValues>();
   const [rules, setRules] = useState<PlaybookRule[]>([]);
   const [filter, setFilter] = useState<RuleFilter>('active');
@@ -168,9 +169,21 @@ export function PlaybookPage(): React.JSX.Element {
                     <Button size="small" onClick={() => openEdit(rule)}>
                       编辑
                     </Button>
-                    <Popconfirm title="归档这条规则？" okText="归档" cancelText="取消" onConfirm={() => void archiveRule(rule.id)}>
-                      <Button size="small">归档</Button>
-                    </Popconfirm>
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        modal.confirm(
+                          withConfirmDefaults({
+                            title: '归档这条规则？',
+                            okText: '归档',
+                            cancelText: '取消',
+                            onOk: () => archiveRule(rule.id),
+                          }),
+                        );
+                      }}
+                    >
+                      归档
+                    </Button>
                   </div>
                 ) : null}
               </footer>

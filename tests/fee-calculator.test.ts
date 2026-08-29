@@ -4,10 +4,14 @@ import { estimateTradeFees } from '../src/service/accounts/fee-calculator';
 
 describe('estimateTradeFees', () => {
   const profile = {
-    commissionRatePpm: FEE_PROFILE_A_SHARE_STANDARD.commissionRatePpm,
+    commissionWan: FEE_PROFILE_A_SHARE_STANDARD.commissionWan,
     commissionMinCents: FEE_PROFILE_A_SHARE_STANDARD.commissionMinCents,
-    etfCommissionRatePpm: null,
+    etfCommissionWan: null,
     etfCommissionMinCents: null,
+    etfShCommissionWan: null,
+    etfShCommissionMinCents: null,
+    etfSzCommissionWan: null,
+    etfSzCommissionMinCents: null,
     stampDutyRatePpm: FEE_PROFILE_A_SHARE_STANDARD.stampDutyRatePpm,
     transferFeeRatePpm: FEE_PROFILE_A_SHARE_STANDARD.transferFeeRatePpm,
     transferFeeMinCents: FEE_PROFILE_A_SHARE_STANDARD.transferFeeMinCents,
@@ -45,12 +49,25 @@ describe('estimateTradeFees', () => {
     expect(result.transferFee).toBe(0.01);
   });
 
+  it('supports fractional wan commission without minimum', () => {
+    const result = estimateTradeFees(
+      { side: 'buy', market: 'SZ', price: 4256, quantity: 1, instrumentKind: 'stock' },
+      {
+        ...profile,
+        commissionWan: 1.054,
+        commissionMinCents: 0,
+      },
+    );
+    expect(result.commission).toBe(0.45);
+    expect(result.totalFees).toBe(0.45);
+  });
+
   it('supports ultra-low commission without minimum', () => {
     const result = estimateTradeFees(
       { side: 'buy', market: 'SZ', price: 10, quantity: 100 },
       {
         ...profile,
-        commissionRatePpm: 80,
+        commissionWan: 0.8,
         commissionMinCents: 0,
       },
     );
@@ -58,19 +75,53 @@ describe('estimateTradeFees', () => {
     expect(result.totalFees).toBe(0.08);
   });
 
-  it('uses etf commission tier and skips stamp duty on sell', () => {
-    const result = estimateTradeFees(
-      { side: 'sell', market: 'SH', price: 100, quantity: 1000, instrumentKind: 'etf' },
-      {
-        ...profile,
-        commissionRatePpm: 250,
-        etfCommissionRatePpm: 50,
-        etfCommissionMinCents: 0,
-      },
+  it('adds sell regulatory surcharge for no-minimum commission accounts', () => {
+    const lowProfile = {
+      ...profile,
+      commissionWan: 1.054,
+      commissionMinCents: 0,
+    };
+
+    const buyResult = estimateTradeFees(
+      { side: 'buy', market: 'SZ', price: 9.01, quantity: 500, instrumentKind: 'stock' },
+      lowProfile,
     );
-    expect(result.commission).toBe(5);
-    expect(result.stampDuty).toBe(0);
-    expect(result.transferFee).toBe(1);
-    expect(result.totalFees).toBe(6);
+    expect(buyResult.commission).toBe(0.47);
+    expect(buyResult.otherFee).toBe(0);
+    expect(buyResult.totalFees).toBe(0.47);
+
+    const sellResult = estimateTradeFees(
+      { side: 'sell', market: 'SZ', price: 7.32, quantity: 500, instrumentKind: 'stock' },
+      lowProfile,
+    );
+    expect(sellResult.commission).toBe(0.39);
+    expect(sellResult.stampDuty).toBe(1.83);
+    expect(sellResult.otherFee).toBe(0.1);
+    expect(sellResult.totalFees).toBe(2.32);
+  });
+
+  it('uses market-specific etf commission for shanghai and shenzhen', () => {
+    const marketProfile = {
+      ...profile,
+      commissionWan: 2.5,
+      etfCommissionWan: null,
+      etfCommissionMinCents: null,
+      etfShCommissionWan: 0.5,
+      etfShCommissionMinCents: 0,
+      etfSzCommissionWan: 0.8,
+      etfSzCommissionMinCents: 500,
+    };
+
+    const shResult = estimateTradeFees(
+      { side: 'buy', market: 'SH', price: 100, quantity: 1000, instrumentKind: 'etf' },
+      marketProfile,
+    );
+    const szResult = estimateTradeFees(
+      { side: 'buy', market: 'SZ', price: 100, quantity: 1000, instrumentKind: 'etf' },
+      marketProfile,
+    );
+
+    expect(shResult.commission).toBe(5);
+    expect(szResult.commission).toBe(8);
   });
 });

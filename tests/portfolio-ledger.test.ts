@@ -12,6 +12,7 @@ function entry(partial: Partial<PortfolioLedgerEntry> & Pick<PortfolioLedgerEntr
     planId: null,
     note: '',
     source: 'manual',
+    sipOccurrenceId: null,
     createdAt: partial.tradeAt,
     ...partial,
   };
@@ -25,7 +26,25 @@ describe('portfolio ledger', () => {
     ]);
     expect(positions).toHaveLength(1);
     expect(positions[0]?.quantity).toBe(200);
+    expect(positions[0]?.avgPrice).toBe(11);
     expect(positions[0]?.avgCost).toBe(11);
+  });
+
+  it('tracks execution price separately from amortized cost with fees', () => {
+    const positions = aggregatePositions([
+      entry({
+        id: '1',
+        symbol: '601519',
+        side: 'buy',
+        quantity: 600,
+        price: 8.77,
+        fees: 5.05,
+        tradeAt: '2026-08-28T00:00:00.000Z',
+      }),
+    ]);
+    expect(positions[0]?.avgPrice).toBe(8.77);
+    expect(positions[0]?.totalCost).toBeCloseTo(5267.05, 2);
+    expect(positions[0]?.avgCost).toBeCloseTo(5267.05 / 600, 4);
   });
 
   it('reduces quantity on sell using average cost', () => {
@@ -34,6 +53,7 @@ describe('portfolio ledger', () => {
       entry({ id: '2', symbol: '600941', side: 'sell', quantity: 100, price: 11, tradeAt: '2026-06-01T00:00:00.000Z' }),
     ]);
     expect(positions[0]?.quantity).toBe(100);
+    expect(positions[0]?.avgPrice).toBe(10);
     expect(positions[0]?.avgCost).toBe(10);
   });
 

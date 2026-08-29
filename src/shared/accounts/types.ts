@@ -93,6 +93,42 @@ export type AccountBroker =
   | 'dtsec'
   | 'ydzq'
   | 'mgzq'
+  | 'ttfund'
+  | 'antfortune'
+  | 'qieman'
+  | 'licaitong'
+  | 'jdjr'
+  | 'howbuy'
+  | 'yingmi'
+  | 'youzhiyouxing'
+  | 'fundbean'
+  | 'lufund'
+  | 'duxiaoman'
+  | 'simuwang'
+  | 'zhonglu'
+  | 'aifund'
+  | 'fund123'
+  | 'efunds'
+  | 'chinaamc'
+  | 'nffund'
+  | 'harvestfund'
+  | 'gtfund'
+  | 'phfund'
+  | 'bosera'
+  | 'cmb'
+  | 'icbc'
+  | 'ccb'
+  | 'abc'
+  | 'boc'
+  | 'bocom'
+  | 'cibbank'
+  | 'spdb'
+  | 'cmbc'
+  | 'citicbank'
+  | 'webank'
+  | 'mybank'
+  | 'psbc'
+  | 'bob'
   | 'custom'
   | 'other';
 
@@ -107,21 +143,36 @@ export interface AccountCustomFeeInput {
   commissionWan: number;
   commissionMinYuan?: number;
   noCommissionMin?: boolean;
-  /** 股票账户必填：ETF/LOF 佣金。 */
+  /** 股票账户：ETF/LOF 统一佣金（未分市场时使用）。 */
   etfCommissionWan?: number;
   etfCommissionMinYuan?: number;
   etfNoCommissionMin?: boolean;
+  /** 上证 ETF/LOF 佣金；未填时沿用 etfCommissionWan。 */
+  etfShCommissionWan?: number;
+  etfShCommissionMinYuan?: number;
+  etfShNoCommissionMin?: boolean;
+  /** 深证 ETF/LOF 佣金；未填时沿用 etfCommissionWan。 */
+  etfSzCommissionWan?: number;
+  etfSzCommissionMinYuan?: number;
+  etfSzNoCommissionMin?: boolean;
 }
 
 /** 费率配置。 */
 export interface FeeProfile {
   id: string;
   name: string;
-  commissionRatePpm: number;
+  /** 股票佣金（万 X，4 位小数，如 1.0540 表示万 1.054）。 */
+  commissionWan: number;
   commissionMinCents: number;
-  /** ETF 独立佣金；null 表示沿用股票佣金。 */
-  etfCommissionRatePpm: number | null;
+  /** ETF 统一佣金；null 表示沿用股票佣金或未单独设置。 */
+  etfCommissionWan: number | null;
   etfCommissionMinCents: number | null;
+  /** 上证 ETF/LOF 佣金；null 表示沿用 etfCommissionWan。 */
+  etfShCommissionWan: number | null;
+  etfShCommissionMinCents: number | null;
+  /** 深证 ETF/LOF 佣金；null 表示沿用 etfCommissionWan。 */
+  etfSzCommissionWan: number | null;
+  etfSzCommissionMinCents: number | null;
   stampDutyRatePpm: number;
   transferFeeRatePpm: number;
   transferFeeMinCents: number;
@@ -161,7 +212,7 @@ export interface TradingAccountSummary extends TradingAccount {
   totalMarketValue: number;
   /** 持仓成本。 */
   totalCost: number;
-  /** 浮动盈亏 = 市值 − 成本。 */
+  /** 参考浮动盈亏合计（已扣预估卖出费用）。 */
   unrealizedPnl: number;
 }
 
@@ -214,11 +265,14 @@ export interface FeeEstimateResult {
 
 /** 费率试算所需的精简字段。 */
 export interface FeeProfileRates {
-  commissionRatePpm: number;
+  commissionWan: number;
   commissionMinCents: number;
-  /** ETF 独立佣金；null 表示沿用股票佣金。 */
-  etfCommissionRatePpm: number | null;
+  etfCommissionWan: number | null;
   etfCommissionMinCents: number | null;
+  etfShCommissionWan: number | null;
+  etfShCommissionMinCents: number | null;
+  etfSzCommissionWan: number | null;
+  etfSzCommissionMinCents: number | null;
   stampDutyRatePpm: number;
   transferFeeRatePpm: number;
   transferFeeMinCents: number;

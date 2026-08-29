@@ -163,6 +163,7 @@ docs/           # 产品、架构、主题和发布文档
 - [产品功能设计](docs/PRODUCT_FUNCTIONAL_DESIGN.md)：目标用户、核心原则与完整工作流
 - [架构说明](docs/ARCHITECTURE.md)：进程边界、存储、协议与安全设计
 - [UI 组件约定](docs/UI_COMPONENTS.md)：组件选型与开发规范
+- [数值展示规范](docs/NUMBER_FORMAT.md)：金额、价格、份额与涨跌幅格式
 - [主题系统](docs/UI_THEME.md)：Token、交易方向色与扩展规则
 - [LLM 开发说明](docs/LLM_DEVELOPMENT.md)：OpenRouter 接入与调试
 - [客户端更新流程](docs/CLIENT_UPDATE_FLOW.md)：Windows / macOS 更新体验

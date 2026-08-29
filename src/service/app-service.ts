@@ -17,6 +17,10 @@ import { LicenseError } from '../shared/license/errors';
 import { BackupService } from './backup/backup-service';
 import { ExecutionImportService } from './import/execution-import-service';
 import { pollActiveAlerts } from './alerts/alert-poll-service';
+import { createSipService, type SipService } from './sip/sip-service';
+import { createSipImportService, type SipImportService } from './sip/sip-import-service';
+import { createSipAiImportService, type SipAiImportService } from './sip/sip-ai-import-service';
+import { AccessLockStore } from './security/access-lock-store';
 
 const reviewAiDraftParamsSchema = z
   .object({
@@ -59,6 +63,10 @@ export class AppService {
   private readonly licenseService: LicenseService;
   private readonly backupService: BackupService;
   private readonly executionImportService: ExecutionImportService;
+  private readonly sipService: SipService;
+  private readonly sipImportService: SipImportService;
+  private readonly sipAiImportService: SipAiImportService;
+  private readonly accessLockStore: AccessLockStore;
 
   constructor(dataDir: string, appVersion: string) {
     this.database = new AppDatabase(path.join(dataDir, 'database', 'app.sqlite'));
@@ -69,6 +77,10 @@ export class AppService {
     this.licenseService = new LicenseService(dataDir);
     this.backupService = new BackupService(dataDir, this.database, appVersion);
     this.executionImportService = new ExecutionImportService(this.database.episodes);
+    this.sipService = createSipService(this.database);
+    this.sipImportService = createSipImportService(this.database);
+    this.sipAiImportService = createSipAiImportService(this.sipImportService, this.llmRunner);
+    this.accessLockStore = new AccessLockStore(dataDir);
   }
 
   close(): void {
@@ -93,8 +105,10 @@ export class AppService {
         return {
           filePath: await this.images.resolve(request.params.hash, request.params.variant),
         };
-      case 'workspace.snapshot':
-        return this.database.workspaceSnapshot();
+      case 'workspace.snapshot': {
+        this.sipService.scanDue();
+        return this.sipService.extendWorkspaceSnapshot(this.database.workspaceSnapshot());
+      }
       case 'plans.list':
         return this.database.listTradingPlans();
       case 'plans.create':
@@ -142,6 +156,18 @@ export class AppService {
       }
       case 'settings.saveLlmSettings':
         return this.llmRunner.saveSettings(request.params);
+      case 'settings.getAccessLock':
+        return this.accessLockStore.getSettings();
+      case 'settings.verifyAccessLock':
+        return { valid: this.accessLockStore.verifyPassword(request.params.password) };
+      case 'settings.enableAccessLock':
+        return this.accessLockStore.enable(request.params.newPassword);
+      case 'settings.enableExistingAccessLock':
+        return this.accessLockStore.enableExisting();
+      case 'settings.disableAccessLock':
+        return this.accessLockStore.disable(request.params.password);
+      case 'settings.changeAccessLockPassword':
+        return this.accessLockStore.changePassword(request.params.currentPassword, request.params.newPassword);
       case 'llm.previewPrompt': {
         const params = llmPreviewParamsSchema.parse(request.params);
         return previewPrompt(this.llmRunner, params.promptId, params.variables);
@@ -164,6 +190,13 @@ export class AppService {
         );
       case 'market.listNews':
         return marketService.listNews(request.params.symbol, request.params.pageSize);
+      case 'market.listKlines':
+        return marketService.listKlines(
+          request.params.symbol,
+          request.params.period,
+          request.params.adjust,
+          request.params.limit,
+        );
       case 'watchlist.listPools':
         return watchlistService.listPools();
       case 'watchlist.getPoolSnapshot':
@@ -183,11 +216,21 @@ export class AppService {
         );
       case 'portfolio.addLedgerEntry':
         return this.portfolioService.addLedgerEntry(request.params);
+      case 'portfolio.listLedgerEntries':
+        return this.portfolioService.listLedgerEntries(request.params.accountId, request.params.symbol);
+      case 'portfolio.updateLedgerEntry':
+        return this.portfolioService.updateLedgerEntry(request.params.id, request.params.input);
+      case 'portfolio.deleteLedgerEntry':
+        return this.portfolioService.deleteLedgerEntry(request.params.id);
+      case 'portfolio.deletePosition':
+        return this.portfolioService.deletePosition(request.params.accountId, request.params.symbol);
       case 'portfolio.confirmDividend':
         return this.portfolioService.confirmDividend(
           request.params.id,
           request.params.confirmed,
           request.params.cashAmount,
+          request.params.accountId,
+          request.params.year,
         );
       case 'portfolio.refreshDividends':
         this.licenseService.assertFeature('portfolio_dividend_sync');
@@ -210,6 +253,8 @@ export class AppService {
         return this.accountService.setDefault(request.params.id);
       case 'accounts.archive':
         return this.accountService.archive(request.params.id);
+      case 'accounts.delete':
+        return this.accountService.delete(request.params.id);
       case 'accounts.listFeeProfiles':
         return this.accountService.listFeeProfiles();
       case 'accounts.estimateFees':
@@ -248,6 +293,55 @@ export class AppService {
         return this.database.alertEvents.setUserAction(request.params.id, request.params.action);
       case 'alerts.pollActive':
         return pollActiveAlerts(this.database);
+      case 'sip.listPlans':
+        return this.sipService.listPlans(request.params.statuses);
+      case 'sip.getPlan':
+        return this.sipService.getPlan(request.params.id);
+      case 'sip.createPlan':
+        return this.sipService.createPlan(request.params);
+      case 'sip.updatePlan':
+        return this.sipService.updatePlan(request.params.id, request.params.input);
+      case 'sip.setStatus':
+        return this.sipService.setPlanStatus(request.params.id, request.params.status);
+      case 'sip.previewSchedule':
+        return this.sipService.previewSchedule(request.params);
+      case 'sip.listOccurrences':
+        return this.sipService.listOccurrences(request.params.planId, request.params.from, request.params.to);
+      case 'sip.listOccurrenceViews':
+        return this.sipService.listOccurrenceViews(request.params.planId, request.params.from, request.params.to);
+      case 'sip.confirmOccurrence':
+        return this.sipService.confirmOccurrence(request.params);
+      case 'sip.skipOccurrence':
+        return this.sipService.skipOccurrence(request.params.id, request.params.reason);
+      case 'sip.getSummary':
+        return this.sipService.getSummary();
+      case 'sip.scanDue':
+        return this.sipService.scanDue();
+      case 'sip.getOccurrenceCalendar':
+        return this.sipService.getOccurrenceCalendar(request.params.month);
+      case 'sip.getPositionMeta':
+        return this.sipService.getPositionMeta(request.params.accountId);
+      case 'sip.getReviewTemplate':
+        return this.sipService.getReviewTemplate(request.params.planId);
+      case 'sip.getPlanPositionLink':
+        return this.sipService.getPlanPositionLink(request.params.planId);
+      case 'sip.listPlansBySymbol':
+        return this.sipService.listPlansBySymbol(request.params.accountId, request.params.symbol);
+      case 'sip.parseImportCsv':
+        return this.sipImportService.parseCsv(request.params.sourcePath);
+      case 'sip.previewImport':
+        return this.sipImportService.preview(request.params);
+      case 'sip.commitImport':
+        return this.sipImportService.commit(request.params);
+      case 'sip.recognizeImportScreenshot':
+        this.licenseService.assertFeature('ai_review');
+        return this.sipAiImportService.recognizeScreenshot(request.params.sourcePath);
+      case 'sip.previewAiImport':
+        return this.sipAiImportService.preview(request.params);
+      case 'sip.commitAiImport': {
+        this.licenseService.assertFeature('ai_review');
+        return this.sipAiImportService.commit(request.params);
+      }
     }
   }
 

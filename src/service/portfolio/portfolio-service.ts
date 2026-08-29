@@ -3,11 +3,16 @@ import type {
   DividendCalendarDay,
   DividendRecordStatus,
   PortfolioDividendRecord,
+  PortfolioLedgerEntry,
   PortfolioPositionView,
   PortfolioRefreshResult,
   PortfolioSummaryView,
+  UpdatePortfolioLedgerInput,
 } from '../../shared/portfolio/types';
+import { isAllAccountsId } from '../../shared/accounts/constants';
+import type { FeeProfileRates } from '../../shared/accounts/types';
 import type { AppDatabase } from '../database/database';
+import { normalizeSymbol } from '../market/eastmoney/symbols';
 import { marketService } from '../market/market-service';
 import { buildProjectedDividends, matchDividendEvent } from './dividend-matcher';
 import {
@@ -17,6 +22,8 @@ import {
   computeYtdReceived,
 } from './dividend-stats';
 import { aggregatePositions } from './ledger-service';
+import { computePositionDailyPnl, sumDailyPnl } from './position-daily-pnl';
+import { computeReferenceUnrealizedPnl, computeReferenceReturnPercent, inferMarketFromSymbol } from './reference-unrealized-pnl';
 
 export class PortfolioService {
   private lastRefreshedAt: string | null = null;
@@ -25,15 +32,16 @@ export class PortfolioService {
 
   async listPositions(accountId?: string): Promise<PortfolioPositionView[]> {
     const portfolio = this.database.portfolio;
-    const resolvedAccountId = portfolio.resolveAccountId(accountId);
-    const ledger = portfolio.listLedger(resolvedAccountId);
+    const ledger = isAllAccountsId(accountId) ? portfolio.listAllLedger() : portfolio.listLedger(accountId);
     const aggregates = aggregatePositions(ledger);
     if (aggregates.length === 0) return [];
 
     const symbols = aggregates.map((item) => item.symbol);
     const quotes = await marketService.getQuotes(symbols);
-    const quoteMap = new Map(quotes.map((quote) => [quote.symbol, quote]));
-    const dividends = portfolio.listDividends(resolvedAccountId);
+    const quoteMap = new Map(quotes.map((quote) => [normalizeSymbol(quote.symbol), quote]));
+    const dividends = isAllAccountsId(accountId)
+      ? portfolio.listAllDividends()
+      : portfolio.listDividends(portfolio.resolveAccountId(accountId));
     const year = new Date().getFullYear();
 
     const upcomingBySymbol = await Promise.all(
@@ -47,26 +55,57 @@ export class PortfolioService {
       }),
     );
     const allUpcoming = upcomingBySymbol.flatMap((item) => item.items);
+    const ledgerBySymbol = new Map<string, PortfolioLedgerEntry[]>();
+    for (const entry of ledger) {
+      const list = ledgerBySymbol.get(entry.symbol) ?? [];
+      list.push(entry);
+      ledgerBySymbol.set(entry.symbol, list);
+    }
 
     return aggregates.map((position) => {
-      const quote = quoteMap.get(position.symbol);
+      const quote = quoteMap.get(normalizeSymbol(position.symbol));
       const marketPrice = quote?.price ?? quote?.nav ?? null;
       const marketValue = marketPrice === null ? null : marketPrice * position.quantity;
-      const cost = position.avgCost * position.quantity;
       const symbolDividends = dividends.filter((record) => record.symbol === position.symbol);
       const ytd = computeYtdReceived(symbolDividends, year);
       const holdings = new Map([[position.symbol, position.quantity]]);
       const expected = computeExpectedFromEvents(holdings, allUpcoming);
+      const symbolEntries = ledgerBySymbol.get(position.symbol) ?? [];
+      const feeProfile = this.resolveFeeProfile(accountId, symbolEntries);
+      const unrealizedPnl =
+        marketPrice === null
+          ? null
+          : computeReferenceUnrealizedPnl({
+              marketPrice,
+              quantity: position.quantity,
+              totalCost: position.totalCost,
+              kind: position.kind,
+              market: inferMarketFromSymbol(position.symbol),
+              feeProfile,
+            });
+      const dailyPnl = computePositionDailyPnl({
+        kind: position.kind,
+        entries: symbolEntries,
+        marketPrice,
+        quote,
+        referenceUnrealizedPnl: unrealizedPnl,
+        firstBuyAt: position.firstBuyAt,
+      });
+      const unrealizedReturnPercent =
+        unrealizedPnl === null ? null : computeReferenceReturnPercent(unrealizedPnl, position.totalCost);
 
       return {
         symbol: position.symbol,
         name: quote?.name ?? position.symbol,
         kind: position.kind,
         quantity: position.quantity,
+        avgPrice: position.avgPrice,
         avgCost: position.avgCost,
         marketPrice,
         marketValue,
-        unrealizedPnl: marketValue === null ? null : marketValue - cost,
+        unrealizedPnl,
+        unrealizedReturnPercent,
+        dailyPnl,
         firstBuyAt: position.firstBuyAt,
         ytdDividendReceived: ytd,
         expectedDividend: expected,
@@ -78,11 +117,14 @@ export class PortfolioService {
   async getSummary(accountId?: string, year = new Date().getFullYear()): Promise<PortfolioSummaryView> {
     const positions = await this.listPositions(accountId);
     const portfolio = this.database.portfolio;
-    const resolvedAccountId = portfolio.resolveAccountId(accountId);
-    const records = portfolio.listDividends(resolvedAccountId, year);
+    const records = isAllAccountsId(accountId)
+      ? portfolio.listAllDividends(year)
+      : portfolio.listDividends(portfolio.resolveAccountId(accountId), year);
     const expectedDividend = positions.reduce((sum, item) => sum + item.expectedDividend, 0);
     const totalMarketValue = positions.reduce((sum, item) => sum + (item.marketValue ?? 0), 0);
     const totalCost = positions.reduce((sum, item) => sum + item.avgCost * item.quantity, 0);
+    const dailyPnl = sumDailyPnl(positions.map((item) => item.dailyPnl));
+    const unrealizedPnl = positions.reduce((sum, item) => sum + (item.unrealizedPnl ?? 0), 0);
 
     return buildPortfolioSummary({
       year,
@@ -90,15 +132,20 @@ export class PortfolioService {
       expectedDividend,
       totalMarketValue,
       totalCost,
+      dailyPnl,
+      unrealizedPnl,
       lastRefreshedAt: this.lastRefreshedAt,
     });
   }
 
   async getDividendCalendar(accountId: string | undefined, month: string): Promise<DividendCalendarDay[]> {
     const portfolio = this.database.portfolio;
-    const resolvedAccountId = portfolio.resolveAccountId(accountId);
-    const records = await this.enrichDividendNames(portfolio.listDividends(resolvedAccountId));
-    const positions = await this.listPositions(resolvedAccountId);
+    const records = await this.enrichDividendNames(
+      isAllAccountsId(accountId)
+        ? portfolio.listAllDividends()
+        : portfolio.listDividends(portfolio.resolveAccountId(accountId)),
+    );
+    const positions = await this.listPositions(accountId);
     const holdings = new Map(
       positions.map((item) => [item.symbol, { quantity: item.quantity, kind: item.kind, name: item.name }]),
     );
@@ -137,21 +184,61 @@ export class PortfolioService {
     return this.listPositions(payload.accountId);
   }
 
+  async listLedgerEntries(accountId?: string, symbol?: string): Promise<PortfolioLedgerEntry[]> {
+    return this.database.portfolio.listLedgerEntries(accountId, symbol);
+  }
+
+  async updateLedgerEntry(id: string, input: UpdatePortfolioLedgerInput): Promise<PortfolioLedgerEntry> {
+    return this.database.portfolio.updateLedgerEntry(id, input);
+  }
+
+  async deleteLedgerEntry(id: string): Promise<PortfolioPositionView[]> {
+    const deleted = this.database.portfolio.deleteLedgerEntry(id);
+    return this.listPositions(deleted.accountId);
+  }
+
+  async deletePosition(accountId: string | undefined, symbol: string): Promise<PortfolioPositionView[]> {
+    const removed = this.database.portfolio.deletePositionLedger(accountId, symbol);
+    if (removed === 0) throw new Error('未找到可删除的持仓流水');
+    return this.listPositions(accountId);
+  }
+
   async confirmDividend(
     id: string,
     confirmed: boolean,
     cashAmount?: number,
+    accountId?: string,
+    year = new Date().getFullYear(),
   ): Promise<PortfolioDividendRecord[]> {
     const status = confirmed ? 'confirmed' : 'rejected';
     const cents = cashAmount === undefined ? undefined : Math.round(cashAmount * 100);
     this.database.portfolio.setDividendStatus(id, status, cents);
-    return this.listDividends();
+    return this.listDividends(accountId, year);
   }
 
   async refreshDividends(accountId?: string, symbol?: string): Promise<PortfolioRefreshResult> {
+    if (isAllAccountsId(accountId)) {
+      const accountIds = this.database.portfolio.listActiveAccountIds();
+      let synced = 0;
+      let estimated = 0;
+      for (const activeAccountId of accountIds) {
+        const result = await this.refreshDividendsForAccount(activeAccountId, symbol);
+        synced += result.synced;
+        estimated += result.estimated;
+      }
+      this.lastRefreshedAt = new Date().toISOString();
+      return { synced, estimated };
+    }
+
+    return this.refreshDividendsForAccount(this.database.portfolio.resolveAccountId(accountId), symbol);
+  }
+
+  private async refreshDividendsForAccount(
+    accountId: string,
+    symbol?: string,
+  ): Promise<PortfolioRefreshResult> {
     const portfolio = this.database.portfolio;
-    const resolvedAccountId = portfolio.resolveAccountId(accountId);
-    const ledger = portfolio.listLedger(resolvedAccountId);
+    const ledger = portfolio.listLedger(accountId);
     const aggregates = aggregatePositions(ledger);
     const targets = symbol
       ? aggregates.filter((item) => item.symbol === symbol.trim().toUpperCase())
@@ -159,7 +246,7 @@ export class PortfolioService {
 
     const today = new Date().toISOString().slice(0, 10);
     const autoCutoff = shiftDate(today, -3);
-    portfolio.autoConfirmPastDividends(resolvedAccountId, autoCutoff);
+    portfolio.autoConfirmPastDividends(accountId, autoCutoff);
 
     let synced = 0;
     let estimated = 0;
@@ -175,7 +262,7 @@ export class PortfolioService {
 
         for (const event of result.items) {
           const match = matchDividendEvent({
-            accountId: resolvedAccountId,
+            accountId,
             symbol: position.symbol,
             kind: position.kind,
             ledger: symbolLedger,
@@ -204,12 +291,35 @@ export class PortfolioService {
     return this.listPositions(accountId);
   }
 
+  private resolveFeeProfile(
+    accountId: string | undefined,
+    symbolEntries: readonly PortfolioLedgerEntry[],
+  ): FeeProfileRates {
+    const { accounts } = this.database;
+    if (accountId && !isAllAccountsId(accountId)) {
+      const account = accounts.getAccount(accountId);
+      if (!account.feeProfileId) throw new Error('账户未绑定费率模板');
+      return accounts.getFeeProfileRates(account.feeProfileId);
+    }
+
+    const primaryAccountId = symbolEntries[0]?.accountId;
+    if (primaryAccountId) {
+      const account = accounts.getAccount(primaryAccountId);
+      if (account.feeProfileId) {
+        return accounts.getFeeProfileRates(account.feeProfileId);
+      }
+    }
+
+    const defaultAccount = accounts.getDefaultAccount();
+    return accounts.getFeeProfileRates(defaultAccount.feeProfileId!);
+  }
+
   private async enrichDividendNames(records: PortfolioDividendRecord[]): Promise<PortfolioDividendRecord[]> {
     const symbols = [...new Set(records.map((record) => record.symbol))];
     if (symbols.length === 0) return records;
 
     const quotes = await marketService.getQuotes(symbols);
-    const nameMap = new Map(quotes.map((quote) => [quote.symbol, quote.name]));
+    const nameMap = new Map(quotes.map((quote) => [normalizeSymbol(quote.symbol), quote.name]));
 
     return records.map((record) => ({
       ...record,

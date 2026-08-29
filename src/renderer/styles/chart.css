@@ -1,0 +1,49 @@
+.chart-test-page .page-header {
+  align-items: flex-start;
+}
+
+.chart-test-quote {
+  display: grid;
+  gap: var(--td-space-1);
+  justify-items: end;
+  font-family: var(--td-font-numeric);
+}
+
+.chart-test-quote strong {
+  color: var(--td-color-ink);
+  font-size: 18px;
+}
+
+.chart-test-quote span {
+  color: var(--td-color-ink-secondary);
+  font-size: 14px;
+}
+
+.chart-test-controls {
+  margin-bottom: var(--td-space-4);
+}
+
+.chart-test-control-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--td-space-3);
+  align-items: center;
+}
+
+.chart-test-control-label {
+  min-width: 48px;
+  color: var(--td-color-ink-secondary);
+}
+
+.chart-test-stage {
+  min-height: 480px;
+  padding: var(--td-space-3);
+  border: 1px solid var(--td-color-line);
+  border-radius: var(--td-radius-panel);
+  background: var(--td-color-surface);
+}
+
+.trading-chart-host {
+  width: 100%;
+  min-height: 480px;
+}

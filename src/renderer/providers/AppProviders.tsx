@@ -13,7 +13,14 @@ const cspConfig = {
 
 export function AppProviders({ children }: PropsWithChildren): React.JSX.Element {
   return (
-    <ConfigProvider csp={cspConfig} iconPrefixCls="anticon" locale={zhCN} theme={appTheme} wave={waveConfig}>
+    <ConfigProvider
+      csp={cspConfig}
+      iconPrefixCls="anticon"
+      locale={zhCN}
+      theme={appTheme}
+      wave={waveConfig}
+      modal={{ centered: true }}
+    >
       <AntdApp>{children}</AntdApp>
     </ConfigProvider>
   );

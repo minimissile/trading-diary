@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import type { InstrumentKind } from '../../shared/market/types';
+import { isAllAccountsId } from '../../shared/accounts/constants';
 import type {
   CreatePortfolioLedgerInput,
   DividendRecordSource,
@@ -9,7 +10,9 @@ import type {
   PortfolioLedgerEntry,
   PortfolioLedgerSide,
   PortfolioLedgerSource,
+  UpdatePortfolioLedgerInput,
 } from '../../shared/portfolio/types';
+import { normalizeSymbol as normalizeMarketSymbol } from '../market/eastmoney/symbols';
 import { ledgerQuantityDelta } from './ledger-service';
 
 const PRICE_SCALE = 10_000;
@@ -26,7 +29,7 @@ function fromScaledInteger(value: number, scale: number): number {
 }
 
 function normalizeSymbol(symbol: string): string {
-  const normalized = symbol.trim().toUpperCase();
+  const normalized = normalizeMarketSymbol(symbol);
   if (!normalized) throw new Error('标的代码不能为空');
   return normalized;
 }
@@ -44,6 +47,7 @@ interface PortfolioLedgerRow {
   plan_id: string | null;
   note: string;
   source: PortfolioLedgerSource;
+  sip_occurrence_id: string | null;
   created_at: string;
 }
 
@@ -106,12 +110,81 @@ export class PortfolioDatabase {
     return this.ensureDefaultAccount();
   }
 
+  listActiveAccountIds(): string[] {
+    const rows = this.db
+      .prepare('SELECT id FROM portfolio_accounts WHERE is_archived = 0 ORDER BY is_default DESC, name ASC')
+      .all() as Array<{ id: string }>;
+    return rows.map((row) => row.id);
+  }
+
   listLedger(accountId?: string): PortfolioLedgerEntry[] {
+    if (isAllAccountsId(accountId)) {
+      return this.listAllLedger();
+    }
     const resolved = this.resolveAccountId(accountId);
     const rows = this.db
       .prepare('SELECT * FROM portfolio_ledger WHERE account_id = ? ORDER BY trade_at ASC, created_at ASC')
       .all(resolved) as unknown as PortfolioLedgerRow[];
     return rows.map((row) => this.mapLedger(row));
+  }
+
+  listAllLedger(): PortfolioLedgerEntry[] {
+    const accountIds = this.listActiveAccountIds();
+    if (accountIds.length === 0) return [];
+    const placeholders = accountIds.map(() => '?').join(', ');
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM portfolio_ledger WHERE account_id IN (${placeholders}) ORDER BY trade_at ASC, created_at ASC`,
+      )
+      .all(...accountIds) as unknown as PortfolioLedgerRow[];
+    return rows.map((row) => this.mapLedger(row));
+  }
+
+  listLedgerEntries(accountId?: string, symbol?: string): PortfolioLedgerEntry[] {
+    const params: Array<string> = [];
+    let sql = 'SELECT * FROM portfolio_ledger WHERE 1 = 1';
+
+    if (accountId && !isAllAccountsId(accountId)) {
+      sql += ' AND account_id = ?';
+      params.push(this.resolveAccountId(accountId));
+    } else if (isAllAccountsId(accountId)) {
+      const accountIds = this.listActiveAccountIds();
+      if (accountIds.length === 0) return [];
+      sql += ` AND account_id IN (${accountIds.map(() => '?').join(', ')})`;
+      params.push(...accountIds);
+    }
+
+    if (symbol) {
+      sql += ' AND symbol = ?';
+      params.push(normalizeSymbol(symbol));
+    }
+
+    sql += ' ORDER BY trade_at DESC, created_at DESC';
+    const rows = this.db.prepare(sql).all(...params) as unknown as PortfolioLedgerRow[];
+    return rows.map((row) => this.mapLedger(row));
+  }
+
+  /** 检测是否已有相同定投导入流水（同日、同标的、同份额与净值）。 */
+  hasSimilarSipImport(
+    accountId: string,
+    symbol: string,
+    tradeAt: string,
+    quantity: number,
+    nav: number,
+  ): boolean {
+    const resolved = this.resolveAccountId(accountId);
+    const normalized = normalizeSymbol(symbol);
+    const tradeDay = tradeAt.slice(0, 10);
+    const entries = this.listLedger(resolved).filter(
+      (entry) =>
+        entry.symbol === normalized &&
+        entry.source === 'sip' &&
+        entry.side === 'buy' &&
+        entry.tradeAt.slice(0, 10) === tradeDay,
+    );
+    return entries.some(
+      (entry) => Math.abs(entry.quantity - quantity) < 1e-6 && Math.abs(entry.price - nav) < 1e-6,
+    );
   }
 
   listLedgerBySymbol(accountId: string, symbol: string): PortfolioLedgerEntry[] {
@@ -147,8 +220,8 @@ export class PortfolioDatabase {
       .prepare(
         `INSERT INTO portfolio_ledger (
           id, account_id, symbol, kind, side, quantity_micros, price_micros, fees_cents,
-          trade_at, plan_id, note, source, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          trade_at, plan_id, note, source, sip_occurrence_id, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -163,13 +236,85 @@ export class PortfolioDatabase {
         input.planId ?? null,
         (input.note ?? '').trim(),
         input.source ?? 'manual',
+        input.sipOccurrenceId ?? null,
         now,
       );
 
     return this.getLedgerEntry(id);
   }
 
+  updateLedgerEntry(id: string, input: UpdatePortfolioLedgerInput): PortfolioLedgerEntry {
+    const existing = this.getLedgerEntry(id);
+    const side = input.side ?? existing.side;
+    const quantity = input.quantity !== undefined ? Math.abs(input.quantity) : existing.quantity;
+    const price = input.price ?? existing.price;
+    const fees = input.fees ?? existing.fees;
+    const tradeAt = input.tradeAt ?? existing.tradeAt;
+    const note = input.note !== undefined ? input.note.trim() : existing.note;
+
+    if (quantity <= 0) throw new Error('成交数量必须大于 0');
+    if (price <= 0) throw new Error('成交价格必须大于 0');
+
+    if (side === 'sell') {
+      const others = this.listLedger(existing.accountId).filter(
+        (entry) => entry.symbol === existing.symbol && entry.id !== id,
+      );
+      const held = others.reduce((sum, entry) => sum + ledgerQuantityDelta(entry), 0);
+      if (quantity > held + 1e-8) throw new Error('卖出数量不能超过当前持仓');
+    }
+
+    const quantityMicros =
+      side === 'sell' ? -toScaledInteger(quantity, QUANTITY_SCALE) : toScaledInteger(quantity, QUANTITY_SCALE);
+
+    this.db
+      .prepare(
+        `UPDATE portfolio_ledger SET
+          side = ?, quantity_micros = ?, price_micros = ?, fees_cents = ?, trade_at = ?, note = ?
+         WHERE id = ?`,
+      )
+      .run(
+        side,
+        quantityMicros,
+        toScaledInteger(price, PRICE_SCALE),
+        toScaledInteger(fees, MONEY_SCALE),
+        tradeAt,
+        note,
+        id,
+      );
+
+    return this.getLedgerEntry(id);
+  }
+
+  deleteLedgerEntry(id: string): PortfolioLedgerEntry {
+    const existing = this.getLedgerEntry(id);
+    this.db.prepare('DELETE FROM portfolio_ledger WHERE id = ?').run(id);
+    return existing;
+  }
+
+  deletePositionLedger(accountId: string | undefined, symbol: string): number {
+    const normalized = normalizeSymbol(symbol);
+
+    if (isAllAccountsId(accountId)) {
+      const accountIds = this.listActiveAccountIds();
+      if (accountIds.length === 0) return 0;
+      const placeholders = accountIds.map(() => '?').join(', ');
+      const result = this.db
+        .prepare(`DELETE FROM portfolio_ledger WHERE account_id IN (${placeholders}) AND symbol = ?`)
+        .run(...accountIds, normalized);
+      return Number(result.changes ?? 0);
+    }
+
+    const resolved = this.resolveAccountId(accountId);
+    const result = this.db
+      .prepare('DELETE FROM portfolio_ledger WHERE account_id = ? AND symbol = ?')
+      .run(resolved, normalized);
+    return Number(result.changes ?? 0);
+  }
+
   listDividends(accountId?: string, year?: number, statuses?: DividendRecordStatus[]): PortfolioDividendRecord[] {
+    if (isAllAccountsId(accountId)) {
+      return this.listAllDividends(year, statuses);
+    }
     const resolved = this.resolveAccountId(accountId);
     const params: Array<string | number> = [resolved];
     let sql = 'SELECT * FROM portfolio_dividends WHERE account_id = ?';
@@ -186,6 +331,28 @@ export class PortfolioDatabase {
 
     sql += ' ORDER BY ex_dividend_date DESC, symbol ASC';
 
+    const rows = this.db.prepare(sql).all(...params) as unknown as PortfolioDividendRow[];
+    return rows.map((row) => this.mapDividend(row));
+  }
+
+  listAllDividends(year?: number, statuses?: DividendRecordStatus[]): PortfolioDividendRecord[] {
+    const accountIds = this.listActiveAccountIds();
+    if (accountIds.length === 0) return [];
+
+    const params: Array<string | number> = [...accountIds];
+    let sql = `SELECT * FROM portfolio_dividends WHERE account_id IN (${accountIds.map(() => '?').join(', ')})`;
+
+    if (year !== undefined) {
+      sql += ' AND ex_dividend_date >= ? AND ex_dividend_date < ?';
+      params.push(`${year}-01-01`, `${year + 1}-01-01`);
+    }
+
+    if (statuses && statuses.length > 0) {
+      sql += ` AND status IN (${statuses.map(() => '?').join(', ')})`;
+      params.push(...statuses);
+    }
+
+    sql += ' ORDER BY ex_dividend_date DESC, symbol ASC';
     const rows = this.db.prepare(sql).all(...params) as unknown as PortfolioDividendRow[];
     return rows.map((row) => this.mapDividend(row));
   }
@@ -308,6 +475,7 @@ export class PortfolioDatabase {
       planId: row.plan_id,
       note: row.note,
       source: row.source,
+      sipOccurrenceId: row.sip_occurrence_id ?? null,
       createdAt: row.created_at,
     };
   }
@@ -315,6 +483,7 @@ export class PortfolioDatabase {
   private mapDividend(row: PortfolioDividendRow): PortfolioDividendRecord {
     return {
       id: row.id,
+      accountId: row.account_id,
       symbol: row.symbol,
       name: row.symbol,
       kind: row.kind,

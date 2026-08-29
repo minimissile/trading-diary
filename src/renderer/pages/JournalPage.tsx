@@ -26,7 +26,7 @@ import type {
 } from '../../shared/api.types';
 import { ExecutionEntryModal } from '../components/trading/ExecutionEntryModal';
 import { EpisodeTimeline } from '../components/trading/EpisodeTimeline';
-import { directionLabels, formatCurrency, formatDateTime, formatPrice } from '../lib/trading-format';
+import { directionLabels, formatDateTime, formatPrice, formatSignedCurrency, statisticCurrencyFormatter, ValueDisplay } from '../lib/trading-format';
 import { useReviewAiDraft } from '../hooks/useReviewAiDraft';
 import { useTradingAccountId } from '../hooks/useTradingAccountId';
 import { routePaths } from '../router/paths';
@@ -154,7 +154,7 @@ export function JournalPage(): React.JSX.Element {
 
       <section className="journal-stats">
         <article className={totalPnl >= 0 ? 'metric-profit' : 'metric-loss'}>
-          <Statistic title="已复盘净盈亏" value={formatCurrency(totalPnl)} />
+          <Statistic title="已复盘净盈亏" value={totalPnl} formatter={statisticCurrencyFormatter} />
         </article>
         <article>
           <Statistic title="已复盘交易" value={reviews.length} suffix="笔" />
@@ -202,7 +202,7 @@ export function JournalPage(): React.JSX.Element {
                       </div>
                       <div>
                         <small>累计费用</small>
-                        <strong>{formatCurrency(episode.totalFees)}</strong>
+                        <ValueDisplay as="strong" kind="currency" value={episode.totalFees} />
                       </div>
                     </div>
                     <EpisodeTimeline executions={episode.executions} />
@@ -243,9 +243,9 @@ export function JournalPage(): React.JSX.Element {
                         <small>数量</small>
                         <strong>{episode.closedQuantity}</strong>
                       </div>
-                      <div className={(episode.realizedPnl ?? 0) >= 0 ? 'profit-text' : 'loss-text'}>
+                      <div>
                         <small>已实现盈亏</small>
-                        <strong>{episode.realizedPnl === null ? '—' : formatCurrency(episode.realizedPnl)}</strong>
+                        <ValueDisplay as="strong" kind="pnl" value={episode.realizedPnl} />
                       </div>
                     </div>
                     <EpisodeTimeline executions={episode.executions} />
@@ -294,12 +294,12 @@ export function JournalPage(): React.JSX.Element {
                       <div>
                         <small>数量 / 费用</small>
                         <strong>
-                          {review.quantity} / {formatCurrency(review.fees)}
+                          {review.quantity} / <ValueDisplay kind="currency" value={review.fees} />
                         </strong>
                       </div>
-                      <div className={review.pnl >= 0 ? 'profit-text' : 'loss-text'}>
+                      <div>
                         <small>净盈亏</small>
-                        <strong>{formatCurrency(review.pnl)}</strong>
+                        <ValueDisplay as="strong" kind="pnl" value={review.pnl} />
                       </div>
                       <div>
                         <small>纪律评分</small>
@@ -591,7 +591,7 @@ function NewReviewDialog({
             allowClear
             placeholder="选择已平仓待复盘的回合"
             options={episodes.map((episode) => ({
-              label: `${episode.symbol} · ${episode.title} · ${episode.realizedPnl === null ? '—' : formatCurrency(episode.realizedPnl)}`,
+              label: `${episode.symbol} · ${episode.title} · ${episode.realizedPnl === null ? '—' : formatSignedCurrency(episode.realizedPnl)}`,
               value: episode.id,
             }))}
             onChange={chooseEpisode}
@@ -645,9 +645,9 @@ function NewReviewDialog({
           <Form.Item label="纪律评分（与盈亏无关）" name="executionScore" rules={[{ required: true }]}>
             <InputNumber min={1} max={5} precision={0} />
           </Form.Item>
-          <div className={pnlPreview !== null && pnlPreview < 0 ? 'loss-text' : 'profit-text'}>
+          <div>
             <small>预计净盈亏</small>
-            <strong>{pnlPreview === null ? '—' : formatCurrency(pnlPreview)}</strong>
+            <ValueDisplay as="strong" kind="pnl" value={pnlPreview} />
           </div>
         </div>
         <Form.Item label="本次交易总结" name="summary" rules={[{ required: true, message: '请填写本次总结' }]}>

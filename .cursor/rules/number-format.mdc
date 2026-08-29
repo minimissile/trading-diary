@@ -1,0 +1,32 @@
+---
+description: 数值展示规范（金额/价格/份额/涨跌幅，禁止手写格式化）
+globs: src/**/*.{ts,tsx}
+alwaysApply: true
+---
+
+# 数值展示规范
+
+编写或修改用户可见数值时，必须遵守 [docs/NUMBER_FORMAT.md](../../docs/NUMBER_FORMAT.md)。
+
+## 必须
+
+- React UI：使用 `<ValueDisplay kind="…" value={n} />`（从 `src/renderer/lib/trading-format` 导入）
+- Ant Design `Statistic` 金额：`formatter={statisticCurrencyFormatter}` 或内嵌 `ValueDisplay`
+- 持仓表价格/份额：用 `pricePresetForKind(kind)`、`quantityPresetForKind(kind)`，不要全表写死 `price` / `quantity`
+- 金额类 preset（`currency`、`pnl`）：**必须带 `¥`**，且去末尾零（`¥5,340` 不是 `5,340` 或 `¥5,340.00`）
+- 数字排版：使用 `.td-value` / theme Token，**禁止**对金额数字使用负 `letter-spacing`
+- 数字字体：使用 `--td-font-numeric` 等宽栈，**禁止**在 ValueDisplay 内拆分渲染千分位/小数点
+
+## 禁止
+
+- 在 `src/renderer/` 使用 `value.toFixed(...)`、`Intl.NumberFormat`、`${value}元`、`¥${value}` 等手写格式化
+- 在业务代码直接 import `src/shared/format/number-format` 或 `formatNumber` / `formatDisplayCurrency`
+- 修改 `DISPLAY_PRESETS` 时去掉 `currency: true` 或把金额改成无 `¥` 展示
+- 为单个页面单独定义第二套金额/价格格式
+- 在指标数字、`.td-value`、`.ant-statistic-content` 上写 `letter-spacing: -0.0…em` 或 `font-weight: 780`
+
+## 扩展新场景
+
+1. 在 `src/shared/format/display-presets.ts` 增加或调整 preset
+2. 在 `tests/number-format.test.ts` 补充断言
+3. 更新 `docs/NUMBER_FORMAT.md` 预设表

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { App, Button, DatePicker, Form, Input, InputNumber, Modal, Radio } from 'antd';
-import dayjs, { type Dayjs } from 'dayjs';
+import { App, Button, Form, Input, InputNumber, Modal, Radio } from 'antd';
+import type { Dayjs } from 'dayjs';
 import { useNavigate } from 'react-router';
 import type { InstrumentInfo, MarketQuote, TradeEpisodeView } from '../../../shared/api.types';
 import { routePaths } from '../../router/paths';
 import { AccountSelect } from './AccountSelect';
 import { LedgerTradeContextPanel } from './LedgerTradeContextPanel';
 import { SymbolSearchInput } from './SymbolSearchInput';
+import { TradeDatePicker } from './TradeDatePicker';
+import { defaultTradeAt, tradeAtToIso } from '../../lib/trade-date';
 
 interface ExecutionEntryModalProps {
   open: boolean;
@@ -78,7 +80,7 @@ export function ExecutionEntryModal({
       accountId: defaultAccountId,
       side: 'buy',
       fees: 0,
-      tradeAt: dayjs(),
+      tradeAt: defaultTradeAt(),
     });
   }, [defaultAccountId, form, open]);
 
@@ -132,7 +134,7 @@ export function ExecutionEntryModal({
         quantity: values.quantity,
         price: values.price,
         fees: values.fees ?? 0,
-        tradeAt: values.tradeAt.toISOString(),
+        tradeAt: tradeAtToIso(values.tradeAt),
         note: values.note?.trim(),
         source: 'manual',
       });
@@ -225,7 +227,7 @@ export function ExecutionEntryModal({
         </div>
 
         <Form.Item label="成交时间" name="tradeAt" rules={[{ required: true, message: '请选择成交时间' }]}>
-          <DatePicker showTime format="YYYY-MM-DD HH:mm" style={{ width: '100%' }} />
+          <TradeDatePicker style={{ width: '100%' }} />
         </Form.Item>
 
         <Form.Item label="备注" name="note">

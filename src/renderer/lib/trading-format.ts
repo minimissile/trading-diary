@@ -6,6 +6,22 @@ import type {
   TradingPlanStatus,
 } from '../../shared/api.types';
 import type { PlaybookCheckTiming, PlaybookRuleCategory } from '../../shared/playbook/types';
+import { formatWithPreset, signedToneClass, quantityPresetForKind, pricePresetForKind, formatFloatingPnlCaption, formatDailyPnlCaption } from '../../shared/format/display-presets';
+import { formatQuoteRefreshTime } from '../../shared/format/date-format';
+import { formatDisplayCurrency, formatNumber } from '../../shared/format/number-format';
+
+/**
+ * 渲染层数值格式化统一出口。
+ *
+ * 页面与组件只应 import 本模块，不要直接使用 shared/format/*。
+ *
+ * @see docs/NUMBER_FORMAT.md
+ */
+export { formatNumber, formatDisplayCurrency, formatWithPreset, signedToneClass, quantityPresetForKind, pricePresetForKind, formatFloatingPnlCaption, formatDailyPnlCaption, formatQuoteRefreshTime };
+export type { FormatNumberOptions, FormatCurrencyOptions } from '../../shared/format/number-format';
+export type { DisplayPresetKind } from '../../shared/format/display-presets';
+export { ValueDisplay, statisticCurrencyFormatter, statisticPnlFormatter } from '../components/trading/ValueDisplay';
+export { AnimatedValueDisplay } from '../components/trading/AnimatedValueDisplay';
 
 export const planStatusLabels: Readonly<Record<TradingPlanStatus, string>> = {
   draft: '草稿',
@@ -64,28 +80,48 @@ export const playbookCheckTimingLabels: Readonly<Record<PlaybookCheckTiming, str
   always: '始终适用',
 };
 
+/** 价格展示（最多 4 位小数，去末尾零，不带千分位）。 */
 export function formatPrice(value: number): string {
-  return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 4 }).format(value);
+  return formatWithPreset(value, 'price');
 }
 
-export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('zh-CN', {
-    style: 'currency',
-    currency: 'CNY',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
+/** 按标的类型格式化价格。 */
+export function formatPriceForKind(value: number, kind?: import('../../shared/market/types').InstrumentKind): string {
+  return formatWithPreset(value, pricePresetForKind(kind));
 }
 
+/** 按标的类型格式化份额。 */
+export function formatQuantityForKind(
+  value: number | null | undefined,
+  kind?: import('../../shared/market/types').InstrumentKind,
+): string {
+  return formatWithPreset(value, quantityPresetForKind(kind));
+}
+
+/** 普通货币展示（¥，千分位，最多 2 位小数，去末尾零）。 */
+export function formatCurrency(value: number | null | undefined): string {
+  return formatWithPreset(value, 'currency');
+}
+
+/** 盈亏货币展示（+/-，¥，千分位，最多 2 位小数，去末尾零）。 */
+export function formatSignedCurrency(value: number | null | undefined): string {
+  return formatWithPreset(value, 'pnl');
+}
+
+/** 份额展示。 */
+export function formatQuantity(value: number | null | undefined): string {
+  return formatWithPreset(value, 'quantity');
+}
+
+/** 涨跌幅展示（+/-，%，最多 2 位小数）。 */
 export function formatPercent(value: number | null | undefined, digits = 2): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '—';
-  const prefix = value > 0 ? '+' : '';
-  return `${prefix}${value.toFixed(digits)}%`;
+  return formatNumber(value, { maximumFractionDigits: digits, signed: true, trimTrailingZeros: true }) + '%';
 }
 
+/** @deprecated 使用 signedToneClass 或 ValueDisplay */
 export function changeClass(value: number | null | undefined): string {
-  if (value === null || value === undefined || value === 0) return '';
-  return value > 0 ? 'profit-text' : 'loss-text';
+  return signedToneClass(value);
 }
 
 export function formatDateTime(value: string): string {
@@ -94,6 +130,15 @@ export function formatDateTime(value: string): string {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+  }).format(new Date(value));
+}
+
+/** 成交日期展示（年月日）。 */
+export function formatTradeDate(value: string): string {
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
   }).format(new Date(value));
 }
 
@@ -106,4 +151,57 @@ export function calculateExpectedR(entryPrice: number, stopPrice: number, target
   const risk = Math.abs(entryPrice - stopPrice);
   if (risk === 0) return null;
   return Math.abs(targetPrice - entryPrice) / risk;
+}
+
+export const sipPlanStatusLabels: Readonly<Record<import('../../shared/sip/types').SipPlanStatus, string>> = {
+  draft: '草稿',
+  active: '执行中',
+  paused: '已暂停',
+  completed: '已完成',
+  cancelled: '已取消',
+};
+
+export const sipPlanStatusColors: Readonly<Record<import('../../shared/sip/types').SipPlanStatus, string>> = {
+  draft: 'default',
+  active: 'green',
+  paused: 'orange',
+  completed: 'blue',
+  cancelled: 'default',
+};
+
+export const sipOccurrenceStatusLabels: Readonly<
+  Record<import('../../shared/sip/types').SipOccurrenceStatus, string>
+> = {
+  scheduled: '待执行',
+  due: '已到期',
+  completed: '已确认',
+  skipped: '已跳过',
+  missed: '已逾期',
+};
+
+export const sipFrequencyLabels: Readonly<Record<import('../../shared/sip/types').SipFrequency, string>> = {
+  weekly: '每周',
+  biweekly: '每两周',
+  monthly: '每月',
+};
+
+export const weekdayLabels: Readonly<Record<number, string>> = {
+  1: '周一',
+  2: '周二',
+  3: '周三',
+  4: '周四',
+  5: '周五',
+  6: '周六',
+  7: '周日',
+};
+
+export function formatSipSchedule(plan: Pick<
+  import('../../shared/sip/types').FundSipPlan,
+  'frequency' | 'dayOfWeek' | 'dayOfMonth'
+>): string {
+  if (plan.frequency === 'monthly') {
+    return `每月 ${plan.dayOfMonth ?? '—'} 日`;
+  }
+  const weekday = plan.dayOfWeek ? weekdayLabels[plan.dayOfWeek] : '—';
+  return plan.frequency === 'biweekly' ? `每两周 · ${weekday}` : `每周 · ${weekday}`;
 }

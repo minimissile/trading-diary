@@ -11,10 +11,14 @@ import type {
 } from '../../../shared/api.types';
 import { getAccountAlias } from '../../../shared/accounts/account-display';
 import {
-  commissionPpmToWan,
   DEFAULT_SECURITIES_COMMISSION_MIN_YUAN,
   DEFAULT_SECURITIES_COMMISSION_WAN,
+  resolveEtfMarketFormRates,
 } from '../../../shared/accounts/fee-utils';
+import {
+  defaultBrokerForAccountKind,
+  isBrokerAllowedForAccountKind,
+} from '../../../shared/accounts/brokers';
 import { BrokerSelect } from './BrokerSelect';
 
 interface AccountFormValues {
@@ -24,9 +28,12 @@ interface AccountFormValues {
   commissionWan: number;
   commissionMinYuan: number;
   noCommissionMin: boolean;
-  etfCommissionWan: number;
-  etfCommissionMinYuan: number;
-  etfNoCommissionMin: boolean;
+  etfShCommissionWan: number;
+  etfShCommissionMinYuan: number;
+  etfShNoCommissionMin: boolean;
+  etfSzCommissionWan: number;
+  etfSzCommissionMinYuan: number;
+  etfSzNoCommissionMin: boolean;
   isDefault?: boolean;
 }
 
@@ -41,17 +48,42 @@ interface AccountFormModalProps {
 
 type SecuritiesFeeFormValues = Pick<
   AccountFormValues,
-  'commissionWan' | 'commissionMinYuan' | 'noCommissionMin' | 'etfCommissionWan' | 'etfCommissionMinYuan' | 'etfNoCommissionMin'
+  | 'commissionWan'
+  | 'commissionMinYuan'
+  | 'noCommissionMin'
+  | 'etfShCommissionWan'
+  | 'etfShCommissionMinYuan'
+  | 'etfShNoCommissionMin'
+  | 'etfSzCommissionWan'
+  | 'etfSzCommissionMinYuan'
+  | 'etfSzNoCommissionMin'
 >;
+
+function defaultEtfMarketFeeValues(): Pick<
+  SecuritiesFeeFormValues,
+  | 'etfShCommissionWan'
+  | 'etfShCommissionMinYuan'
+  | 'etfShNoCommissionMin'
+  | 'etfSzCommissionWan'
+  | 'etfSzCommissionMinYuan'
+  | 'etfSzNoCommissionMin'
+> {
+  return {
+    etfShCommissionWan: DEFAULT_SECURITIES_COMMISSION_WAN,
+    etfShCommissionMinYuan: DEFAULT_SECURITIES_COMMISSION_MIN_YUAN,
+    etfShNoCommissionMin: false,
+    etfSzCommissionWan: DEFAULT_SECURITIES_COMMISSION_WAN,
+    etfSzCommissionMinYuan: DEFAULT_SECURITIES_COMMISSION_MIN_YUAN,
+    etfSzNoCommissionMin: false,
+  };
+}
 
 function defaultSecuritiesFeeValues(): SecuritiesFeeFormValues {
   return {
     commissionWan: DEFAULT_SECURITIES_COMMISSION_WAN,
     commissionMinYuan: DEFAULT_SECURITIES_COMMISSION_MIN_YUAN,
     noCommissionMin: false,
-    etfCommissionWan: DEFAULT_SECURITIES_COMMISSION_WAN,
-    etfCommissionMinYuan: DEFAULT_SECURITIES_COMMISSION_MIN_YUAN,
-    etfNoCommissionMin: false,
+    ...defaultEtfMarketFeeValues(),
   };
 }
 
@@ -62,23 +94,29 @@ function profileToFormValues(profile: FeeProfile | undefined, accountKind: Accou
           commissionWan: 0,
           commissionMinYuan: 0,
           noCommissionMin: true,
-          etfCommissionWan: 0,
-          etfCommissionMinYuan: 0,
-          etfNoCommissionMin: true,
+          etfShCommissionWan: 0,
+          etfShCommissionMinYuan: 0,
+          etfShNoCommissionMin: true,
+          etfSzCommissionWan: 0,
+          etfSzCommissionMinYuan: 0,
+          etfSzNoCommissionMin: true,
         }
       : defaultSecuritiesFeeValues();
   }
 
-  const etfRatePpm = profile.etfCommissionRatePpm ?? profile.commissionRatePpm;
-  const etfMinCents = profile.etfCommissionMinCents ?? profile.commissionMinCents;
+  const sh = resolveEtfMarketFormRates(profile, 'SH');
+  const sz = resolveEtfMarketFormRates(profile, 'SZ');
 
   return {
-    commissionWan: commissionPpmToWan(profile.commissionRatePpm),
+    commissionWan: profile.commissionWan,
     commissionMinYuan: profile.commissionMinCents / 100,
     noCommissionMin: profile.commissionMinCents === 0,
-    etfCommissionWan: commissionPpmToWan(etfRatePpm),
-    etfCommissionMinYuan: etfMinCents / 100,
-    etfNoCommissionMin: etfMinCents === 0,
+    etfShCommissionWan: sh.wan,
+    etfShCommissionMinYuan: sh.minYuan,
+    etfShNoCommissionMin: sh.noMin,
+    etfSzCommissionWan: sz.wan,
+    etfSzCommissionMinYuan: sz.minYuan,
+    etfSzNoCommissionMin: sz.noMin,
   };
 }
 
@@ -90,12 +128,62 @@ function toCustomFee(values: AccountFormValues): AccountCustomFeeInput {
   };
 
   if (values.accountKind === 'securities') {
-    customFee.etfCommissionWan = Number(values.etfCommissionWan) || 0;
-    customFee.etfCommissionMinYuan = values.etfNoCommissionMin ? 0 : Number(values.etfCommissionMinYuan) || 0;
-    customFee.etfNoCommissionMin = values.etfNoCommissionMin;
+    customFee.etfShCommissionWan = Number(values.etfShCommissionWan) || 0;
+    customFee.etfShCommissionMinYuan = values.etfShNoCommissionMin
+      ? 0
+      : Number(values.etfShCommissionMinYuan) || 0;
+    customFee.etfShNoCommissionMin = values.etfShNoCommissionMin;
+    customFee.etfSzCommissionWan = Number(values.etfSzCommissionWan) || 0;
+    customFee.etfSzCommissionMinYuan = values.etfSzNoCommissionMin
+      ? 0
+      : Number(values.etfSzCommissionMinYuan) || 0;
+    customFee.etfSzNoCommissionMin = values.etfSzNoCommissionMin;
   }
 
   return customFee;
+}
+
+interface EtfMarketFeeFieldsProps {
+  market: 'SH' | 'SZ';
+  wanField: 'etfShCommissionWan' | 'etfSzCommissionWan';
+  minField: 'etfShCommissionMinYuan' | 'etfSzCommissionMinYuan';
+  noMinField: 'etfShNoCommissionMin' | 'etfSzNoCommissionMin';
+  noMin: boolean;
+}
+
+function EtfMarketFeeFields({ market, wanField, minField, noMinField, noMin }: EtfMarketFeeFieldsProps): React.JSX.Element {
+  const label = market === 'SH' ? '上证 ETF / LOF' : '深证 ETF / LOF';
+  return (
+    <>
+      <p className="account-fee-subhead">{label}</p>
+      <div className="portfolio-form-row">
+        <Form.Item
+          label="佣金（万）"
+          name={wanField}
+          rules={[{ required: true, message: `请输入${label}佣金` }]}
+          extra="场内 ETF / LOF 适用"
+        >
+          <InputNumber className="full-width-input" min={0} max={30} step={0.01} precision={4} addonBefore="万" />
+        </Form.Item>
+        <Form.Item
+          label="最低佣金（元）"
+          name={minField}
+          rules={[{ required: !noMin, message: `请输入${label}最低佣金` }]}
+        >
+          <InputNumber
+            className="full-width-input"
+            min={0}
+            precision={2}
+            disabled={noMin}
+            addonAfter="元/笔"
+          />
+        </Form.Item>
+      </div>
+      <Form.Item name={noMinField} valuePropName="checked" className="account-fee-switch">
+        <Switch checkedChildren="无最低佣金" unCheckedChildren="有最低佣金" />
+      </Form.Item>
+    </>
+  );
 }
 
 /** 新建/编辑账户表单。 */
@@ -110,7 +198,8 @@ export function AccountFormModal({
   const [form] = Form.useForm<AccountFormValues>();
   const accountKind = Form.useWatch('accountKind', form) ?? 'securities';
   const noCommissionMin = Form.useWatch('noCommissionMin', form);
-  const etfNoCommissionMin = Form.useWatch('etfNoCommissionMin', form);
+  const etfShNoCommissionMin = Form.useWatch('etfShNoCommissionMin', form);
+  const etfSzNoCommissionMin = Form.useWatch('etfSzNoCommissionMin', form);
 
   useEffect(() => {
     if (!open) {
@@ -139,8 +228,14 @@ export function AccountFormModal({
 
   const handleKindChange = (kind: AccountKind): void => {
     const profile = editing ? feeProfiles.find((item) => item.id === editing.feeProfileId) : undefined;
+    const currentBroker = form.getFieldValue('broker') as AccountBroker | undefined;
+    const nextBroker =
+      currentBroker && isBrokerAllowedForAccountKind(currentBroker, kind)
+        ? currentBroker
+        : defaultBrokerForAccountKind(kind);
     form.setFieldsValue({
       accountKind: kind,
+      broker: nextBroker,
       ...profileToFormValues(kind === editing?.accountKind ? profile : undefined, kind),
     });
   };
@@ -197,8 +292,8 @@ export function AccountFormModal({
 
         <div className="account-broker-row">
           <div className="portfolio-form-row">
-            <Form.Item label="券商 / 渠道" name="broker" rules={[{ required: true, message: '请选择券商' }]}>
-              <BrokerSelect />
+            <Form.Item label="券商 / 渠道" name="broker" rules={[{ required: true, message: '请选择渠道' }]}>
+              <BrokerSelect accountKind={accountKind} />
             </Form.Item>
             <Form.Item label="别名" name="alias">
               <Input maxLength={80} placeholder="如 主账户、打新户" />
@@ -213,7 +308,7 @@ export function AccountFormModal({
             <span>
               {accountKind === 'fund'
                 ? '场外基金按申购佣金估算，无印花税与过户费'
-                : '股票与 ETF 分开设置佣金；ETF/LOF 卖出免印花税'}
+                : '股票与 ETF 分开设置佣金；上证与深证 ETF/LOF 可分别配置'}
             </span>
           </header>
 
@@ -256,33 +351,20 @@ export function AccountFormModal({
                 <Switch checkedChildren="无最低佣金" unCheckedChildren="有最低佣金" />
               </Form.Item>
 
-              <p className="account-fee-subhead">ETF / LOF</p>
-              <div className="portfolio-form-row">
-                <Form.Item
-                  label="佣金（万）"
-                  name="etfCommissionWan"
-                  rules={[{ required: true, message: '请输入 ETF 佣金' }]}
-                  extra="场内 ETF / LOF 适用"
-                >
-                  <InputNumber className="full-width-input" min={0} max={30} step={0.01} precision={4} addonBefore="万" />
-                </Form.Item>
-                <Form.Item
-                  label="最低佣金（元）"
-                  name="etfCommissionMinYuan"
-                  rules={[{ required: !etfNoCommissionMin, message: '请输入 ETF 最低佣金' }]}
-                >
-                  <InputNumber
-                    className="full-width-input"
-                    min={0}
-                    precision={2}
-                    disabled={etfNoCommissionMin}
-                    addonAfter="元/笔"
-                  />
-                </Form.Item>
-              </div>
-              <Form.Item name="etfNoCommissionMin" valuePropName="checked" className="account-fee-switch">
-                <Switch checkedChildren="无最低佣金" unCheckedChildren="有最低佣金" />
-              </Form.Item>
+              <EtfMarketFeeFields
+                market="SH"
+                wanField="etfShCommissionWan"
+                minField="etfShCommissionMinYuan"
+                noMinField="etfShNoCommissionMin"
+                noMin={etfShNoCommissionMin}
+              />
+              <EtfMarketFeeFields
+                market="SZ"
+                wanField="etfSzCommissionWan"
+                minField="etfSzCommissionMinYuan"
+                noMinField="etfSzNoCommissionMin"
+                noMin={etfSzNoCommissionMin}
+              />
 
               <p className="account-fee-note">
                 股票卖出收印花税 0.05%；ETF/LOF 卖出免印花税。沪 A 另收过户费 0.001%（系统固定）。

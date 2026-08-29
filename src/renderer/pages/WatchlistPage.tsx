@@ -11,24 +11,13 @@ import type {
   WatchlistPoolSnapshot,
 } from '../../shared/api.types';
 import type { DividendEvent, MarketSnapshotView } from '../../shared/api.types';
-import { formatCurrency, formatPrice } from '../lib/trading-format';
+import { formatPrice, ValueDisplay } from '../lib/trading-format';
 
 type PoolTab = WatchlistPoolId;
-
-function formatPercent(value: number | null | undefined, digits = 2): string {
-  if (value === null || value === undefined) return '—';
-  const prefix = value > 0 ? '+' : '';
-  return `${prefix}${value.toFixed(digits)}%`;
-}
 
 function formatYield(value: number | null | undefined): string {
   if (value === null || value === undefined) return '—';
   return `${value.toFixed(2)}%`;
-}
-
-function changeClass(value: number | null | undefined): string {
-  if (value === null || value === undefined || value === 0) return '';
-  return value > 0 ? 'market-up' : 'market-down';
 }
 
 function stabilityColor(grade: string): string {
@@ -144,9 +133,7 @@ export function WatchlistPage(): React.JSX.Element {
         width: 88,
         align: 'right',
         render: (_, row) => (
-          <span className={changeClass(row.quote?.changePercent)}>
-            {formatPercent(row.quote?.changePercent)}
-          </span>
+          <ValueDisplay kind="percent" value={row.quote?.changePercent ?? null} />
         ),
       },
       {
@@ -177,7 +164,7 @@ export function WatchlistPage(): React.JSX.Element {
         align: 'right',
         render: (_, row) => {
           const cost = row.liveLotCost ?? row.referenceLotCost;
-          return formatCurrency(cost);
+          return <ValueDisplay kind="currency" value={cost} />;
         },
       },
       {
@@ -228,9 +215,7 @@ export function WatchlistPage(): React.JSX.Element {
         width: 88,
         align: 'right',
         render: (_, row) => (
-          <span className={changeClass(row.quote?.changePercent)}>
-            {formatPercent(row.quote?.changePercent)}
-          </span>
+          <ValueDisplay kind="percent" value={row.quote?.changePercent ?? null} />
         ),
       },
       {
@@ -313,9 +298,7 @@ export function WatchlistPage(): React.JSX.Element {
         width: 88,
         align: 'right',
         render: (_, row) => (
-          <span className={changeClass(row.quote?.changePercent)}>
-            {formatPercent(row.quote?.changePercent)}
-          </span>
+          <ValueDisplay kind="percent" value={row.quote?.changePercent ?? null} />
         ),
       },
       {
@@ -480,8 +463,8 @@ export function WatchlistPage(): React.JSX.Element {
               </div>
               <div>
                 <dt>涨跌幅</dt>
-                <dd className={changeClass(detailSnapshot.quote.changePercent)}>
-                  {formatPercent(detailSnapshot.quote.changePercent)}
+                <dd>
+                  <ValueDisplay kind="percent" value={detailSnapshot.quote.changePercent} />
                 </dd>
               </div>
               <div>

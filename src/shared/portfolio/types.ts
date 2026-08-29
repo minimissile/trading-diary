@@ -1,7 +1,7 @@
 import type { InstrumentKind } from '../market/types';
 
 export type PortfolioLedgerSide = 'buy' | 'sell' | 'dividend_reinvest';
-export type PortfolioLedgerSource = 'manual' | 'csv' | 'plan';
+export type PortfolioLedgerSource = 'manual' | 'csv' | 'plan' | 'sip';
 export type DividendRecordStatus = 'estimated' | 'confirmed' | 'rejected';
 export type DividendRecordSource = 'api' | 'manual';
 
@@ -17,6 +17,16 @@ export interface CreatePortfolioLedgerInput {
   planId?: string | null;
   note?: string;
   source?: PortfolioLedgerSource;
+  sipOccurrenceId?: string | null;
+}
+
+export interface UpdatePortfolioLedgerInput {
+  side?: PortfolioLedgerSide;
+  quantity?: number;
+  price?: number;
+  fees?: number;
+  tradeAt?: string;
+  note?: string;
 }
 
 export interface PortfolioPositionView {
@@ -24,10 +34,18 @@ export interface PortfolioPositionView {
   name: string;
   kind: InstrumentKind;
   quantity: number;
+  /** 不含费用的加权成交均价（对齐券商「成本价」展示）。 */
+  avgPrice: number;
+  /** 含买入费用的摊薄成本。 */
   avgCost: number;
   marketPrice: number | null;
   marketValue: number | null;
+  /** 参考浮动盈亏 = 市值 − 成本 − 预估卖出费用（对齐券商展示）。 */
   unrealizedPnl: number | null;
+  /** 参考收益率 = 参考浮盈 / 含费总成本（对齐同花顺）。 */
+  unrealizedReturnPercent: number | null;
+  /** 当日盈亏（持仓数量 × 当日涨跌额），无行情时为 null。 */
+  dailyPnl: number | null;
   firstBuyAt: string | null;
   ytdDividendReceived: number;
   expectedDividend: number;
@@ -54,7 +72,10 @@ export interface PortfolioSummaryView {
   dailyAverage: number;
   totalMarketValue: number;
   totalCost: number;
+  /** 参考浮动盈亏合计（已扣预估卖出费用）。 */
   unrealizedPnl: number;
+  /** 组合当日盈亏合计。 */
+  dailyPnl: number;
   milestones: MilestoneState[];
   litMilestoneCount: number;
   lastRefreshedAt: string | null;
@@ -62,6 +83,7 @@ export interface PortfolioSummaryView {
 
 export interface PortfolioDividendRecord {
   id: string;
+  accountId: string;
   symbol: string;
   name: string;
   kind: InstrumentKind;
@@ -78,6 +100,7 @@ export interface PortfolioDividendRecord {
 export interface DividendCalendarDay {
   date: string;
   items: Array<{
+    accountId?: string;
     symbol: string;
     name: string;
     kind: InstrumentKind;
@@ -104,5 +127,6 @@ export interface PortfolioLedgerEntry {
   planId: string | null;
   note: string;
   source: PortfolioLedgerSource;
+  sipOccurrenceId: string | null;
   createdAt: string;
 }

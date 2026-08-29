@@ -11,6 +11,7 @@ const routeByNavigationKey: Readonly<Record<string, string>> = {
   watchlist: routePaths.watchlist,
   positions: routePaths.positions,
   dividends: routePaths.dividends,
+  sip: routePaths.sip,
   accounts: routePaths.accounts,
   alerts: routePaths.alerts,
   journal: routePaths.journal,
@@ -18,6 +19,7 @@ const routeByNavigationKey: Readonly<Record<string, string>> = {
   import: routePaths.import,
   analysis: routePaths.analysis,
   settings: routePaths.settings,
+  devChart: routePaths.devChart,
 };
 
 function navigationKeyFromPath(pathname: string): string {

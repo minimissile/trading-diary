@@ -51,6 +51,18 @@ async function bootstrap(): Promise<void> {
   updater.start();
 }
 
+function reregisterIpcHandlers(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  disposeIpc?.();
+  disposeIpc = registerIpcHandlers(mainWindow, service, updater);
+}
+
+if (import.meta.hot) {
+  import.meta.hot.accept('./ipc', () => {
+    reregisterIpcHandlers();
+  });
+}
+
 app.on('second-instance', () => {
   if (!mainWindow) return;
   if (mainWindow.isMinimized()) mainWindow.restore();
@@ -60,8 +72,7 @@ app.on('second-instance', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     mainWindow = createMainWindow();
-    disposeIpc?.();
-    disposeIpc = registerIpcHandlers(mainWindow, service, updater);
+    reregisterIpcHandlers();
   }
 });
 

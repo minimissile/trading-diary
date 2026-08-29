@@ -50,6 +50,11 @@ export class AccountService {
     return this.withSummary(this.accounts.archiveAccount(id));
   }
 
+  /** 永久删除已归档账户及其关联数据。 */
+  async delete(id: string): Promise<void> {
+    this.accounts.deleteAccount(id);
+  }
+
   listFeeProfiles(): FeeProfile[] {
     return this.accounts.listFeeProfiles();
   }
@@ -117,7 +122,7 @@ export class AccountService {
     const positions = await this.portfolioService.listPositions(account.id);
     const totalMarketValue = positions.reduce((sum, item) => sum + (item.marketValue ?? 0), 0);
     const totalCost = positions.reduce((sum, item) => sum + item.avgCost * item.quantity, 0);
-    const unrealizedPnl = totalMarketValue - totalCost;
+    const unrealizedPnl = positions.reduce((sum, item) => sum + (item.unrealizedPnl ?? 0), 0);
 
     return {
       ...account,

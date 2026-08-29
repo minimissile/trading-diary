@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { App, Empty, Progress, Skeleton, Statistic, Tag } from 'antd';
 import type { TradeReview, WorkspaceSnapshot } from '../../shared/api.types';
-import { formatCurrency } from '../lib/trading-format';
+import { statisticCurrencyFormatter } from '../lib/trading-format';
 
 export function AnalysisPage(): React.JSX.Element {
   const { message } = App.useApp();
@@ -75,7 +75,7 @@ export function AnalysisPage(): React.JSX.Element {
         <>
           <section className="analysis-hero">
             <article className={(snapshot?.totalPnl ?? 0) >= 0 ? 'metric-profit' : 'metric-loss'}>
-              <Statistic title="累计净盈亏" value={formatCurrency(snapshot?.totalPnl ?? 0)} />
+              <Statistic title="累计净盈亏" value={snapshot?.totalPnl ?? 0} formatter={statisticCurrencyFormatter} />
               <p>基于 {reviews.length} 笔已复盘交易</p>
             </article>
             <article>

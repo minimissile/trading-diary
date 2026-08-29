@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { PromptId } from '../../shared/llm/prompt-id';
 import { LlmNotConfiguredError } from '../../shared/llm/errors';
-import type { LlmCompletionResult, LlmPromptPreview, LlmUsageSummary, LlmUserSettings } from '../../shared/llm/types';
+import type { LlmCompletionResult, LlmContentPart, LlmPromptPreview, LlmUsageSummary, LlmUserSettings, PromptDefinition } from '../../shared/llm/types';
 import { assertOutputPolicy } from './guards/output-policy';
 import { PromptLoader } from './prompt-loader';
 import type { LlmProvider } from './providers/provider';
@@ -14,6 +14,8 @@ import { LlmSettingsStore, LlmUsageStore } from './usage-store';
 interface LlmDefaults {
   defaultModel: string;
   fallbackModels: string[];
+  pingTestModel: string;
+  pingTestFallbackModels: string[];
   timeoutMs: number;
   maxRetries: number;
   defaultMonthlyTokenBudget?: number;
@@ -36,6 +38,8 @@ function loadDefaults(): LlmDefaults {
   return {
     defaultModel: '~deepseek/deepseek-v4-flash-latest',
     fallbackModels: ['deepseek/deepseek-v4-flash-0731', 'qwen/qwen-plus', 'qwen/qwen3-32b'],
+    pingTestModel: 'google/gemini-2.5-flash',
+    pingTestFallbackModels: ['qwen/qwen-plus', 'openai/gpt-4o-mini'],
     timeoutMs: 60_000,
     maxRetries: 2,
     defaultMonthlyTokenBudget: 500_000,
@@ -145,6 +149,37 @@ export class LlmRunner {
       { role: 'user' as const, content: user },
     ];
 
+    return this.completeMessages(promptId, definition, messages);
+  }
+
+  /** 携带图片调用视觉模型，用于截图识别等场景。 */
+  async runVision(
+    promptId: PromptId,
+    variables: Record<string, string>,
+    imagePath: string,
+  ): Promise<LlmCompletionResult> {
+    this.assertConfigured();
+    this.assertBudget();
+
+    const { system, user, definition } = this.promptLoader.render(promptId, variables);
+    const imageUrl = loadImageDataUrl(imagePath);
+    const userContent: LlmContentPart[] = [
+      { type: 'text', text: user },
+      { type: 'image_url', image_url: { url: imageUrl } },
+    ];
+    const messages = [
+      { role: 'system' as const, content: system },
+      { role: 'user' as const, content: userContent },
+    ];
+
+    return this.completeMessages(promptId, definition, messages);
+  }
+
+  private async completeMessages(
+    promptId: PromptId,
+    definition: PromptDefinition,
+    messages: Array<{ role: 'system' | 'user'; content: string | LlmContentPart[] }>,
+  ): Promise<LlmCompletionResult> {
     let lastError: unknown;
     for (let attempt = 0; attempt <= this.defaults.maxRetries; attempt += 1) {
       try {
@@ -224,16 +259,17 @@ export class LlmRunner {
     const apiKey = this.credentialStore?.getApiKey() ?? process.env.OPENROUTER_API_KEY?.trim() ?? null;
     if (!apiKey) throw new LlmNotConfiguredError();
 
+    // 默认模型可能是 reasoning 路由，max_tokens 较小时只返回推理字段而无 content。
     const result = await this.provider.complete(
       [
         { role: 'system', content: '你是连接测试助手，只回复 OK。' },
         { role: 'user', content: 'ping' },
       ],
       {
-        model: this.defaults.defaultModel,
-        fallbackModels: this.defaults.fallbackModels,
+        model: this.defaults.pingTestModel,
+        fallbackModels: this.defaults.pingTestFallbackModels,
         temperature: 0,
-        maxTokens: 8,
+        maxTokens: 16,
         timeoutMs: this.defaults.timeoutMs,
       },
     );
@@ -244,4 +280,19 @@ export class LlmRunner {
 
 export function createLlmRunner(dataDir?: string, promptsDir?: string): LlmRunner {
   return new LlmRunner({ dataDir, promptsDir });
+}
+
+function loadImageDataUrl(imagePath: string): string {
+  const resolved = path.resolve(imagePath);
+  const extension = path.extname(resolved).toLowerCase();
+  const mediaType =
+    extension === '.png'
+      ? 'image/png'
+      : extension === '.webp'
+        ? 'image/webp'
+        : extension === '.gif'
+          ? 'image/gif'
+          : 'image/jpeg';
+  const base64 = fs.readFileSync(resolved).toString('base64');
+  return `data:${mediaType};base64,${base64}`;
 }

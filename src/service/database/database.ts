@@ -24,6 +24,7 @@ import { AccountDatabase } from '../accounts/account-database';
 import { EpisodeDatabase } from '../episodes/episode-database';
 import { PlaybookDatabase } from '../playbook/playbook-database';
 import { AlertEventDatabase } from '../alerts/alert-event-database';
+import { SipDatabase } from '../sip/sip-database';
 
 const PRICE_SCALE = 10_000;
 const QUANTITY_SCALE = 10_000;
@@ -134,6 +135,7 @@ export class AppDatabase {
   readonly episodes: EpisodeDatabase;
   readonly playbook: PlaybookDatabase;
   readonly alertEvents: AlertEventDatabase;
+  readonly sip: SipDatabase;
   private readonly db: DatabaseSync;
 
   constructor(filePath: string) {
@@ -164,6 +166,7 @@ export class AppDatabase {
     this.episodes = new EpisodeDatabase(this.db);
     this.playbook = new PlaybookDatabase(this.db);
     this.alertEvents = new AlertEventDatabase(this.db);
+    this.sip = new SipDatabase(this.db);
     if (this.schemaVersion() >= 3) {
       this.portfolio.ensureDefaultAccount();
     }
@@ -584,6 +587,9 @@ export class AppDatabase {
       pendingReviewPlans: pendingReviewPlans.slice(0, 6),
       pendingReviewEpisodes: pendingReviewEpisodes.slice(0, 6),
       recentReviews: reviews.slice(0, 5),
+      dueSipOccurrences: [],
+      activeSipPlanCount: 0,
+      dueSipOccurrenceCount: 0,
     };
   }
 

@@ -1,4 +1,5 @@
 import type { FeeProfileRates, TradeFeeInstrumentKind } from './types';
+import { roundCommissionWan } from './fee-utils';
 
 /** 场内 ETF/LOF 按独立佣金计费。 */
 export function usesEtfCommissionTier(kind?: TradeFeeInstrumentKind): boolean {
@@ -10,19 +11,51 @@ export function chargesStampDuty(side: 'buy' | 'sell', kind?: TradeFeeInstrument
   return side === 'sell' && !usesEtfCommissionTier(kind);
 }
 
-/** 解析实际佣金费率与最低佣金。 */
-export function resolveCommissionRates(
-  profile: FeeProfileRates,
-  kind?: TradeFeeInstrumentKind,
-): { ratePpm: number; minCents: number } {
-  if (usesEtfCommissionTier(kind) && profile.etfCommissionRatePpm != null) {
+function resolveEtfFallbackRates(profile: FeeProfileRates): { commissionWan: number; minCents: number } {
+  if (profile.etfCommissionWan != null) {
     return {
-      ratePpm: profile.etfCommissionRatePpm,
+      commissionWan: profile.etfCommissionWan,
       minCents: profile.etfCommissionMinCents ?? profile.commissionMinCents,
     };
   }
   return {
-    ratePpm: profile.commissionRatePpm,
+    commissionWan: profile.commissionWan,
+    minCents: profile.commissionMinCents,
+  };
+}
+
+function resolveMarketEtfRates(
+  profile: FeeProfileRates,
+  market: 'SH' | 'SZ' | null,
+): { commissionWan: number; minCents: number } | null {
+  if (market === 'SH' && profile.etfShCommissionWan != null) {
+    return {
+      commissionWan: profile.etfShCommissionWan,
+      minCents: profile.etfShCommissionMinCents ?? profile.commissionMinCents,
+    };
+  }
+  if (market === 'SZ' && profile.etfSzCommissionWan != null) {
+    return {
+      commissionWan: profile.etfSzCommissionWan,
+      minCents: profile.etfSzCommissionMinCents ?? profile.commissionMinCents,
+    };
+  }
+  return null;
+}
+
+/** 解析实际佣金（万 X）与最低佣金。 */
+export function resolveCommissionWan(
+  profile: FeeProfileRates,
+  kind?: TradeFeeInstrumentKind,
+  market?: 'SH' | 'SZ' | null,
+): { commissionWan: number; minCents: number } {
+  if (usesEtfCommissionTier(kind)) {
+    const marketRates = resolveMarketEtfRates(profile, market ?? null);
+    if (marketRates) return marketRates;
+    return resolveEtfFallbackRates(profile);
+  }
+  return {
+    commissionWan: roundCommissionWan(profile.commissionWan),
     minCents: profile.commissionMinCents,
   };
 }

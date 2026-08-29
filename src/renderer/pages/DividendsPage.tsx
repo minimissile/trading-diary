@@ -18,9 +18,11 @@ import type {
   PortfolioDividendRecord,
   PortfolioSummaryView,
 } from '../../shared/api.types';
-import { formatCurrency, formatPrice } from '../lib/trading-format';
+import { ALL_ACCOUNTS_ID, isAllAccountsId } from '../../shared/accounts/constants';
+import { formatAccountSelectLabel } from '../../shared/accounts/account-display';
+import { pricePresetForKind, quantityPresetForKind } from '../../shared/format/display-presets';
+import { ValueDisplay } from '../lib/trading-format';
 import { AccountSelect } from '../components/trading/AccountSelect';
-import { useTradingAccountId } from '../hooks/useTradingAccountId';
 
 type DividendsTab = 'overview' | 'calendar' | 'dividends';
 
@@ -41,10 +43,17 @@ export function DividendsPage(): React.JSX.Element {
   const [calendarMonth, setCalendarMonth] = useState(currentMonth());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [accountId, setAccountId] = useTradingAccountId();
+  const [accountId, setAccountId] = useState<string>(ALL_ACCOUNTS_ID);
+  const [accountLabels, setAccountLabels] = useState<Map<string, string>>(new Map());
+  const allAccountsView = isAllAccountsId(accountId);
+
+  useEffect(() => {
+    void window.desktop.accounts.list().then((accounts) => {
+      setAccountLabels(new Map(accounts.map((item) => [item.id, formatAccountSelectLabel(item)])));
+    });
+  }, []);
 
   const load = useCallback(async (silent = false): Promise<void> => {
-    if (!accountId) return;
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
@@ -70,7 +79,6 @@ export function DividendsPage(): React.JSX.Element {
   }, [load]);
 
   const refreshDividends = async (): Promise<void> => {
-    if (!accountId) return;
     setRefreshing(true);
     try {
       const result = await window.desktop.portfolio.refreshDividends(accountId);
@@ -84,10 +92,10 @@ export function DividendsPage(): React.JSX.Element {
   };
 
   const confirmDividend = async (id: string, confirmed: boolean): Promise<void> => {
-    if (!accountId) return;
+    const year = new Date().getFullYear();
     try {
-      setDividends(await window.desktop.portfolio.confirmDividend(id, confirmed));
-      setSummary(await window.desktop.portfolio.getSummary(accountId, new Date().getFullYear()));
+      setDividends(await window.desktop.portfolio.confirmDividend(id, confirmed, undefined, accountId, year));
+      setSummary(await window.desktop.portfolio.getSummary(accountId, year));
       void message.success(confirmed ? '分红已确认' : '分红已驳回');
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '操作失败');
@@ -96,6 +104,16 @@ export function DividendsPage(): React.JSX.Element {
 
   const dividendColumns = useMemo<ColumnsType<PortfolioDividendRecord>>(
     () => [
+      ...(allAccountsView
+        ? [
+            {
+              title: '账户',
+              dataIndex: 'accountId',
+              width: 120,
+              render: (id: string) => accountLabels.get(id) ?? id,
+            } as const,
+          ]
+        : []),
       {
         title: '除权日',
         dataIndex: 'exDividendDate',
@@ -118,21 +136,21 @@ export function DividendsPage(): React.JSX.Element {
         dataIndex: 'cashPerShare',
         width: 96,
         align: 'right',
-        render: (value: number) => formatPrice(value),
+        render: (value: number, row) => <ValueDisplay kind={pricePresetForKind(row.kind)} value={value} />,
       },
       {
         title: '持有份额',
         dataIndex: 'eligibleQuantity',
         width: 96,
         align: 'right',
-        render: (value: number) => formatPrice(value),
+        render: (value: number, row) => <ValueDisplay kind={quantityPresetForKind(row.kind)} value={value} />,
       },
       {
         title: '税前金额',
         dataIndex: 'cashAmount',
         width: 108,
         align: 'right',
-        render: (value: number) => formatCurrency(value),
+        render: (value: number) => <ValueDisplay kind="currency" value={value} />,
       },
       {
         title: '状态',
@@ -157,7 +175,7 @@ export function DividendsPage(): React.JSX.Element {
           ) : null,
       },
     ],
-    [],
+    [accountLabels, allAccountsView],
   );
 
   const calendarCellMap = useMemo(() => {
@@ -176,10 +194,19 @@ export function DividendsPage(): React.JSX.Element {
         <div>
           <p className="page-kicker">DIVIDENDS</p>
           <h1>股息与分红</h1>
-          <p className="page-intro">统计建仓后收到的分红，累计分红仅含已确认记录。</p>
+          <p className="page-intro">
+            {allAccountsView
+              ? '汇总全部账户的分红统计，累计分红仅含已确认记录。'
+              : '统计建仓后收到的分红，累计分红仅含已确认记录。'}
+          </p>
         </div>
         <div className="portfolio-header-actions">
-          <AccountSelect value={accountId} onChange={setAccountId} className="portfolio-account-select" />
+          <AccountSelect
+            value={accountId}
+            onChange={setAccountId}
+            includeAllOption
+            className="portfolio-account-select"
+          />
           <Button
             icon={<ReloadOutlined spin={refreshing} />}
             loading={refreshing}
@@ -195,35 +222,39 @@ export function DividendsPage(): React.JSX.Element {
         type="info"
         showIcon
         title="股息来自公开 API 与用户录入，可能与券商对账单不一致"
-        description="不构成投资建议。点亮墙仅反映已确认累计分红，不含预期分红。"
+        description={
+          allAccountsView
+            ? '不构成投资建议。汇总视图合并全部账户，点亮墙仅反映已确认累计分红，不含预期分红。'
+            : '不构成投资建议。点亮墙仅反映已确认累计分红，不含预期分红。'
+        }
       />
 
       {loading && !summary ? (
         <Skeleton active paragraph={{ rows: 14 }} />
       ) : (
         <>
-          <section className="portfolio-metrics">
+          <section className="portfolio-metrics portfolio-metrics--four">
             <article className="portfolio-metric-card portfolio-metric-card--primary">
               <small>今年累计分红</small>
-              <strong>{formatCurrency(summary?.ytdReceived ?? 0)}</strong>
+              <ValueDisplay as="strong" kind="currency" value={summary?.ytdReceived ?? 0} />
               <span>已确认 · {summary?.year ?? new Date().getFullYear()}</span>
             </article>
             <article className="portfolio-metric-card">
               <small>预期分红</small>
-              <strong>{formatCurrency(summary?.expectedDividend ?? 0)}</strong>
+              <ValueDisplay as="strong" kind="currency" value={summary?.expectedDividend ?? 0} />
               <span>已公告待除权</span>
             </article>
             <article className="portfolio-metric-card">
               <small>日均分红</small>
-              <strong>{formatCurrency(summary?.dailyAverage ?? 0)}</strong>
+              <ValueDisplay as="strong" kind="currency" value={summary?.dailyAverage ?? 0} />
               <span>按日历天折算</span>
             </article>
             <article className="portfolio-metric-card">
-              <small>点亮进度</small>
-              <strong>
-                {summary?.litMilestoneCount ?? 0} / {summary?.milestones.length ?? 0}
-              </strong>
-              <span>分红里程碑</span>
+              <small>持仓市值</small>
+              <ValueDisplay as="strong" kind="currency" value={summary?.totalMarketValue ?? 0} />
+              <span>
+                成本 <ValueDisplay kind="currency" value={summary?.totalCost ?? 0} />
+              </span>
             </article>
           </section>
 
@@ -241,7 +272,7 @@ export function DividendsPage(): React.JSX.Element {
                     <article className={milestone.lit ? 'portfolio-milestone lit' : 'portfolio-milestone'}>
                       <span className="portfolio-milestone-emoji">{milestone.emoji}</span>
                       <strong>{milestone.name}</strong>
-                      <small>¥{milestone.threshold.toLocaleString('zh-CN')}</small>
+                      <small><ValueDisplay kind="currency" value={milestone.threshold} /></small>
                       {!milestone.lit ? (
                         <div className="portfolio-milestone-progress">
                           <i style={{ width: `${Math.round(milestone.progress * 100)}%` }} />
@@ -291,7 +322,6 @@ export function DividendsPage(): React.JSX.Element {
                 onPanelChange={(value) => {
                   const month = `${value.year()}-${String(value.month() + 1).padStart(2, '0')}`;
                   setCalendarMonth(month);
-                  if (!accountId) return;
                   void window.desktop.portfolio.getDividendCalendar(accountId, month).then(setCalendarDays);
                 }}
                 cellRender={(current, info) => {
@@ -302,13 +332,18 @@ export function DividendsPage(): React.JSX.Element {
                   const total = items.reduce((sum, item) => sum + item.cashAmount, 0);
                   return (
                     <ul className="portfolio-calendar-cell">
-                      {items.slice(0, 2).map((item) => (
-                        <li key={`${item.symbol}-${item.status}`}>
-                          {item.name} {formatCurrency(item.cashAmount)}
+                      {items.slice(0, 2).map((item, index) => (
+                        <li key={`${item.accountId ?? 'all'}-${item.symbol}-${item.status}-${index}`}>
+                          {allAccountsView && item.accountId
+                            ? `${accountLabels.get(item.accountId) ?? item.accountId} · `
+                            : ''}
+                          {item.name} <ValueDisplay kind="currency" value={item.cashAmount} />
                         </li>
                       ))}
                       {items.length > 2 ? <li>+{items.length - 2} 条</li> : null}
-                      <li className="portfolio-calendar-total">{formatCurrency(total)}</li>
+                      <li className="portfolio-calendar-total">
+                        <ValueDisplay kind="currency" value={total} />
+                      </li>
                     </ul>
                   );
                 }}

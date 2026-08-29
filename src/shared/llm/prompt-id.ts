@@ -3,6 +3,7 @@ export const PROMPT_IDS = {
   REVIEW_SUMMARIZE: 'review.summarize',
   RELEASE_NOTES: 'release.notes',
   RELEASE_PLAN: 'release.plan',
+  SIP_IMPORT_SCREENSHOT: 'sip.import.screenshot',
 } as const;
 
 export type PromptId = (typeof PROMPT_IDS)[keyof typeof PROMPT_IDS];

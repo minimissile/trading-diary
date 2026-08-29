@@ -5,6 +5,9 @@ export interface PositionAggregate {
   symbol: string;
   kind: InstrumentKind;
   quantity: number;
+  /** 不含费用的加权成交均价（对齐券商「成本价」展示）。 */
+  avgPrice: number;
+  /** 含买入费用的摊薄成本。 */
   avgCost: number;
   totalCost: number;
   firstBuyAt: string | null;
@@ -43,6 +46,7 @@ export function aggregatePositions(entries: readonly PortfolioLedgerEntry[]): Po
     const sorted = sortedEntries(symbolEntries);
     let quantity = 0;
     let totalCost = 0;
+    let totalPriceAmount = 0;
     let firstBuyAt: string | null = null;
 
     for (const entry of sorted) {
@@ -50,17 +54,21 @@ export function aggregatePositions(entries: readonly PortfolioLedgerEntry[]): Po
       if (delta > 0) {
         if (firstBuyAt === null) firstBuyAt = entry.tradeAt;
         totalCost += delta * entry.price + entry.fees;
+        totalPriceAmount += delta * entry.price;
         quantity += delta;
       } else {
         const sellQty = Math.abs(delta);
         if (quantity <= 0) continue;
         const consumed = Math.min(sellQty, quantity);
         const avg = quantity > 0 ? totalCost / quantity : 0;
+        const avgPrice = quantity > 0 ? totalPriceAmount / quantity : 0;
         totalCost -= avg * consumed;
+        totalPriceAmount -= avgPrice * consumed;
         quantity -= consumed;
         if (quantity <= 1e-8) {
           quantity = 0;
           totalCost = 0;
+          totalPriceAmount = 0;
         }
       }
     }
@@ -71,6 +79,7 @@ export function aggregatePositions(entries: readonly PortfolioLedgerEntry[]): Po
       symbol,
       kind: sorted[0]?.kind ?? 'stock',
       quantity,
+      avgPrice: quantity > 0 ? totalPriceAmount / quantity : 0,
       avgCost: quantity > 0 ? totalCost / quantity : 0,
       totalCost,
       firstBuyAt,

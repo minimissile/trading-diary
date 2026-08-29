@@ -79,3 +79,18 @@ export function asNumber(value: unknown): number | null {
   }
   return null;
 }
+
+/** ulist + fltt=2 时 f60 昨收字段会失真，需用现价与涨跌幅反推。 */
+export function isPlausiblePrevClose(prevClose: number | null, price: number): boolean {
+  if (prevClose === null || prevClose <= 0 || price <= 0) return false;
+  return Math.abs(prevClose - price) / price <= 0.3;
+}
+
+/** 由现价与涨跌幅（%）反推昨收与涨跌额。 */
+export function deriveDayMoveFromPercent(
+  price: number,
+  changePercent: number,
+): { prevClose: number; change: number } {
+  const prevClose = price / (1 + changePercent / 100);
+  return { prevClose, change: price - prevClose };
+}
