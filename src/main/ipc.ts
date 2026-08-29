@@ -12,18 +12,41 @@ import type {
 import type { CreateTradingAccountInput, FeeEstimateInput, UpdateTradingAccountInput } from '../shared/accounts/types';
 import type { CreateExecutionInput } from '../shared/episodes/types';
 import type { ExecutionImportInput } from '../shared/import/types';
-import type { AlertEvent } from '../shared/alerts/event-types';
+import type { AlertEvent, AlertEventUserAction } from '../shared/alerts/event-types';
 import type {
   CreatePlaybookRuleInput,
   PlaybookRuleStatus,
   UpdatePlaybookRuleInput,
 } from '../shared/playbook/types';
-import type { AlertEventUserAction } from '../shared/alerts/event-types';
 import { ipcChannels } from '../shared/ipc-channels';
 import type { ServiceHost } from './service-host';
 import type { UpdateManager } from './updater/update-manager';
 
 const activeStreamCancels = new Map<string, () => void>();
+const ALERT_POLL_INTERVAL_MS = 60_000;
+
+function notifyTriggeredAlerts(window: BrowserWindow, events: readonly AlertEvent[]): void {
+  if (events.length === 0) return;
+
+  if (Notification.isSupported()) {
+    for (const event of events) {
+      const notification = new Notification({
+        title: `${event.symbol} · 提醒已触发`,
+        body: `${event.title}｜触发价 ${event.triggerPrice}，目标价 ${event.targetPrice}`,
+      });
+      notification.on('click', () => {
+        if (window.isMinimized()) window.restore();
+        window.show();
+        window.focus();
+      });
+      notification.show();
+    }
+  }
+
+  if (!window.isDestroyed()) {
+    window.webContents.send(ipcChannels.workspaceChanged);
+  }
+}
 
 function assertTrustedSender(event: IpcMainInvokeEvent, window: BrowserWindow): void {
   if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame) {
@@ -107,20 +130,7 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
   ipcMain.handle(ipcChannels.evaluateAlertPrice, async (event, input: { symbol: string; price: number }) => {
     assertTrustedSender(event, window);
     const result = await service.request('alerts.evaluatePrice', input);
-    if (Notification.isSupported()) {
-      for (const alert of result.newlyTriggered) {
-        const notification = new Notification({
-          title: `${alert.symbol} · 提醒已触发`,
-          body: `${alert.title}｜最新价 ${result.price}，目标价 ${alert.targetPrice}`,
-        });
-        notification.on('click', () => {
-          if (window.isMinimized()) window.restore();
-          window.show();
-          window.focus();
-        });
-        notification.show();
-      }
-    }
+    notifyTriggeredAlerts(window, result.newlyTriggeredEvents);
     return result;
   });
 
@@ -472,6 +482,61 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     return service.request('import.commitExecutions', input);
   });
 
+  ipcMain.handle(ipcChannels.playbookList, (event, input?: { status?: PlaybookRuleStatus }) => {
+    assertTrustedSender(event, window);
+    return service.request('playbook.list', input ?? {});
+  });
+
+  ipcMain.handle(ipcChannels.playbookCreate, (event, input: CreatePlaybookRuleInput) => {
+    assertTrustedSender(event, window);
+    return service.request('playbook.create', input);
+  });
+
+  ipcMain.handle(ipcChannels.playbookUpdate, (event, input: { id: string; input: UpdatePlaybookRuleInput }) => {
+    assertTrustedSender(event, window);
+    return service.request('playbook.update', input);
+  });
+
+  ipcMain.handle(ipcChannels.playbookArchive, (event, input: { id: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('playbook.archive', input);
+  });
+
+  ipcMain.handle(ipcChannels.playbookActivationChecklist, (event, input?: { symbol?: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('playbook.activationChecklist', input ?? {});
+  });
+
+  ipcMain.handle(ipcChannels.alertsListEvents, (event, input?: { limit?: number }) => {
+    assertTrustedSender(event, window);
+    return service.request('alerts.listEvents', input ?? {});
+  });
+
+  ipcMain.handle(ipcChannels.alertsSetEventAction, (event, input: { id: string; action: AlertEventUserAction }) => {
+    assertTrustedSender(event, window);
+    return service.request('alerts.setEventAction', input);
+  });
+
+  ipcMain.handle(ipcChannels.alertsPollActive, async (event) => {
+    assertTrustedSender(event, window);
+    const result = await service.request('alerts.pollActive', {});
+    notifyTriggeredAlerts(window, result.newlyTriggered);
+    return result;
+  });
+
+  const alertPollTimer = setInterval(() => {
+    if (window.isDestroyed()) return;
+    void service
+      .request('alerts.pollActive', {})
+      .then((result) => notifyTriggeredAlerts(window, result.newlyTriggered))
+      .catch(() => undefined);
+  }, ALERT_POLL_INTERVAL_MS);
+
+  void service
+    .request('alerts.pollActive', {})
+    .then((result) => notifyTriggeredAlerts(window, result.newlyTriggered))
+    .catch(() => undefined);
+
   ipcMain.handle(ipcChannels.getUpdateState, (event) => {
     assertTrustedSender(event, window);
     return updater.getState();
@@ -502,6 +567,7 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
   });
 
   return () => {
+    clearInterval(alertPollTimer);
     unsubscribeUpdater();
     for (const streamId of [...activeStreamCancels.keys()]) {
       activeStreamCancels.get(streamId)?.();
@@ -559,6 +625,14 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     ipcMain.removeHandler(ipcChannels.importSelectCsv);
     ipcMain.removeHandler(ipcChannels.importPreviewExecutions);
     ipcMain.removeHandler(ipcChannels.importCommitExecutions);
+    ipcMain.removeHandler(ipcChannels.playbookList);
+    ipcMain.removeHandler(ipcChannels.playbookCreate);
+    ipcMain.removeHandler(ipcChannels.playbookUpdate);
+    ipcMain.removeHandler(ipcChannels.playbookArchive);
+    ipcMain.removeHandler(ipcChannels.playbookActivationChecklist);
+    ipcMain.removeHandler(ipcChannels.alertsListEvents);
+    ipcMain.removeHandler(ipcChannels.alertsSetEventAction);
+    ipcMain.removeHandler(ipcChannels.alertsPollActive);
     ipcMain.removeHandler(ipcChannels.getUpdateState);
     ipcMain.removeHandler(ipcChannels.checkForUpdates);
     ipcMain.removeHandler(ipcChannels.downloadUpdate);

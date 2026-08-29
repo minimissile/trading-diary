@@ -64,6 +64,11 @@ const desktopApi: DesktopApi = {
   },
   workspace: {
     snapshot: () => ipcRenderer.invoke(ipcChannels.workspaceSnapshot),
+    onChanged: (listener: () => void) => {
+      const handler = (): void => listener();
+      ipcRenderer.on(ipcChannels.workspaceChanged, handler);
+      return () => ipcRenderer.removeListener(ipcChannels.workspaceChanged, handler);
+    },
   },
   plans: {
     list: () => ipcRenderer.invoke(ipcChannels.listPlans),
@@ -75,6 +80,8 @@ const desktopApi: DesktopApi = {
     create: (input) => ipcRenderer.invoke(ipcChannels.createAlert, input),
     setStatus: (id, status) => ipcRenderer.invoke(ipcChannels.setAlertStatus, { id, status }),
     evaluatePrice: (symbol, price) => ipcRenderer.invoke(ipcChannels.evaluateAlertPrice, { symbol, price }),
+    listEvents: (limit) => ipcRenderer.invoke(ipcChannels.alertsListEvents, { limit }),
+    setEventAction: (id, action) => ipcRenderer.invoke(ipcChannels.alertsSetEventAction, { id, action }),
   },
   reviews: {
     list: () => ipcRenderer.invoke(ipcChannels.listReviews),
@@ -172,6 +179,13 @@ const desktopApi: DesktopApi = {
     selectCsvFile: () => ipcRenderer.invoke(ipcChannels.importSelectCsv),
     previewExecutions: (input) => ipcRenderer.invoke(ipcChannels.importPreviewExecutions, input),
     commitExecutions: (input) => ipcRenderer.invoke(ipcChannels.importCommitExecutions, input),
+  },
+  playbook: {
+    list: (status) => ipcRenderer.invoke(ipcChannels.playbookList, { status }),
+    create: (input) => ipcRenderer.invoke(ipcChannels.playbookCreate, input),
+    update: (id, input) => ipcRenderer.invoke(ipcChannels.playbookUpdate, { id, input }),
+    archive: (id) => ipcRenderer.invoke(ipcChannels.playbookArchive, { id }),
+    activationChecklist: (symbol) => ipcRenderer.invoke(ipcChannels.playbookActivationChecklist, { symbol }),
   },
 };
 

@@ -51,8 +51,17 @@ export class ServiceHost {
     });
 
     this.child = child;
-    child.stdout?.on('data', (chunk: Buffer) => console.info('[service]', chunk.toString().trimEnd()));
-    child.stderr?.on('data', (chunk: Buffer) => console.error('[service]', chunk.toString().trimEnd()));
+    const verboseServiceLogs = process.env.TRADING_DIARY_VERBOSE === '1';
+    child.stdout?.on('data', (chunk: Buffer) => {
+      if (!verboseServiceLogs) return;
+      console.info('[service]', chunk.toString().trimEnd());
+    });
+    child.stderr?.on('data', (chunk: Buffer) => {
+      const text = chunk.toString().trimEnd();
+      if (!text) return;
+      if (!verboseServiceLogs && text.includes('ExperimentalWarning: SQLite')) return;
+      console.error('[service]', text);
+    });
     child.on('message', (message: ServiceToMainMessage) => this.handleMessage(message));
     child.on('exit', (code) => this.handleExit(code));
 

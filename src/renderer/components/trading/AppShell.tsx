@@ -14,6 +14,7 @@ const routeByNavigationKey: Readonly<Record<string, string>> = {
   accounts: routePaths.accounts,
   alerts: routePaths.alerts,
   journal: routePaths.journal,
+  playbook: routePaths.playbook,
   import: routePaths.import,
   analysis: routePaths.analysis,
   settings: routePaths.settings,
@@ -64,9 +65,13 @@ export function AppShell(): React.JSX.Element {
       });
     const handler = (): void => void refreshAlertCount();
     window.addEventListener('workspace-changed', handler);
+    const unsubscribe = window.desktop.workspace.onChanged(() => {
+      window.dispatchEvent(new Event('workspace-changed'));
+    });
     return () => {
       active = false;
       window.removeEventListener('workspace-changed', handler);
+      unsubscribe();
     };
   }, [refreshAlertCount]);
 

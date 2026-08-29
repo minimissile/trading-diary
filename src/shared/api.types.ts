@@ -362,6 +362,7 @@ export interface DesktopApi {
   };
   workspace: {
     snapshot: () => Promise<WorkspaceSnapshot>;
+    onChanged: (listener: () => void) => () => void;
   };
   plans: {
     list: () => Promise<TradingPlan[]>;

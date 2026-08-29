@@ -286,7 +286,7 @@ export function SettingsPage(): React.JSX.Element {
             type="success"
             showIcon
             style={{ marginBottom: 16 }}
-            message="Pro 已激活"
+            title="Pro 已激活"
             description={licenseNotice}
             closable
             onClose={() => setLicenseNotice(null)}
@@ -341,7 +341,7 @@ export function SettingsPage(): React.JSX.Element {
             <Alert
               type="info"
               showIcon
-              message="当前已通过 License 激活"
+              title="当前已通过 License 激活"
               action={
                 <Button size="small" onClick={() => setShowRenewForm(true)}>
                   更换激活码
@@ -425,7 +425,7 @@ export function SettingsPage(): React.JSX.Element {
             <Alert
               type="success"
               showIcon
-              message="最近一次导出"
+              title="最近一次导出"
               description={
                 <>
                   <div>{lastBackup.filePath}</div>

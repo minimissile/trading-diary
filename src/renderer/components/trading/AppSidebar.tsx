@@ -6,6 +6,7 @@ import {
   DashboardOutlined,
   HistoryOutlined,
   ImportOutlined,
+  SafetyCertificateOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   ProjectOutlined,
@@ -25,6 +26,7 @@ const navItems = [
   { key: 'alerts', label: '提醒中心', icon: BellOutlined },
   { key: 'import', label: '成交导入', icon: ImportOutlined },
   { key: 'journal', label: '交易日记', icon: HistoryOutlined },
+  { key: 'playbook', label: '规则库', icon: SafetyCertificateOutlined },
   { key: 'analysis', label: '分析报表', icon: BarChartOutlined },
   { key: 'settings', label: '数据与设置', icon: SettingOutlined },
 ] as const;

@@ -47,6 +47,7 @@ interface ReviewFormValues {
   executionScore: number;
   summary: string;
   lesson: string;
+  saveToPlaybook: boolean;
 }
 
 export function JournalPage(): React.JSX.Element {
@@ -549,6 +550,7 @@ function NewReviewDialog({
         planId: values.planId ?? null,
         episodeId: values.episodeId ?? null,
         symbol: values.symbol.trim().toUpperCase(),
+        saveToPlaybook: values.saveToPlaybook,
       };
       await window.desktop.reviews.create(input);
       form.resetFields();
@@ -653,6 +655,9 @@ function NewReviewDialog({
         </Form.Item>
         <Form.Item label="下一次要执行的规则" name="lesson" rules={[{ required: true, message: '请写下一条行动规则' }]}>
           <Input.TextArea rows={3} maxLength={2000} showCount placeholder="写成可以在下一笔交易前检查的动作。" />
+        </Form.Item>
+        <Form.Item label="写入规则库" name="saveToPlaybook" valuePropName="checked" initialValue={true}>
+          <Switch checkedChildren="是" unCheckedChildren="否" />
         </Form.Item>
       </Form>
     </Modal>

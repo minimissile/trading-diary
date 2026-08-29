@@ -107,7 +107,7 @@ export function SymbolSearchInput({
   return (
     <AutoComplete
       className="symbol-search-input"
-      popupClassName="trading-select-dropdown"
+      classNames={{ popup: { root: 'trading-select-dropdown' } }}
       getPopupContainer={(trigger) => trigger.ownerDocument.body}
       disabled={disabled}
       options={autoCompleteOptions}

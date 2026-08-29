@@ -22,7 +22,7 @@ describe('AppDatabase', () => {
   it('执行数据库迁移并汇总图片资源元数据', () => {
     const database = new AppDatabase(path.join(temporaryDirectory(), 'database', 'app.sqlite'));
 
-    expect(database.schemaVersion()).toBe(9);
+    expect(database.schemaVersion()).toBe(10);
     expect(database.sqliteVersion()).toMatch(/^3\./u);
     expect(database.assetStats()).toEqual({ count: 0, originalBytes: 0, previewBytes: 0 });
 

@@ -875,6 +875,67 @@
   font-size: 12px;
 }
 
+.playbook-rule-list {
+  display: grid;
+  gap: 12px;
+}
+
+.playbook-rule-card {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 28, 44, 0.72);
+  display: grid;
+  gap: 10px;
+}
+
+.playbook-rule-card-header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.playbook-rule-card footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  color: var(--td-text-muted, #8fa3b8);
+  font-size: 12px;
+}
+
+.playbook-rule-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.playbook-checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.playbook-checklist-empty {
+  color: var(--td-text-muted, #8fa3b8);
+}
+
+.alert-event-list {
+  display: grid;
+  gap: 10px;
+}
+
+.alert-event-card {
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 28, 44, 0.55);
+  display: grid;
+  gap: 6px;
+}
+
 .review-list {
   display: grid;
   gap: 12px;

@@ -5,6 +5,7 @@ import type {
   TradeDirection,
   TradingPlanStatus,
 } from '../../shared/api.types';
+import type { PlaybookCheckTiming, PlaybookRuleCategory } from '../../shared/playbook/types';
 
 export const planStatusLabels: Readonly<Record<TradingPlanStatus, string>> = {
   draft: '草稿',
@@ -46,6 +47,21 @@ export const alertRoleLabels: Readonly<Record<TradeAlertRole, string>> = {
 export const directionLabels: Readonly<Record<TradeDirection, string>> = {
   long: '做多',
   short: '做空',
+};
+
+export const playbookCategoryLabels: Readonly<Record<PlaybookRuleCategory, string>> = {
+  entry: '入场',
+  position: '仓位',
+  stop: '止损',
+  exit: '退出',
+  market: '市场环境',
+  emotion: '情绪',
+  process: '操作流程',
+};
+
+export const playbookCheckTimingLabels: Readonly<Record<PlaybookCheckTiming, string>> = {
+  plan_activation: '计划激活前',
+  always: '始终适用',
 };
 
 export function formatPrice(value: number): string {

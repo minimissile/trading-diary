@@ -553,7 +553,7 @@ export function HomePage(): React.JSX.Element {
               percent={63}
               size={78}
               strokeColor="#f5a623"
-              trailColor="#274055"
+              railColor="#274055"
               format={(percent) => (
                 <span className="risk-gauge-value">
                   {percent}%<small>中等</small>

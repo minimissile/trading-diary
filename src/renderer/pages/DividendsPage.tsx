@@ -194,7 +194,7 @@ export function DividendsPage(): React.JSX.Element {
         className="watchlist-disclaimer"
         type="info"
         showIcon
-        message="股息来自公开 API 与用户录入，可能与券商对账单不一致"
+        title="股息来自公开 API 与用户录入，可能与券商对账单不一致"
         description="不构成投资建议。点亮墙仅反映已确认累计分红，不含预期分红。"
       />
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, App, Button, Empty, Form, Input, InputNumber, Modal, Radio, Segmented, Skeleton, Space, Tag } from 'antd';
 import type { CreateTradeAlertInput, TradeAlert, TradeAlertCondition, TradeAlertStatus } from '../../shared/api.types';
+import type { AlertEvent } from '../../shared/alerts/event-types';
 import {
   alertRoleLabels,
   alertStatusColors,
@@ -16,13 +17,14 @@ interface QuoteFormValues {
   price: number;
 }
 
-type AlertFilter = 'open' | 'history';
+type AlertFilter = 'open' | 'history' | 'events';
 
 export function AlertsPage(): React.JSX.Element {
   const { message } = App.useApp();
   const [quoteForm] = Form.useForm<QuoteFormValues>();
   const [createForm] = Form.useForm<CreateTradeAlertInput>();
   const [alerts, setAlerts] = useState<TradeAlert[]>([]);
+  const [events, setEvents] = useState<AlertEvent[]>([]);
   const [filter, setFilter] = useState<AlertFilter>('open');
   const [createOpen, setCreateOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -32,7 +34,9 @@ export function AlertsPage(): React.JSX.Element {
 
   const load = useCallback(async (): Promise<void> => {
     try {
-      setAlerts(await window.desktop.alerts.list());
+      const [nextAlerts, nextEvents] = await Promise.all([window.desktop.alerts.list(), window.desktop.alerts.listEvents(100)]);
+      setAlerts(nextAlerts);
+      setEvents(nextEvents);
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '提醒读取失败');
     } finally {
@@ -42,10 +46,12 @@ export function AlertsPage(): React.JSX.Element {
 
   useEffect(() => {
     let active = true;
-    void window.desktop.alerts
-      .list()
-      .then((nextAlerts) => {
-        if (active) setAlerts(nextAlerts);
+    void Promise.all([window.desktop.alerts.list(), window.desktop.alerts.listEvents(100)])
+      .then(([nextAlerts, nextEvents]) => {
+        if (active) {
+          setAlerts(nextAlerts);
+          setEvents(nextEvents);
+        }
       })
       .catch((reason: unknown) => {
         if (active) void message.error(reason instanceof Error ? reason.message : '提醒读取失败');
@@ -160,6 +166,7 @@ export function AlertsPage(): React.JSX.Element {
           options={[
             { label: '监控与触发', value: 'open' },
             { label: '处理历史', value: 'history' },
+            { label: `触发事实 ${events.length}`, value: 'events' },
           ]}
           value={filter}
           onChange={setFilter}
@@ -168,6 +175,30 @@ export function AlertsPage(): React.JSX.Element {
 
       {loading ? (
         <Skeleton active paragraph={{ rows: 8 }} />
+      ) : filter === 'events' ? (
+        events.length === 0 ? (
+          <div className="empty-panel">
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有不可变的触发记录" />
+          </div>
+        ) : (
+          <div className="alert-event-list">
+            {events.map((event) => (
+              <article className="alert-event-card" key={event.id}>
+                <div className="alert-card-title">
+                  <strong>{event.symbol}</strong>
+                  <span>{event.title}</span>
+                </div>
+                <p>
+                  {formatAlertCondition(event.condition, event.targetPrice)} · 触发价 {formatPrice(event.triggerPrice)}
+                </p>
+                <div className="alert-card-meta">
+                  <span>{formatDateTime(event.triggeredAt)}</span>
+                  <span>{event.userAction ? `处理：${event.userAction}` : '待处理'}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        )
       ) : visibleAlerts.length === 0 ? (
         <div className="empty-panel">
           <Empty

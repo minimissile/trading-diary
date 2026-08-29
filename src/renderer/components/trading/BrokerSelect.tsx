@@ -35,7 +35,7 @@ export function BrokerSelect({ value, onChange, className }: BrokerSelectProps):
     <Select<AccountBroker>
       className={className ? `broker-select ${className}` : 'broker-select'}
       showSearch
-      popupClassName="trading-select-dropdown"
+      classNames={{ popup: { root: 'trading-select-dropdown' } }}
       getPopupContainer={(trigger) => trigger.ownerDocument.body}
       filterOption={(input, option) => {
         const meta = BROKER_REGISTRY.find((item) => item.id === option?.value);

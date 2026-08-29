@@ -3,6 +3,7 @@ import { App, Button, Empty, Popconfirm, Segmented, Skeleton, Tag } from 'antd';
 import { useNavigate } from 'react-router';
 import type { TradingPlan, TradingPlanStatus } from '../../shared/api.types';
 import { PlanCreateModal } from '../components/trading/PlanCreateModal';
+import { PlanActivationModal } from '../components/trading/PlanActivationModal';
 import {
   calculateExpectedR,
   directionLabels,
@@ -23,6 +24,7 @@ export function PlansPage(): React.JSX.Element {
   const [filter, setFilter] = useState<PlanFilter>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activatingPlan, setActivatingPlan] = useState<TradingPlan | null>(null);
 
   const load = useCallback(async (): Promise<void> => {
     try {
@@ -59,6 +61,14 @@ export function PlansPage(): React.JSX.Element {
   }, [filter, plans]);
 
   const setStatus = async (plan: TradingPlan, status: TradingPlanStatus): Promise<void> => {
+    if (status === 'watching' && plan.status === 'draft') {
+      setActivatingPlan(plan);
+      return;
+    }
+    await applyStatus(plan, status);
+  };
+
+  const applyStatus = async (plan: TradingPlan, status: TradingPlanStatus): Promise<void> => {
     try {
       await window.desktop.plans.setStatus(plan.id, status);
       window.dispatchEvent(new Event('workspace-changed'));
@@ -150,7 +160,7 @@ export function PlansPage(): React.JSX.Element {
                 </div>
                 <div className="plan-card-actions">
                   {plan.status === 'draft' ? (
-                    <Button type="primary" onClick={() => void setStatus(plan, 'watching')}>
+                    <Button type="primary" onClick={() => setActivatingPlan(plan)}>
                       激活计划
                     </Button>
                   ) : null}
@@ -181,6 +191,18 @@ export function PlansPage(): React.JSX.Element {
           })}
         </div>
       )}
+
+      <PlanActivationModal
+        open={activatingPlan !== null}
+        plan={activatingPlan}
+        onClose={() => setActivatingPlan(null)}
+        onConfirm={() => {
+          if (!activatingPlan) return;
+          const plan = activatingPlan;
+          setActivatingPlan(null);
+          void applyStatus(plan, 'watching');
+        }}
+      />
 
       <PlanCreateModal
         open={dialogOpen}

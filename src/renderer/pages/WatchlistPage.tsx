@@ -386,7 +386,7 @@ export function WatchlistPage(): React.JSX.Element {
         className="watchlist-disclaimer"
         type="info"
         showIcon
-        message="长期观察池，不代表即时买入建议"
+        title="长期观察池，不代表即时买入建议"
         description="静态高股息率可能来自股价下跌；进入池不等于可以买入。单一行业不超过 25%，银行选 1—2 只，高速公路选 1 只。"
       />
 
@@ -463,7 +463,7 @@ export function WatchlistPage(): React.JSX.Element {
       <Drawer
         title={detailSnapshot ? `${detailSnapshot.instrument.name} (${detailSnapshot.instrument.symbol})` : detailSymbol}
         open={detailSymbol !== null}
-        width={480}
+        size={480}
         onClose={() => {
           setDetailSymbol(null);
           setDetailSnapshot(null);

@@ -10,6 +10,7 @@ export const routePaths = {
   alerts: '/alerts',
   journal: '/journal',
   import: '/import',
+  playbook: '/playbook',
   analysis: '/analysis',
   settings: '/settings',
   devLlm: '/dev/llm',

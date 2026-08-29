@@ -19,4 +19,3 @@ const css = extractStyle({
 const banner = '/* 此文件由 npm run theme:generate 自动生成，请修改 src/renderer/theme/theme-config.json。 */\n';
 
 fs.writeFileSync(outputPath, `${banner}${css}\n`, 'utf8');
-console.info(`Ant Design 静态主题已生成：${path.relative(process.cwd(), outputPath)}`);

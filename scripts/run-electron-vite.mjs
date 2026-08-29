@@ -7,15 +7,50 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { devLog, devWarn, isDevVerbose } from './dev-quiet.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mode = process.argv[2] ?? 'dev';
 
-if (process.platform === 'darwin') {
-  spawnSync(process.execPath, [path.join(root, 'scripts/prepare-dev-electron.mjs')], {
+function runStep(command, args, options = {}) {
+  const result = spawnSync(command, args, {
     cwd: root,
-    stdio: 'inherit',
+    stdio: isDevVerbose() ? 'inherit' : 'pipe',
+    encoding: 'utf8',
+    ...options,
   });
+
+  if (result.status !== 0) {
+    if (result.stdout) process.stdout.write(result.stdout);
+    if (result.stderr) process.stderr.write(result.stderr);
+    process.exit(result.status ?? 1);
+  }
+
+  if (isDevVerbose() && result.stdout) process.stdout.write(result.stdout);
+}
+
+if (mode === 'dev') {
+  runStep(process.execPath, [path.join(root, 'scripts/generate-theme-css.mjs')]);
+}
+
+function runPrepareDevElectron() {
+  const result = spawnSync(process.execPath, [path.join(root, 'scripts/prepare-dev-electron.mjs')], {
+    cwd: root,
+    stdio: isDevVerbose() ? 'inherit' : 'pipe',
+    encoding: 'utf8',
+  });
+
+  if (result.status !== 0) {
+    if (result.stdout) process.stdout.write(result.stdout);
+    if (result.stderr) process.stderr.write(result.stderr);
+    process.exit(result.status ?? 1);
+  }
+
+  if (isDevVerbose() && result.stdout) process.stdout.write(result.stdout);
+}
+
+if (process.platform === 'darwin') {
+  runPrepareDevElectron();
 }
 
 const env = { ...process.env };
@@ -24,12 +59,14 @@ const electronExec = path.join(root, '.electron-dev', devAppName, 'Contents/MacO
 
 if (process.platform === 'darwin' && existsSync(electronExec)) {
   env.ELECTRON_EXEC_PATH = electronExec;
-  console.log(`[dev-electron] ELECTRON_EXEC_PATH=${electronExec}`);
+  devLog(`[dev-electron] ELECTRON_EXEC_PATH=${electronExec}`);
 } else if (process.platform === 'darwin') {
-  console.warn('[dev-electron] 未找到定制 Electron，可执行 node scripts/prepare-dev-electron.mjs');
+  devWarn('[dev-electron] 未找到定制 Electron，可执行 node scripts/prepare-dev-electron.mjs');
 }
 
-const result = spawnSync('electron-vite', [mode], {
+const electronViteArgs = [mode, '--logLevel', isDevVerbose() ? 'warn' : 'silent'];
+
+const result = spawnSync('electron-vite', electronViteArgs, {
   cwd: root,
   env,
   stdio: 'inherit',
