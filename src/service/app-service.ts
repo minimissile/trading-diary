@@ -218,6 +218,8 @@ export class AppService {
         return this.portfolioService.addLedgerEntry(request.params);
       case 'portfolio.listLedgerEntries':
         return this.portfolioService.listLedgerEntries(request.params.accountId, request.params.symbol);
+      case 'portfolio.getRealizedHistory':
+        return this.portfolioService.getRealizedHistory(request.params.accountId, request.params.year);
       case 'portfolio.updateLedgerEntry':
         return this.portfolioService.updateLedgerEntry(request.params.id, request.params.input);
       case 'portfolio.deleteLedgerEntry':

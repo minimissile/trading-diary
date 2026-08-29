@@ -6,6 +6,7 @@ import type {
   PortfolioLedgerEntry,
   PortfolioPositionView,
   PortfolioRefreshResult,
+  PortfolioRealizedHistoryView,
   PortfolioSummaryView,
   UpdatePortfolioLedgerInput,
 } from '../../shared/portfolio/types';
@@ -23,6 +24,7 @@ import {
 } from './dividend-stats';
 import { aggregatePositions } from './ledger-service';
 import { computePositionDailyPnl, sumDailyPnl } from './position-daily-pnl';
+import { buildRealizedHistory } from './realized-pnl';
 import { computeReferenceUnrealizedPnl, computeReferenceReturnPercent, inferMarketFromSymbol } from './reference-unrealized-pnl';
 
 export class PortfolioService {
@@ -186,6 +188,31 @@ export class PortfolioService {
 
   async listLedgerEntries(accountId?: string, symbol?: string): Promise<PortfolioLedgerEntry[]> {
     return this.database.portfolio.listLedgerEntries(accountId, symbol);
+  }
+
+  async getRealizedHistory(accountId?: string, year?: number): Promise<PortfolioRealizedHistoryView> {
+    const portfolio = this.database.portfolio;
+    const ledger = isAllAccountsId(accountId) ? portfolio.listAllLedger() : portfolio.listLedger(accountId);
+    const history = buildRealizedHistory(ledger, year);
+
+    const symbols = [...new Set([
+      ...history.trades.map((item) => item.symbol),
+      ...history.closedPositions.map((item) => item.symbol),
+    ])];
+    const quotes = symbols.length > 0 ? await marketService.getQuotes(symbols) : [];
+    const nameMap = new Map(quotes.map((quote) => [normalizeSymbol(quote.symbol), quote.name]));
+
+    return {
+      ...history,
+      trades: history.trades.map((trade) => ({
+        ...trade,
+        name: nameMap.get(trade.symbol) ?? trade.symbol,
+      })),
+      closedPositions: history.closedPositions.map((item) => ({
+        ...item,
+        name: nameMap.get(item.symbol) ?? item.symbol,
+      })),
+    };
   }
 
   async updateLedgerEntry(id: string, input: UpdatePortfolioLedgerInput): Promise<PortfolioLedgerEntry> {

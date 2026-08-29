@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { APP_NAME, APP_SLOGAN } from '../../shared/brand';
 
 type SplashPhase = 'enter' | 'hold' | 'exit' | 'done';
@@ -75,12 +75,23 @@ function AnimatedSloganLine({
   );
 }
 
-export function SplashScreen({ children }: PropsWithChildren): React.JSX.Element {
+interface SplashScreenProps extends PropsWithChildren {
+  onFinished?: () => void;
+}
+
+export function SplashScreen({ children, onFinished }: SplashScreenProps): React.JSX.Element {
   const [phase, setPhase] = useState<SplashPhase>('enter');
   const [reducedMotion] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
+  const finishedRef = useRef(false);
   const showOverlay = phase !== 'done';
+
+  const markFinished = (): void => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    onFinished?.();
+  };
 
   useEffect(() => {
     const runId = ++splashRunId;
@@ -104,17 +115,19 @@ export function SplashScreen({ children }: PropsWithChildren): React.JSX.Element
     schedule(() => {
       if (splashRunId !== runId) return;
       setPhase('done');
+      markFinished();
     }, timing.enterMs + timing.holdMs + timing.exitMs);
 
     schedule(() => {
       if (splashRunId !== runId) return;
       setPhase('done');
+      markFinished();
     }, FAILSAFE_MS);
 
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [reducedMotion]);
+  }, [onFinished, reducedMotion]);
 
   return (
     <>

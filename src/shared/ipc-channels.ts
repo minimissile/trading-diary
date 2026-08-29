@@ -52,6 +52,7 @@ export const ipcChannels = {
   portfolioListDividends: 'desktop:portfolio:list-dividends',
   portfolioAddLedgerEntry: 'desktop:portfolio:add-ledger-entry',
   portfolioListLedgerEntries: 'desktop:portfolio:list-ledger-entries',
+  portfolioGetRealizedHistory: 'desktop:portfolio:get-realized-history',
   portfolioUpdateLedgerEntry: 'desktop:portfolio:update-ledger-entry',
   portfolioDeleteLedgerEntry: 'desktop:portfolio:delete-ledger-entry',
   portfolioDeletePosition: 'desktop:portfolio:delete-position',

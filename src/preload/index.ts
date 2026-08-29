@@ -155,6 +155,8 @@ const desktopApi: DesktopApi = {
     addLedgerEntry: (input) => ipcRenderer.invoke(ipcChannels.portfolioAddLedgerEntry, input),
     listLedgerEntries: (accountId, symbol) =>
       ipcRenderer.invoke(ipcChannels.portfolioListLedgerEntries, { accountId, symbol }),
+    getRealizedHistory: (accountId, year) =>
+      ipcRenderer.invoke(ipcChannels.portfolioGetRealizedHistory, { accountId, year }),
     updateLedgerEntry: (id, input) => ipcRenderer.invoke(ipcChannels.portfolioUpdateLedgerEntry, { id, input }),
     deleteLedgerEntry: (id) => ipcRenderer.invoke(ipcChannels.portfolioDeleteLedgerEntry, { id }),
     deletePosition: (accountId, symbol) =>

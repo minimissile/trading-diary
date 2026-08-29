@@ -165,6 +165,63 @@
   min-height: 100vh;
 }
 
+.access-lock-content--locked {
+  pointer-events: none;
+  user-select: none;
+  filter: blur(6px);
+}
+
+.access-lock-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: grid;
+  place-items: center;
+  background: rgba(4, 14, 24, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.access-lock-screen--loading {
+  background: var(--td-color-canvas);
+}
+
+.access-lock-card {
+  width: min(360px, calc(100vw - 48px));
+  padding: 28px 24px;
+  border: 1px solid #244157;
+  border-radius: 12px;
+  background: #0a1d2b;
+  text-align: center;
+}
+
+.access-lock-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: rgba(24, 144, 255, 0.12);
+  color: #69b1ff;
+  font-size: 22px;
+}
+
+.access-lock-card h1 {
+  margin: 0 0 8px;
+  color: #e7f1fa;
+  font-size: 20px;
+}
+
+.access-lock-card p {
+  margin: 0 0 16px;
+  color: rgba(231, 241, 250, 0.72);
+}
+
+.access-lock-card .ant-input-password {
+  margin-bottom: 12px;
+}
+
 @keyframes splash-logo-in {
   from {
     opacity: 0;

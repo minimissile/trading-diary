@@ -23,8 +23,14 @@ const routeByNavigationKey: Readonly<Record<string, string>> = {
 };
 
 function navigationKeyFromPath(pathname: string): string {
-  const entry = Object.entries(routeByNavigationKey).find(([, path]) => path === pathname);
-  return entry?.[0] ?? 'today';
+  const exact = Object.entries(routeByNavigationKey).find(([, path]) => path === pathname);
+  if (exact) return exact[0];
+
+  // 子路由沿用父级菜单高亮（如 /positions/history → 持仓中心）
+  const prefix = Object.entries(routeByNavigationKey)
+    .filter(([, path]) => path !== routePaths.home && pathname.startsWith(`${path}/`))
+    .sort(([, a], [, b]) => b.length - a.length)[0];
+  return prefix?.[0] ?? 'today';
 }
 
 function compactDate(): string {

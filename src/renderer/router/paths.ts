@@ -3,6 +3,7 @@ export const routePaths = {
   plans: '/plans',
   watchlist: '/watchlist',
   positions: '/positions',
+  positionHistory: '/positions/history',
   dividends: '/dividends',
   /** @deprecated 兼容旧链接，路由层重定向至 positions */
   portfolio: '/portfolio',

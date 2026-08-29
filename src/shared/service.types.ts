@@ -41,6 +41,7 @@ import type {
   EnableAccessLockInput,
   VerifyAccessLockResult,
 } from './security/access-lock.types';
+import type { WatchlistPoolId } from './watchlist/types';
 import type {
   CreatePortfolioLedgerInput,
   DividendCalendarDay,
@@ -289,6 +290,10 @@ export interface ServiceContract {
   'portfolio.listLedgerEntries': {
     params: { accountId?: string; symbol?: string };
     result: import('./portfolio/types').PortfolioLedgerEntry[];
+  };
+  'portfolio.getRealizedHistory': {
+    params: { accountId?: string; year?: number };
+    result: import('./portfolio/types').PortfolioRealizedHistoryView;
   };
   'portfolio.updateLedgerEntry': {
     params: { id: string; input: import('./portfolio/types').UpdatePortfolioLedgerInput };

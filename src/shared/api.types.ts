@@ -470,6 +470,10 @@ export interface DesktopApi {
       accountId?: string,
       symbol?: string,
     ) => Promise<import('./portfolio/types').PortfolioLedgerEntry[]>;
+    getRealizedHistory: (
+      accountId?: string,
+      year?: number,
+    ) => Promise<import('./portfolio/types').PortfolioRealizedHistoryView>;
     updateLedgerEntry: (
       id: string,
       input: import('./portfolio/types').UpdatePortfolioLedgerInput,

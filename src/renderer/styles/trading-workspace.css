@@ -3084,6 +3084,19 @@ body {
   gap: 12px;
 }
 
+.position-sell-summary {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--td-surface-muted, rgba(255, 255, 255, 0.04));
+  color: var(--td-text-secondary);
+  font-size: 13px;
+}
+
+.portfolio-history-page .page-toolbar {
+  margin-bottom: 16px;
+}
+
 .account-broker-row {
   margin-bottom: 4px;
 }

@@ -114,6 +114,49 @@ export interface PortfolioRefreshResult {
   estimated: number;
 }
 
+export interface RealizedTradeView {
+  id: string;
+  accountId: string;
+  symbol: string;
+  name: string;
+  kind: InstrumentKind;
+  tradeAt: string;
+  quantity: number;
+  sellPrice: number;
+  sellFees: number;
+  proceeds: number;
+  costBasis: number;
+  realizedPnl: number;
+  returnPercent: number | null;
+  note: string;
+  remainingQuantity: number;
+}
+
+export interface ClosedPositionSummary {
+  accountId: string;
+  symbol: string;
+  name: string;
+  kind: InstrumentKind;
+  totalRealizedPnl: number;
+  sellCount: number;
+  totalQuantitySold: number;
+  firstSellAt: string;
+  lastSellAt: string;
+}
+
+export interface RealizedHistorySummary {
+  totalRealizedPnl: number;
+  tradeCount: number;
+  winCount: number;
+  lossCount: number;
+}
+
+export interface PortfolioRealizedHistoryView {
+  trades: RealizedTradeView[];
+  closedPositions: ClosedPositionSummary[];
+  summary: RealizedHistorySummary;
+}
+
 export interface PortfolioLedgerEntry {
   id: string;
   accountId: string;

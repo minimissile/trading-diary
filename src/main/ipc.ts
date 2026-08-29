@@ -404,6 +404,14 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
   );
 
   ipcMain.handle(
+    ipcChannels.portfolioGetRealizedHistory,
+    (event, input: { accountId?: string; year?: number }) => {
+      assertTrustedSender(event, window);
+      return service.request('portfolio.getRealizedHistory', input);
+    },
+  );
+
+  ipcMain.handle(
     ipcChannels.portfolioUpdateLedgerEntry,
     (event, input: { id: string; input: Record<string, unknown> }) => {
       assertTrustedSender(event, window);

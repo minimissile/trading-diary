@@ -1,18 +1,29 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { App, Button, Dropdown, Empty, Segmented, Skeleton, Table, Tag } from 'antd';
 import type { ColumnsType, TableProps } from 'antd/es/table';
-import { EditOutlined, DeleteOutlined, MoreOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  EditOutlined,
+  DeleteOutlined,
+  HistoryOutlined,
+  MoreOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+  FallOutlined,
+} from '@ant-design/icons';
+import { Link } from 'react-router';
 import type { InstrumentKind } from '../../shared/market/types';
 import type { PortfolioPositionView, PortfolioSummaryView } from '../../shared/portfolio/types';
 import { ALL_ACCOUNTS_ID } from '../../shared/accounts/constants';
 import { pricePresetForKind, quantityPresetForKind } from '../../shared/format/display-presets';
 import { PortfolioLedgerModal } from '../components/trading/PortfolioLedgerModal';
 import { PositionLedgerDrawer } from '../components/trading/PositionLedgerDrawer';
+import { PositionSellModal } from '../components/trading/PositionSellModal';
 import { AccountSelect } from '../components/trading/AccountSelect';
 import { ValueDisplay, AnimatedValueDisplay, formatQuoteRefreshTime, formatFloatingPnlCaption, formatDailyPnlCaption } from '../lib/trading-format';
 import { useInterval } from '../hooks/useInterval';
 import { confirmDanger } from '../lib/confirm-dialog';
 import { deletePortfolioPosition } from '../lib/portfolio-actions';
+import { routePaths } from '../router/paths';
 
 type AssetCategory = 'all' | 'fund' | 'stock';
 type StockSubKind = 'all' | 'stock' | 'listed_fund';
@@ -60,6 +71,7 @@ export function PositionsPage(): React.JSX.Element {
   const [assetCategory, setAssetCategory] = useState<AssetCategory>('all');
   const [stockSubKind, setStockSubKind] = useState<StockSubKind>('all');
   const [editingPosition, setEditingPosition] = useState<PortfolioPositionView | null>(null);
+  const [sellingPosition, setSellingPosition] = useState<PortfolioPositionView | null>(null);
   const [deletingSymbol, setDeletingSymbol] = useState<string | null>(null);
   const [pnlSortOrder, setPnlSortOrder] = useState<'ascend' | 'descend' | null>(null);
 
@@ -277,6 +289,12 @@ export function PositionsPage(): React.JSX.Element {
             menu={{
               items: [
                 {
+                  key: 'sell',
+                  label: '卖出',
+                  icon: <FallOutlined />,
+                  onClick: () => setSellingPosition(row),
+                },
+                {
                   key: 'edit',
                   label: '编辑',
                   icon: <EditOutlined />,
@@ -345,6 +363,9 @@ export function PositionsPage(): React.JSX.Element {
           <Button icon={<ReloadOutlined spin={refreshing} />} loading={refreshing} onClick={() => void refreshQuotes()}>
             刷新行情
           </Button>
+          <Link to={routePaths.positionHistory}>
+            <Button icon={<HistoryOutlined />}>历史持仓</Button>
+          </Link>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setLedgerOpen(true)}>
             录入流水
           </Button>
@@ -455,6 +476,14 @@ export function PositionsPage(): React.JSX.Element {
         open={ledgerOpen}
         defaultAccountId={accountId === ALL_ACCOUNTS_ID ? undefined : accountId}
         onClose={() => setLedgerOpen(false)}
+        onSaved={() => void load(true)}
+      />
+
+      <PositionSellModal
+        open={sellingPosition !== null}
+        position={sellingPosition}
+        accountId={accountId}
+        onClose={() => setSellingPosition(null)}
         onSaved={() => void load(true)}
       />
 
