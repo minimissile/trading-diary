@@ -9,6 +9,7 @@ import type {
   MarketSnapshot,
 } from '../../shared/market/types';
 import { computeOtcFundDividendYield, listDividends, listUpcomingDividends } from './eastmoney/dividend-service';
+import { lookupHistoricalPriceOnDate as fetchHistoricalPriceOnDate } from './eastmoney/historical-price-service';
 import { listKlines as fetchKlines } from './eastmoney/kline-service';
 import { listNews } from './eastmoney/news-service';
 import { getQuote as fetchQuote, getQuotes as fetchQuotes } from './eastmoney/quote-service';
@@ -64,6 +65,10 @@ export class MarketService {
     limit?: number,
   ): Promise<KLineListResult> {
     return fetchKlines(symbol, period, adjust, limit);
+  }
+
+  lookupHistoricalPriceOnDate(symbol: string, dateKey: string) {
+    return fetchHistoricalPriceOnDate(symbol, dateKey);
   }
 }
 

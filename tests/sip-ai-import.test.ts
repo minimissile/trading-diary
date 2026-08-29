@@ -1,11 +1,12 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PROMPT_IDS } from '../src/shared/llm/prompt-id';
 import { AppDatabase } from '../src/service/database/database';
 import { createLlmRunner } from '../src/service/llm/llm-runner';
 import { MockProvider } from '../src/service/llm/providers/mock';
+import { marketService } from '../src/service/market/market-service';
 import { createSipAiImportService } from '../src/service/sip/sip-ai-import-service';
 import { createSipImportService } from '../src/service/sip/sip-import-service';
 
@@ -72,8 +73,8 @@ describe('sip ai import', () => {
     expect(recognized.planMode).toBe('unknown');
     expect(recognized.hints.some((hint) => hint.includes('不会丢失'))).toBe(true);
 
-    const preview = aiImportService.preview({ accountId, records: recognized.records });
-    expect(preview.readyCount).toBe(1);
+    const preview = await aiImportService.preview({ accountId, records: recognized.records });
+    expect(preview.preview.readyCount).toBe(1);
 
     const result = await aiImportService.commit({ accountId, records: recognized.records });
     expect(result.errors, JSON.stringify(result)).toEqual([]);
@@ -127,18 +128,22 @@ describe('sip ai import', () => {
     expect(recognized.planModeLabel).toBe('智能定投');
     expect(recognized.hints.some((hint) => hint.includes('普通定投'))).toBe(true);
 
-    const preview = aiImportService.preview({ accountId, records: recognized.records });
-    expect(preview.readyCount).toBe(2);
+    const preview = await aiImportService.preview({ accountId, records: recognized.records });
+    expect(preview.preview.readyCount).toBe(2);
 
     const result = await aiImportService.commit({ accountId, records: recognized.records });
     expect(result.imported).toBe(2);
-    expect(result.ledgerOnly).toBe(2);
+    expect(result.plansCreated).toBe(1);
+    expect(result.linkedToPlan).toBe(2);
+    expect(result.ledgerOnly).toBe(0);
 
     fs.unlinkSync(screenshotPath);
     database.close();
   });
 
   it('returns incomplete preview rows for partial recognition and imports after manual completion', async () => {
+    vi.spyOn(marketService, 'lookupHistoricalPriceOnDate').mockResolvedValue(null);
+
     const database = createTestDatabase();
     const importService = createSipImportService(database);
     const runner = createLlmRunner(undefined, path.join(process.cwd(), 'src/prompts'));
@@ -167,22 +172,72 @@ describe('sip ai import', () => {
     expect(recognized.records).toHaveLength(1);
     expect(recognized.planHints?.symbol).toBe('110011');
 
-    const incompletePreview = aiImportService.preview({ accountId, records: recognized.records });
-    expect(incompletePreview.incompleteCount).toBe(1);
-    expect(incompletePreview.readyCount).toBe(0);
+    const incompletePreview = await aiImportService.preview({ accountId, records: recognized.records });
+    expect(incompletePreview.preview.incompleteCount).toBe(1);
+    expect(incompletePreview.preview.readyCount).toBe(0);
 
-    const completedRecords = recognized.records.map((record) => ({
+    const completedRecords = incompletePreview.records.map((record) => ({
       ...record,
-      nav: 5.2,
+      nav: record.nav ?? 5.2,
     }));
-    const readyPreview = aiImportService.preview({ accountId, records: completedRecords });
-    expect(readyPreview.readyCount).toBe(1);
+    const readyPreview = await aiImportService.preview({ accountId, records: completedRecords });
+    expect(readyPreview.preview.readyCount).toBe(1);
 
     const result = await aiImportService.commit({ accountId, records: completedRecords });
     expect(result.imported).toBe(1);
-    expect(result.ledgerOnly).toBe(1);
+    expect(result.plansCreated).toBe(1);
+    expect(result.linkedToPlan).toBe(1);
+    expect(result.ledgerOnly).toBe(0);
 
     fs.unlinkSync(screenshotPath);
     database.close();
   });
+
+  it('marks enriched 004598 rows as ready instead of unsupported stock', async () => {
+    const database = createTestDatabase();
+    const importService = createSipImportService(database);
+    const runner = createLlmRunner(undefined, path.join(process.cwd(), 'src/prompts'));
+    runner.useProvider(
+      new MockProvider({
+        [PROMPT_IDS.SIP_IMPORT_SCREENSHOT]: JSON.stringify({
+          planMode: 'smart',
+          records: [
+            {
+              symbol: '004598',
+              fundName: '南方中证银行ETF发起联接C',
+              tradeDate: '2026-08-28',
+              amount: 90,
+            },
+          ],
+        }),
+      }),
+    );
+    const aiImportService = createSipAiImportService(importService, runner);
+    const accountId = database.portfolio.ensureDefaultAccount();
+    const screenshotPath = path.join(os.tmpdir(), `sip-ai-004598-${Date.now()}.png`);
+    fs.writeFileSync(screenshotPath, Buffer.from([137, 80, 78, 71]));
+
+    const preview = await aiImportService.preview({
+      accountId,
+      records: [
+        {
+          rowIndex: 1,
+          symbol: '004598',
+          fundName: '南方中证银行ETF发起联接C',
+          tradeAt: '2026-08-28',
+          nav: 1.3513,
+          amount: 90,
+          quantity: null,
+          fees: null,
+        },
+      ],
+    });
+
+    expect(preview.preview.errorCount).toBe(0);
+    expect(preview.preview.readyCount).toBe(1);
+    expect(preview.preview.rows[0]?.message).not.toContain('仅支持场外基金');
+
+    fs.unlinkSync(screenshotPath);
+    database.close();
+  }, 30_000);
 });

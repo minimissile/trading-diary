@@ -10,7 +10,7 @@ import {
   PlusOutlined,
   FallOutlined,
 } from '@ant-design/icons';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import type { InstrumentKind } from '../../shared/market/types';
 import type { PortfolioPositionView, PortfolioSummaryView } from '../../shared/portfolio/types';
 import { ALL_ACCOUNTS_ID } from '../../shared/accounts/constants';
@@ -23,7 +23,7 @@ import { ValueDisplay, AnimatedValueDisplay, formatQuoteRefreshTime, formatFloat
 import { useInterval } from '../hooks/useInterval';
 import { confirmDanger } from '../lib/confirm-dialog';
 import { deletePortfolioPosition } from '../lib/portfolio-actions';
-import { routePaths } from '../router/paths';
+import { buildPositionChartPath, routePaths } from '../router/paths';
 
 type AssetCategory = 'all' | 'fund' | 'stock';
 type StockSubKind = 'all' | 'stock' | 'listed_fund';
@@ -62,6 +62,7 @@ function compareNullableNumber(a: number | null, b: number | null): number {
  */
 export function PositionsPage(): React.JSX.Element {
   const { message, modal } = App.useApp();
+  const navigate = useNavigate();
   const [summary, setSummary] = useState<PortfolioSummaryView | null>(null);
   const [positions, setPositions] = useState<PortfolioPositionView[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,10 +166,14 @@ export function PositionsPage(): React.JSX.Element {
         fixed: 'left',
         width: 200,
         render: (_, row) => (
-          <span className="watchlist-symbol-button">
+          <button
+            className="watchlist-symbol-button"
+            type="button"
+            onClick={() => void navigate(buildPositionChartPath(row.symbol))}
+          >
             <strong>{row.name}</strong>
             <small>{row.symbol}</small>
-          </span>
+          </button>
         ),
       },
       {
@@ -331,7 +336,7 @@ export function PositionsPage(): React.JSX.Element {
         ),
       },
     ],
-    [accountId, deletePosition, deletingSymbol, modal, pnlSortOrder],
+    [accountId, deletePosition, deletingSymbol, modal, navigate, pnlSortOrder],
   );
 
   const unrealizedPnl = summary?.unrealizedPnl ?? 0;

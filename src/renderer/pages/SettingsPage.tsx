@@ -709,10 +709,7 @@ export function SettingsPage(): React.JSX.Element {
               </Button>
             </Space>
             {import.meta.env.DEV ? (
-              <Space orientation="vertical">
-                <Link to={routePaths.devLlm}>打开 Prompt 调试面板（仅开发模式）</Link>
-                <Link to={routePaths.devChart}>打开图表测试页（仅开发模式）</Link>
-              </Space>
+              <Link to={routePaths.devLlm}>打开 Prompt 调试面板（仅开发模式）</Link>
             ) : null}
           </Space>
         ) : null}

@@ -1,6 +1,6 @@
 import type { KLineAdjust, KLineBar, KLineListResult, KLinePeriod } from '../../../shared/market/types';
 import { MarketNotFoundError } from '../../../shared/market/errors';
-import { eastMoneyFetchJson } from './client';
+import { eastMoneyFetchJson, eastMoneyFetchText, parseEastMoneyJsonp } from './client';
 import { resolveInstrument } from './search-service';
 import { toSecid } from './symbols';
 
@@ -11,6 +11,17 @@ interface KLineResponse {
     name?: string;
     klines?: string[];
   };
+}
+
+interface FundNavRow {
+  FSRQ: string;
+  DWJZ: string;
+}
+
+interface FundNavResponse {
+  Data?: {
+    LSJZList?: FundNavRow[];
+  } | null;
 }
 
 const PERIOD_TO_KLT: Record<KLinePeriod, number> = {
@@ -30,6 +41,8 @@ const ADJUST_TO_FQT: Record<KLineAdjust, number> = {
   backward: 2,
 };
 
+const FUND_NAV_PAGE_SIZE = 20;
+
 /**
  * 拉取标的 K 线序列。
  * @param symbolInput 证券代码
@@ -44,8 +57,18 @@ export async function listKlines(
   limit = 240,
 ): Promise<KLineListResult> {
   const instrument = await resolveInstrument(symbolInput);
+  const clampedLimit = Math.min(Math.max(limit, 1), 1023);
+
   if (instrument.kind === 'otc_fund') {
-    throw new MarketNotFoundError(`场外基金暂无 K 线：${instrument.symbol}`);
+    const bars = await listOtcFundNavBars(instrument.symbol, clampedLimit);
+    return {
+      symbol: instrument.symbol,
+      name: instrument.name,
+      kind: instrument.kind,
+      period: '1d',
+      adjust: 'none',
+      bars,
+    };
   }
 
   const secid = instrument.secid ?? toSecid(instrument.symbol);
@@ -55,7 +78,7 @@ export async function listKlines(
   url.searchParams.set('secid', secid);
   url.searchParams.set('klt', String(PERIOD_TO_KLT[period]));
   url.searchParams.set('fqt', String(ADJUST_TO_FQT[adjust]));
-  url.searchParams.set('lmt', String(Math.min(Math.max(limit, 1), 1023)));
+  url.searchParams.set('lmt', String(clampedLimit));
   url.searchParams.set('end', '20500000');
   url.searchParams.set('fields1', 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13');
   url.searchParams.set('fields2', 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61');
@@ -66,20 +89,84 @@ export async function listKlines(
   }
 
   const bars = payload.data.klines
-    .map(parseKLineRow)
+    .map(parseExchangeKLineRow)
     .filter((bar): bar is KLineBar => bar !== null)
     .sort((left, right) => left.timestamp - right.timestamp);
 
   return {
     symbol: payload.data.code ?? instrument.symbol,
     name: payload.data.name ?? instrument.name,
+    kind: instrument.kind,
     period,
     adjust,
     bars,
   };
 }
 
-function parseKLineRow(row: string): KLineBar | null {
+async function fetchFundNavPage(symbol: string, pageIndex: number): Promise<FundNavRow[]> {
+  const url = new URL('https://api.fund.eastmoney.com/f10/lsjz');
+  url.searchParams.set('fundCode', symbol);
+  url.searchParams.set('pageIndex', String(pageIndex));
+  url.searchParams.set('pageSize', String(FUND_NAV_PAGE_SIZE));
+
+  const text = await eastMoneyFetchText(url, {
+    referer: `https://fundf10.eastmoney.com/jjgz/${symbol}.html`,
+  });
+  const trimmed = text.trim();
+  const payload = trimmed.startsWith('{')
+    ? (JSON.parse(trimmed) as FundNavResponse)
+    : parseEastMoneyJsonp<FundNavResponse>(trimmed);
+  return payload.Data?.LSJZList ?? [];
+}
+
+async function listOtcFundNavBars(symbol: string, limit: number): Promise<KLineBar[]> {
+  const pages = Math.ceil(limit / FUND_NAV_PAGE_SIZE);
+  const rows: FundNavRow[] = [];
+
+  for (let pageIndex = 1; pageIndex <= pages; pageIndex += 1) {
+    const batch = await fetchFundNavPage(symbol, pageIndex);
+    if (batch.length === 0) break;
+    rows.push(...batch);
+    if (rows.length >= limit) break;
+  }
+
+  if (rows.length === 0) {
+    throw new MarketNotFoundError(`基金净值历史为空：${symbol}`);
+  }
+
+  const sorted = rows.slice(0, limit).reverse();
+  const bars: KLineBar[] = [];
+
+  for (let index = 0; index < sorted.length; index += 1) {
+    const row = sorted[index];
+    if (!row) continue;
+    const close = Number(row.DWJZ);
+    const previousRow = index > 0 ? sorted[index - 1] : undefined;
+    const previousClose = previousRow ? Number(previousRow.DWJZ) : close;
+    const timestamp = parseKLineTimestamp(row.FSRQ);
+
+    if (!Number.isFinite(timestamp) || !Number.isFinite(close)) continue;
+
+    const open = Number.isFinite(previousClose) ? previousClose : close;
+    bars.push({
+      timestamp,
+      open,
+      close,
+      high: Math.max(open, close),
+      low: Math.min(open, close),
+      volume: 0,
+      turnover: 0,
+    });
+  }
+
+  if (bars.length === 0) {
+    throw new MarketNotFoundError(`基金净值历史不可用：${symbol}`);
+  }
+
+  return bars;
+}
+
+function parseExchangeKLineRow(row: string): KLineBar | null {
   const parts = row.split(',');
   if (parts.length < 7) return null;
 

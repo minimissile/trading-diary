@@ -92,9 +92,10 @@ export async function resolveInstrument(symbolInput: string): Promise<Instrument
 
   let name = symbol;
   let securityTypeName: string | null = null;
+  let searchHits: MarketSearchHit[] = [];
 
   try {
-    const searchHits = await searchInstruments(symbol, 5);
+    searchHits = await searchInstruments(symbol, 5);
     const exact = searchHits.find((hit) => hit.symbol === symbol);
     if (exact) {
       name = exact.name;
@@ -102,6 +103,26 @@ export async function resolveInstrument(symbolInput: string): Promise<Instrument
     }
   } catch {
     // 搜索接口失败时不阻断后续 secid / 基金解析
+  }
+
+  const fundInfo = await fetchFundName(symbol);
+  const exactHit = searchHits.find((hit) => hit.symbol === symbol);
+  const markedAsFund =
+    exactHit?.kind === 'otc_fund' || /基金/u.test(exactHit?.securityTypeName ?? securityTypeName ?? '');
+
+  if (markedAsFund && fundInfo) {
+    const exchangeKind = secid ? classifyExchangeCode(symbol) : null;
+    const kind = exchangeKind === 'lof' || exchangeKind === 'etf' ? exchangeKind : 'otc_fund';
+    return {
+      symbol,
+      name: fundInfo.name,
+      kind,
+      market: kind === 'otc_fund' ? null : market,
+      secid: kind === 'otc_fund' ? null : secid,
+      f10Code: kind === 'otc_fund' ? null : f10Code,
+      securityTypeName: securityTypeName ?? '场外基金',
+      source: 'eastmoney',
+    };
   }
 
   if (secid && market) {
@@ -113,10 +134,25 @@ export async function resolveInstrument(symbolInput: string): Promise<Instrument
     } catch {
       // 行情接口失败时仍返回可识别的交易所标的
     }
+
+    const exchangeKind = classifyExchangeCode(symbol);
+    if (fundInfo && exchangeKind === 'stock' && exactHit?.kind !== 'stock') {
+      return {
+        symbol,
+        name: fundInfo.name,
+        kind: 'otc_fund',
+        market: null,
+        secid: null,
+        f10Code: null,
+        securityTypeName: securityTypeName ?? '场外基金',
+        source: 'eastmoney',
+      };
+    }
+
     return {
       symbol,
       name,
-      kind: classifyExchangeCode(symbol),
+      kind: exchangeKind,
       market,
       secid,
       f10Code,
@@ -125,7 +161,6 @@ export async function resolveInstrument(symbolInput: string): Promise<Instrument
     };
   }
 
-  const fundInfo = await fetchFundName(symbol);
   if (fundInfo) {
     return {
       symbol,
@@ -144,10 +179,8 @@ export async function resolveInstrument(symbolInput: string): Promise<Instrument
 
 async function inferKindFromQuote(symbol: string, securityTypeName?: string): Promise<InstrumentKind> {
   if (/基金/u.test(securityTypeName ?? '')) {
-    const secid = toSecid(symbol);
-    if (secid && (await fetchExchangeName(secid))) {
-      return classifyExchangeCode(symbol);
-    }
+    const exchangeKind = classifyExchangeCode(normalizeSymbol(symbol));
+    if (exchangeKind === 'lof' || exchangeKind === 'etf') return exchangeKind;
     return 'otc_fund';
   }
 

@@ -26,6 +26,10 @@ export function toChartPeriod(period: KLinePeriod): Period {
   }
 }
 
+export const fundChartPeriodOptions: Array<{ label: string; value: KLinePeriod }> = [
+  { label: '日净值', value: '1d' },
+];
+
 /** 测试页可选周期列表。 */
 export const chartPeriodOptions: Array<{ label: string; value: KLinePeriod }> = [
   { label: '日 K', value: '1d' },

@@ -3,12 +3,13 @@ import { PROMPT_IDS } from '../../shared/llm/prompt-id';
 import { buildSipAiImportHints } from '../../shared/sip/import-hints';
 import type {
   SipAiImportInput,
+  SipAiImportPreviewResult,
   SipAiRecognizeResult,
   SipImportCommitResult,
-  SipImportPreviewResult,
 } from '../../shared/sip/import-types';
 import type { LlmRunner } from '../llm/llm-runner';
 import { buildSipAiEmptyRecordsError, parseSipAiImportResponse } from './sip-ai-import-parser';
+import { enrichSipExtractedRecords } from './sip-import-enrichment';
 import type { SipImportService } from './sip-import-service';
 
 function csvBasename(sourcePath: string): string {
@@ -36,25 +37,35 @@ export class SipAiImportService {
       );
     }
 
+    const enriched = await enrichSipExtractedRecords(parsed.records);
+    const preview = await this.importService.previewRecordsAsync({ records: enriched.records });
+
     return {
       sourcePath,
       fileName: csvBasename(sourcePath),
-      records: parsed.records,
+      records: enriched.records,
       warnings: parsed.warnings,
+      enrichments: enriched.enrichments,
       planMode: parsed.planMode,
       planModeLabel: parsed.planModeLabel,
       planHints: parsed.planHints,
       hints: buildSipAiImportHints({
         planMode: parsed.planMode,
         planModeLabel: parsed.planModeLabel,
-        readyCount: parsed.records.length,
+        readyCount: preview.readyCount,
+        unmatchedPlanCount: preview.rows.filter((row) => row.status === 'ready' && !row.matchedPlanName).length,
       }),
       model: result.model,
     };
   }
 
-  preview(input: SipAiImportInput): SipImportPreviewResult {
-    return this.importService.previewRecords(input);
+  async preview(input: SipAiImportInput): Promise<SipAiImportPreviewResult> {
+    const enriched = await enrichSipExtractedRecords(input.records);
+    return {
+      preview: await this.importService.previewRecordsAsync({ ...input, records: enriched.records }),
+      records: enriched.records,
+      enrichments: enriched.enrichments,
+    };
   }
 
   commit(input: SipAiImportInput): Promise<SipImportCommitResult> {

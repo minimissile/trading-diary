@@ -986,6 +986,19 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
             })
             .strict(),
         ),
+        planHints: z
+          .object({
+            symbol: z.string().trim().max(32).nullable().optional(),
+            fundName: z.string().trim().max(120).nullable().optional(),
+            amount: z.number().finite().nullable().optional(),
+            startDate: z.string().trim().max(64).nullable().optional(),
+            frequency: z.string().trim().max(32).nullable().optional(),
+            dayOfMonth: z.number().int().nullable().optional(),
+            dayOfWeek: z.number().int().nullable().optional(),
+          })
+          .strict()
+          .nullable()
+          .optional(),
       })
       .strict(),
   }),

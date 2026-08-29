@@ -14,10 +14,9 @@ import {
   StarOutlined,
   SettingOutlined,
   MoneyCollectOutlined,
-  LineChartOutlined,
   SafetyCertificateOutlined,
 } from '@ant-design/icons';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const navItems = [
   { key: 'today', label: '今日指挥台', icon: DashboardOutlined },
@@ -46,11 +45,6 @@ interface AppSidebarProps {
 export function AppSidebar({ activeKey, alertCount, collapsed, onCollapse, onSelect }: AppSidebarProps): React.JSX.Element {
   const [appVersion, setAppVersion] = useState<string>('');
 
-  const visibleNavItems = useMemo(() => {
-    if (!import.meta.env.DEV) return navItems;
-    return [...navItems, { key: 'devChart' as const, label: '图表测试', icon: LineChartOutlined }];
-  }, []);
-
   useEffect(() => {
     void window.desktop.updater
       .getState()
@@ -72,13 +66,12 @@ export function AppSidebar({ activeKey, alertCount, collapsed, onCollapse, onSel
       </div>
 
       <nav className="primary-nav" aria-label="主导航">
-        {visibleNavItems.map((item) => {
+        {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = item.key === activeKey;
-          const isDevItem = item.key === 'devChart';
           return (
             <button
-              className={`${isActive ? 'active' : ''}${isDevItem ? ' nav-item--dev' : ''}`}
+              className={isActive ? 'active' : ''}
               key={item.key}
               type="button"
               aria-current={isActive ? 'page' : undefined}
@@ -91,8 +84,6 @@ export function AppSidebar({ activeKey, alertCount, collapsed, onCollapse, onSel
                 <span className="nav-attention" aria-label={`${alertCount} 条未处理提醒`}>
                   {alertCount > 99 ? '99+' : alertCount}
                 </span>
-              ) : isDevItem ? (
-                <span className="nav-dev-badge">DEV</span>
               ) : null}
             </button>
           );

@@ -564,7 +564,7 @@ export interface DesktopApi {
     commitImport: (input: import('./sip/import-types').SipImportInput) => Promise<import('./sip/import-types').SipImportCommitResult>;
     selectImportScreenshot: () => Promise<{ sourcePath: string; fileName: string } | null>;
     recognizeImportScreenshot: (sourcePath: string) => Promise<import('./sip/import-types').SipAiRecognizeResult>;
-    previewAiImport: (input: import('./sip/import-types').SipAiImportInput) => Promise<import('./sip/import-types').SipImportPreviewResult>;
+    previewAiImport: (input: import('./sip/import-types').SipAiImportInput) => Promise<import('./sip/import-types').SipAiImportPreviewResult>;
     commitAiImport: (input: import('./sip/import-types').SipAiImportInput) => Promise<import('./sip/import-types').SipImportCommitResult>;
   };
 }

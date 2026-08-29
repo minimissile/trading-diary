@@ -105,6 +105,7 @@ import type {
   SipImportInput,
   SipImportPreviewResult,
   SipAiImportInput,
+  SipAiImportPreviewResult,
   SipAiRecognizeResult,
 } from './sip/import-types';
 import type {
@@ -535,7 +536,7 @@ export interface ServiceContract {
   };
   'sip.previewAiImport': {
     params: SipAiImportInput;
-    result: SipImportPreviewResult;
+    result: SipAiImportPreviewResult;
   };
   'sip.commitAiImport': {
     params: SipAiImportInput;

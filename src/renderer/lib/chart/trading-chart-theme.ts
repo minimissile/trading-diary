@@ -1,4 +1,5 @@
 import type { DeepPartial, Styles } from 'klinecharts';
+import type { InstrumentKind } from '../../../shared/market/types';
 import { chartColors } from '../../theme/market-colors';
 
 function readCssVar(name: string, fallback: string): string {
@@ -8,8 +9,9 @@ function readCssVar(name: string, fallback: string): string {
 
 /**
  * 基于应用主题变量生成 klinecharts 样式，保持红涨绿跌与深色画布一致。
+ * @param kind 标的类型，场外基金使用面积图展示净值
  */
-export function buildTradingChartStyles(): DeepPartial<Styles> {
+export function buildTradingChartStyles(kind: InstrumentKind = 'stock'): DeepPartial<Styles> {
   const profit = readCssVar('--td-color-profit', '#ff626f');
   const loss = readCssVar('--td-color-loss', '#42cc8b');
   const flat = readCssVar('--td-color-flat', '#6b7280');
@@ -37,7 +39,7 @@ export function buildTradingChartStyles(): DeepPartial<Styles> {
       },
     },
     candle: {
-      type: 'candle_solid',
+      type: kind === 'otc_fund' ? 'area' : 'candle_solid',
       bar: {
         upColor: profit,
         downColor: loss,
@@ -139,4 +141,9 @@ export function buildTradingChartStyles(): DeepPartial<Styles> {
       },
     },
   };
+}
+
+/** 按标的类型返回价格小数位。 */
+export function pricePrecisionForKind(kind: InstrumentKind): number {
+  return kind === 'otc_fund' ? 4 : 2;
 }

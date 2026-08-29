@@ -71,6 +71,45 @@ describe('sip import', () => {
     fs.unlinkSync(csvPath);
     database.close();
   });
+
+  it('auto-creates a sip plan when importing without an existing plan', async () => {
+    const database = createTestDatabase();
+    const importService = createSipImportService(database);
+    const sipService = createSipService(database);
+    const accountId = database.portfolio.ensureDefaultAccount();
+
+    const csvPath = path.join(os.tmpdir(), `sip-import-auto-plan-${Date.now()}.csv`);
+    fs.writeFileSync(
+      csvPath,
+      '代码,扣款日期,净值,金额\n110022,2026-01-05,1.8,300\n110022,2026-02-05,1.82,300\n',
+      'utf8',
+    );
+
+    const mapping = {
+      symbol: 0,
+      tradeAt: 1,
+      nav: 2,
+      amount: 3,
+      quantity: -1,
+      fees: -1,
+    };
+
+    const preview = importService.preview({ sourcePath: csvPath, accountId, mapping });
+    expect(preview.readyCount).toBe(2);
+    expect(preview.rows.every((item) => item.matchedPlanName === '导入时自动创建')).toBe(true);
+
+    const result = await importService.commit({ sourcePath: csvPath, accountId, mapping });
+    expect(result.plansCreated).toBe(1);
+    expect(result.linkedToPlan).toBe(2);
+    expect(result.ledgerOnly).toBe(0);
+
+    const plans = sipService.listPlans();
+    expect(plans.some((plan) => plan.symbol === '110022')).toBe(true);
+    expect(sipService.listOccurrenceViews().filter((item) => item.symbol === '110022' && item.status === 'completed').length).toBe(2);
+
+    fs.unlinkSync(csvPath);
+    database.close();
+  });
 });
 
 describe('sip review template', () => {

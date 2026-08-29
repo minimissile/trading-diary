@@ -42,6 +42,7 @@ export interface SipImportCommitResult {
   failed: number;
   linkedToPlan: number;
   ledgerOnly: number;
+  plansCreated: number;
   errors: Array<{ rowIndex: number; message: string }>;
 }
 
@@ -81,6 +82,7 @@ export interface SipAiRecognizeResult {
   fileName: string;
   records: SipAiExtractedRecord[];
   warnings: string[];
+  enrichments: string[];
   hints: string[];
   planMode: SipRecognizedPlanMode;
   planModeLabel: string | null;
@@ -88,9 +90,17 @@ export interface SipAiRecognizeResult {
   model: string;
 }
 
+/** AI 导入预览（含补全后的记录）。 */
+export interface SipAiImportPreviewResult {
+  preview: SipImportPreviewResult;
+  records: SipAiExtractedRecord[];
+  enrichments: string[];
+}
+
 /** AI 导入输入（已识别记录）。 */
 export interface SipAiImportInput {
   accountId?: string;
   planId?: string;
   records: SipAiExtractedRecord[];
+  planHints?: SipAiPlanHints | null;
 }

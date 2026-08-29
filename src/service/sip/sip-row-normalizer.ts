@@ -60,6 +60,31 @@ function parseTradeAt(raw: string): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+/** 将扣款日期标准化为 YYYY-MM-DD（本地日历日，避免 UTC 偏移）。 */
+export function toTradeDateKey(tradeAt: string | null | undefined): string | null {
+  if (!tradeAt) return null;
+
+  const loose = tradeAt
+    .trim()
+    .replace(/年/gu, '-')
+    .replace(/月/gu, '-')
+    .replace(/日/gu, '')
+    .replace(/\//gu, '-')
+    .replace(/\./gu, '-')
+    .match(/^(\d{4})-(\d{1,2})-(\d{1,2})/u);
+  if (loose) {
+    return `${loose[1]}-${String(Number(loose[2])).padStart(2, '0')}-${String(Number(loose[3])).padStart(2, '0')}`;
+  }
+
+  const parsed = parseTradeAt(tradeAt);
+  if (!parsed) return null;
+  const date = new Date(parsed);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 /** 将结构化字段标准化为定投导入结构。 */
 export function normalizeSipImportValues(input: {
   symbol?: string | null;
@@ -108,7 +133,7 @@ export function normalizeSipImportValues(input: {
       amount,
       quantity,
       fees,
-      scheduledDate: tradeAt.slice(0, 10),
+      scheduledDate: toTradeDateKey(tradeAt) ?? tradeAt.slice(0, 10),
     },
   };
 }

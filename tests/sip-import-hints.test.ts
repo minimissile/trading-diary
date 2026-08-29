@@ -13,7 +13,7 @@ describe('sip import hints', () => {
     expect(hints.some((hint) => hint.includes('智能定投'))).toBe(true);
     expect(hints.some((hint) => hint.includes('普通定投'))).toBe(true);
     expect(hints.some((hint) => hint.includes('不会丢失'))).toBe(true);
-    expect(hints.some((hint) => hint.includes('持仓流水'))).toBe(true);
+    expect(hints.some((hint) => hint.includes('自动创建'))).toBe(true);
   });
 
   it('counts unmatched ready rows from preview', () => {
@@ -21,7 +21,7 @@ describe('sip import hints', () => {
       {
         status: 'ready',
         matchedPlanName: null,
-        message: '未匹配计划，将仅写入持仓流水',
+        message: '指定计划与标的不匹配，将仅写入持仓流水',
       },
       {
         status: 'ready',

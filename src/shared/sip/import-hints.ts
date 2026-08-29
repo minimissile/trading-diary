@@ -27,9 +27,11 @@ export function buildSipAiImportHints(options: {
     hints.push(`共 ${readyCount} 笔扣款可写入，确认后不会丢失已发生的定投数据。`);
   }
 
-  if (unmatchedPlanCount > 0 || ledgerOnlyCount > 0) {
-    const count = Math.max(unmatchedPlanCount, ledgerOnlyCount);
-    hints.push(`${count} 笔未匹配定投计划，将写入持仓流水；不影响保存历史扣款记录。`);
+  if (unmatchedPlanCount > 0) {
+    hints.push(`${unmatchedPlanCount} 笔未匹配已有计划，导入时将自动创建定投计划并关联期次。`);
+  }
+  if (ledgerOnlyCount > 0) {
+    hints.push(`${ledgerOnlyCount} 笔将仅写入持仓流水（无法创建或关联计划）。`);
   }
 
   return hints;
@@ -40,6 +42,6 @@ export function countUnmatchedReadyRows(
   rows: Array<{ status: string; matchedPlanName: string | null; message: string | null }>,
 ): number {
   return rows.filter(
-    (row) => row.status === 'ready' && row.matchedPlanName === null && row.message?.includes('仅写入持仓流水'),
+    (row) => row.status === 'ready' && row.matchedPlanName === null && !row.message?.includes('自动创建'),
   ).length;
 }

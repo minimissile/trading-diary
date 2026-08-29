@@ -103,6 +103,7 @@ export interface KLineBar {
 export interface KLineListResult {
   symbol: string;
   name: string;
+  kind: InstrumentKind;
   period: KLinePeriod;
   adjust: KLineAdjust;
   bars: KLineBar[];

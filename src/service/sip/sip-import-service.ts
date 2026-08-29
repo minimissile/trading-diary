@@ -2,18 +2,21 @@ import type { InstrumentKind } from '../../shared/market/types';
 import type {
   SipAiExtractedRecord,
   SipAiImportInput,
+  SipAiPlanHints,
   SipCsvParseResult,
   SipImportCommitResult,
   SipImportInput,
   SipImportPreviewResult,
   SipImportPreviewRow,
 } from '../../shared/sip/import-types';
+import type { FundSipPlan } from '../../shared/sip/types';
 import type { AppDatabase } from '../database/database';
 import { marketService } from '../market/market-service';
 import { assertRequiredSipMapping, guessSipColumnMapping } from './sip-column-guess';
 import { csvBasename, parseCsvFile } from '../import/csv-parser';
 import type { SipDatabase } from './sip-database';
 import { hasPartialExtractedRecord } from './sip-ai-import-parser';
+import { inferSipPlanInputFromImport } from './sip-import-plan-inference';
 import { normalizeSipImportRow, normalizeSipImportValues, type NormalizedSipImportRow } from './sip-row-normalizer';
 
 const ALLOWED_SIP_KINDS = new Set(['otc_fund', 'etf', 'lof']);
@@ -51,6 +54,14 @@ export class SipImportService {
   previewRecords(input: SipAiImportInput): SipImportPreviewResult {
     const accountId = this.database.portfolio.resolveAccountId(input.accountId);
     const rows = input.records.map((record) => this.buildPreviewRowFromExtracted(accountId, input.planId, record));
+    return summarizePreview(rows);
+  }
+
+  async previewRecordsAsync(input: SipAiImportInput): Promise<SipImportPreviewResult> {
+    const accountId = this.database.portfolio.resolveAccountId(input.accountId);
+    const rows = await Promise.all(
+      input.records.map((record) => this.buildPreviewRowFromExtractedAsync(accountId, input.planId, record)),
+    );
     return summarizePreview(rows);
   }
 
@@ -100,7 +111,7 @@ export class SipImportService {
     }
 
     normalizedRows.sort((left, right) => left.value.tradeAt.localeCompare(right.value.tradeAt));
-    const result = await this.commitNormalizedRows(accountId, input.planId, normalizedRows);
+    const result = await this.commitNormalizedRows(accountId, input.planId, normalizedRows, input.planHints);
     return {
       ...result,
       failed: result.failed + preFailed,
@@ -156,6 +167,37 @@ export class SipImportService {
     return this.buildPreviewRow(accountId, planId, record.rowIndex, () => normalized);
   }
 
+  private async buildPreviewRowFromExtractedAsync(
+    accountId: string,
+    planId: string | undefined,
+    record: SipAiExtractedRecord,
+  ): Promise<SipImportPreviewRow> {
+    const row = this.buildPreviewRowFromExtracted(accountId, planId, record);
+    if (row.status !== 'ready' || !row.symbol) return row;
+
+    try {
+      const instrument = await marketService.resolve(row.symbol);
+      if (!ALLOWED_SIP_KINDS.has(instrument.kind)) {
+        return {
+          ...row,
+          status: 'error',
+          message: '定投仅支持场外基金、ETF 与 LOF',
+          matchedPlanName: null,
+        };
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : '标的解析失败';
+      return {
+        ...row,
+        status: 'error',
+        message: `标的代码无法解析：${detail}`,
+        matchedPlanName: null,
+      };
+    }
+
+    return row;
+  }
+
   private buildPreviewRow(
     accountId: string,
     planId: string | undefined,
@@ -203,24 +245,64 @@ export class SipImportService {
     }
 
     const plan = this.sip.findPlanForImport(accountId, value.symbol, planId);
+    const willAutoCreatePlan = !plan && !planId;
     return {
       rowIndex,
       status: 'ready',
-      message: plan ? null : '未匹配计划，将仅写入持仓流水',
+      message: plan ? null : planId ? '指定计划与标的不匹配，将仅写入持仓流水' : '未匹配计划，导入时将自动创建',
       symbol: value.symbol,
       tradeAt: value.tradeAt,
       nav: value.nav,
       amount: value.amount,
       quantity: value.quantity,
       fees: value.fees,
-      matchedPlanName: plan?.name ?? null,
+      matchedPlanName: plan?.name ?? (willAutoCreatePlan ? '导入时自动创建' : null),
     };
+  }
+
+  private async ensureAutoCreatedPlans(
+    accountId: string,
+    planId: string | undefined,
+    normalizedRows: Array<{ index: number; value: NormalizedSipImportRow }>,
+    planHints?: SipAiPlanHints | null,
+  ): Promise<{ plans: Map<string, FundSipPlan>; plansCreated: number }> {
+    const plans = new Map<string, FundSipPlan>();
+    if (planId) return { plans, plansCreated: 0 };
+
+    const rowsBySymbol = new Map<string, NormalizedSipImportRow[]>();
+    for (const { value } of normalizedRows) {
+      const bucket = rowsBySymbol.get(value.symbol) ?? [];
+      bucket.push(value);
+      rowsBySymbol.set(value.symbol, bucket);
+    }
+
+    let plansCreated = 0;
+    for (const [symbol, rows] of rowsBySymbol) {
+      if (this.sip.findPlanForImport(accountId, symbol, undefined)) continue;
+      try {
+        const instrument = await marketService.resolve(symbol);
+        if (!ALLOWED_SIP_KINDS.has(instrument.kind)) continue;
+        const input = inferSipPlanInputFromImport(rows, planHints);
+        const plan = this.sip.createPlan(input, {
+          name: instrument.name,
+          kind: instrument.kind as InstrumentKind,
+          accountId,
+        });
+        plans.set(symbol, plan);
+        plansCreated += 1;
+      } catch {
+        // 无法推断计划时，后续行仍写入持仓流水
+      }
+    }
+
+    return { plans, plansCreated };
   }
 
   private async commitNormalizedRows(
     accountId: string,
     planId: string | undefined,
     normalizedRows: Array<{ index: number; value: NormalizedSipImportRow }>,
+    planHints?: SipAiPlanHints | null,
   ): Promise<SipImportCommitResult> {
     let imported = 0;
     let skippedDuplicate = 0;
@@ -228,6 +310,13 @@ export class SipImportService {
     let linkedToPlan = 0;
     let ledgerOnly = 0;
     const errors: Array<{ rowIndex: number; message: string }> = [];
+
+    const { plans: autoCreatedPlans, plansCreated } = await this.ensureAutoCreatedPlans(
+      accountId,
+      planId,
+      normalizedRows,
+      planHints,
+    );
 
     for (const { index, value } of normalizedRows) {
       if (
@@ -249,7 +338,8 @@ export class SipImportService {
           throw new Error('定投仅支持场外基金、ETF 与 LOF');
         }
 
-        const plan = this.sip.findPlanForImport(accountId, value.symbol, planId);
+        const plan =
+          this.sip.findPlanForImport(accountId, value.symbol, planId) ?? autoCreatedPlans.get(value.symbol) ?? null;
         const note = plan ? `定投 · ${plan.name}` : `定投导入 · ${instrument.name}`;
 
         const ledger = this.database.portfolio.addLedgerEntry({
@@ -266,15 +356,20 @@ export class SipImportService {
         });
 
         if (plan) {
-          this.sip.importCompletedOccurrence(plan.id, value.scheduledDate, {
-            amount: value.amount,
-            quantity: value.quantity,
-            nav: value.nav,
-            fees: value.fees,
-            ledgerEntryId: ledger.id,
-            confirmedAt: value.tradeAt,
-          });
-          linkedToPlan += 1;
+          try {
+            this.sip.importCompletedOccurrence(plan.id, value.scheduledDate, {
+              amount: value.amount,
+              quantity: value.quantity,
+              nav: value.nav,
+              fees: value.fees,
+              ledgerEntryId: ledger.id,
+              confirmedAt: value.tradeAt,
+            });
+            linkedToPlan += 1;
+          } catch {
+            // 流水已写入；期次关联失败时仍保留持仓记录
+            ledgerOnly += 1;
+          }
         } else {
           ledgerOnly += 1;
         }
@@ -297,6 +392,7 @@ export class SipImportService {
       failed,
       linkedToPlan,
       ledgerOnly,
+      plansCreated,
       errors: errors.slice(0, 20),
     };
   }

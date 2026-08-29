@@ -1,7 +1,7 @@
 import { CheckCircleOutlined, CloseCircleOutlined, EditOutlined, PictureOutlined, UploadOutlined } from '@ant-design/icons';
 import { Alert, App, Button, Input, Modal, Segmented, Select, Space, Steps, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FundSipPlanView } from '../../../shared/sip/types';
 import { buildSipAiImportHints, countUnmatchedReadyRows } from '../../../shared/sip/import-hints';
 import type {
@@ -9,6 +9,7 @@ import type {
   SipAiRecognizeResult,
   SipColumnMapping,
   SipCsvField,
+  SipImportCommitResult,
   SipImportInput,
   SipImportPreviewResult,
   SipImportPreviewRow,
@@ -61,9 +62,14 @@ export function SipImportModal({
   const [aiScreenshot, setAiScreenshot] = useState<{ sourcePath: string; fileName: string } | null>(null);
   const [aiRecognize, setAiRecognize] = useState<SipAiRecognizeResult | null>(null);
   const [aiRecords, setAiRecords] = useState<SipAiExtractedRecord[]>([]);
+  const [aiEnrichments, setAiEnrichments] = useState<string[]>([]);
+  const wasOpenRef = useRef(false);
 
   useEffect(() => {
-    if (open) setAccountId(defaultAccountId);
+    if (open && !wasOpenRef.current) {
+      setAccountId(defaultAccountId);
+    }
+    wasOpenRef.current = open;
   }, [defaultAccountId, open]);
 
   const headerOptions = useMemo(
@@ -85,6 +91,7 @@ export function SipImportModal({
     setAiScreenshot(null);
     setAiRecognize(null);
     setAiRecords([]);
+    setAiEnrichments([]);
   };
 
   const switchMode = (nextMode: ImportMode): void => {
@@ -95,6 +102,7 @@ export function SipImportModal({
       setAiScreenshot(null);
       setAiRecognize(null);
       setAiRecords([]);
+      setAiEnrichments([]);
     } else {
       setCsv(null);
       setMapping(null);
@@ -147,18 +155,21 @@ export function SipImportModal({
     try {
       const recognized = await window.desktop.sip.recognizeImportScreenshot(aiScreenshot.sourcePath);
       setAiRecognize(recognized);
-      setAiRecords(recognized.records);
-      const nextPreview = await window.desktop.sip.previewAiImport({
+      const aiPreview = await window.desktop.sip.previewAiImport({
         accountId,
         planId,
         records: recognized.records,
       });
-      setPreview(nextPreview);
+      setPreview(aiPreview.preview);
+      setAiRecords(aiPreview.records);
+      setAiEnrichments([...recognized.enrichments, ...aiPreview.enrichments]);
       setStep(2);
       const summary =
-        nextPreview.incompleteCount > 0
-          ? `已识别 ${recognized.records.length} 条，其中 ${nextPreview.incompleteCount} 条待补全`
-          : `已识别 ${recognized.records.length} 条记录，请核对后确认导入`;
+        aiPreview.preview.incompleteCount > 0
+          ? `已识别 ${recognized.records.length} 条，其中 ${aiPreview.preview.incompleteCount} 条待补全`
+          : aiPreview.preview.readyCount > 0
+            ? `已识别 ${aiPreview.preview.readyCount} 条可导入记录`
+            : `已识别 ${recognized.records.length} 条记录，请核对后确认导入`;
       void message.success(summary);
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : 'AI 识别失败');
@@ -180,8 +191,10 @@ export function SipImportModal({
     }
     setBusy(true);
     try {
-      const nextPreview = await window.desktop.sip.previewAiImport({ accountId, planId, records: aiRecords });
-      setPreview(nextPreview);
+      const aiPreview = await window.desktop.sip.previewAiImport({ accountId, planId, records: aiRecords });
+      setPreview(aiPreview.preview);
+      setAiRecords(aiPreview.records);
+      setAiEnrichments(aiPreview.enrichments);
       void message.success('已更新预览');
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '预览失败');
@@ -207,22 +220,76 @@ export function SipImportModal({
     }
   };
 
+  const formatCommitSummary = (result: SipImportCommitResult): string => {
+    const parts = [`导入 ${result.imported} 笔`];
+    if (result.plansCreated > 0) parts.push(`新建计划 ${result.plansCreated} 个`);
+    if (result.linkedToPlan > 0) parts.push(`关联计划 ${result.linkedToPlan} 笔`);
+    if (result.ledgerOnly > 0) parts.push(`仅流水 ${result.ledgerOnly} 笔`);
+    if (result.skippedDuplicate > 0) parts.push(`跳过重复 ${result.skippedDuplicate} 笔`);
+    if (result.failed > 0) parts.push(`失败 ${result.failed} 笔`);
+    return parts.join('，');
+  };
+
+  const showCommitFailure = (result: SipImportCommitResult): void => {
+    if (result.errors.length > 0) {
+      const detail = result.errors
+        .slice(0, 3)
+        .map((item) => `第 ${item.rowIndex} 行：${item.message}`)
+        .join('；');
+      void message.error(`未能导入记录。${detail}`);
+      return;
+    }
+    if (result.skippedDuplicate > 0) {
+      void message.warning(`未导入新记录，${result.skippedDuplicate} 笔与已有流水重复`);
+      return;
+    }
+    void message.warning('未导入任何记录，请检查预览中的错误提示后重试');
+  };
+
   const commit = async (): Promise<void> => {
-    if (!accountId || !preview || preview.readyCount === 0) return;
+    if (!accountId || !preview || preview.readyCount === 0) {
+      void message.warning('没有可导入的记录');
+      return;
+    }
     setBusy(true);
     try {
-      const result =
-        mode === 'ai'
-          ? await window.desktop.sip.commitAiImport({ accountId, planId, records: aiRecords })
-          : await window.desktop.sip.commitImport({
-              sourcePath: csv!.sourcePath,
-              accountId,
-              planId,
-              mapping: mapping!,
-            });
-      void message.success(
-        `导入 ${result.imported} 笔，关联计划 ${result.linkedToPlan} 笔，仅流水 ${result.ledgerOnly} 笔`,
-      );
+      let result: SipImportCommitResult;
+      if (mode === 'ai') {
+        const aiPreview = await window.desktop.sip.previewAiImport({ accountId, planId, records: aiRecords });
+        setPreview(aiPreview.preview);
+        setAiRecords(aiPreview.records);
+        setAiEnrichments(aiPreview.enrichments);
+
+        if (aiPreview.preview.readyCount === 0) {
+          void message.warning('没有可导入的记录，请补全标的信息后点击「重新预览」');
+          return;
+        }
+
+        const readyRowIndexes = new Set(
+          aiPreview.preview.rows.filter((row) => row.status === 'ready').map((row) => row.rowIndex),
+        );
+        const recordsToCommit = aiPreview.records.filter((record) => readyRowIndexes.has(record.rowIndex));
+        result = await window.desktop.sip.commitAiImport({
+          accountId,
+          planId,
+          records: recordsToCommit,
+          planHints: aiRecognize?.planHints ?? null,
+        });
+      } else {
+        result = await window.desktop.sip.commitImport({
+          sourcePath: csv!.sourcePath,
+          accountId,
+          planId,
+          mapping: mapping!,
+        });
+      }
+
+      if (result.imported <= 0) {
+        showCommitFailure(result);
+        return;
+      }
+
+      void message.success(formatCommitSummary(result));
       reset();
       onSaved();
       onClose();
@@ -490,6 +557,16 @@ export function SipImportModal({
                         ))}
                       </ul>
                     ) : null}
+                    {aiEnrichments.length > 0 ? (
+                      <>
+                        <p className="sip-import-ai-subheading">自动补全</p>
+                        <ul className="sip-import-ai-warnings">
+                          {aiEnrichments.map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                      </>
+                    ) : null}
                     {aiRecognize.warnings.length > 0 ? (
                       <>
                         <p className="sip-import-ai-subheading">识别备注</p>
@@ -504,7 +581,7 @@ export function SipImportModal({
                 }
               />
               <p className="sip-import-hint">
-                识别到的字段已自动填入；缺失项可在下表直接修改，补全后点击「重新预览」。错误行不会写入，不影响已识别数据。
+                识别到的字段已自动填入；若已有标的与扣款日，系统会尝试拉取历史净值。缺失项可在下表修改，补全后点击「重新预览」。
               </p>
             </>
           ) : null}
