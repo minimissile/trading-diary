@@ -63,8 +63,9 @@ export class MarketService {
     period?: KLinePeriod,
     adjust?: KLineAdjust,
     limit?: number,
+    beforeTimestamp?: number,
   ): Promise<KLineListResult> {
-    return fetchKlines(symbol, period, adjust, limit);
+    return fetchKlines(symbol, period, adjust, limit, beforeTimestamp);
   }
 
   lookupHistoricalPriceOnDate(symbol: string, dateKey: string) {

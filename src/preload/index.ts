@@ -139,8 +139,8 @@ const desktopApi: DesktopApi = {
     listDividends: (symbol, page, pageSize) =>
       ipcRenderer.invoke(ipcChannels.marketListDividends, { symbol, page, pageSize }),
     listNews: (symbol, pageSize) => ipcRenderer.invoke(ipcChannels.marketListNews, { symbol, pageSize }),
-    listKlines: (symbol, period, adjust, limit) =>
-      ipcRenderer.invoke(ipcChannels.marketListKlines, { symbol, period, adjust, limit }),
+    listKlines: (symbol, period, adjust, limit, beforeTimestamp) =>
+      ipcRenderer.invoke(ipcChannels.marketListKlines, { symbol, period, adjust, limit, beforeTimestamp }),
   },
   watchlist: {
     listPools: () => ipcRenderer.invoke(ipcChannels.watchlistListPools),

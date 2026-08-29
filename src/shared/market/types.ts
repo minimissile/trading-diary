@@ -107,4 +107,6 @@ export interface KLineListResult {
   period: KLinePeriod;
   adjust: KLineAdjust;
   bars: KLineBar[];
+  /** 是否仍存在更早历史（可用于图表向左加载）。 */
+  hasMoreHistory: boolean;
 }

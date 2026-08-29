@@ -356,6 +356,7 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
         period?: KLinePeriod;
         adjust?: KLineAdjust;
         limit?: number;
+        beforeTimestamp?: number;
       },
     ) => {
       assertTrustedSender(event, window);

@@ -32,6 +32,8 @@ const CHART_LAYOUT = {
   },
 } as const;
 
+const CHART_BAR_LIMIT = 240;
+
 function applyIndicators(chart: Chart, mainIndicators: string[], subIndicators: string[]): void {
   chart.removeIndicator();
   for (const indicator of mainIndicators) {
@@ -122,26 +124,35 @@ export function TradingChart({
     syncSymbolAndPeriod(chart, loadContextRef.current);
 
     chart.setDataLoader({
-      getBars: ({ type, callback }) => {
-        if (type !== 'init') {
+      getBars: ({ type, timestamp, callback }) => {
+        if (type === 'backward') {
           callback([], false);
           return;
         }
 
         const currentRequestId = ++requestIdRef.current;
         const ctx = loadContextRef.current;
+        const beforeTimestamp = type === 'forward' && timestamp ? timestamp : undefined;
 
         void window.desktop.market
-          .listKlines(ctx.symbol, ctx.kind === 'otc_fund' ? '1d' : ctx.period, ctx.adjust, 320)
+          .listKlines(
+            ctx.symbol,
+            ctx.kind === 'otc_fund' ? '1d' : ctx.period,
+            ctx.adjust,
+            CHART_BAR_LIMIT,
+            beforeTimestamp,
+          )
           .then(
             (result) => {
               if (!mountedRef.current || currentRequestId !== requestIdRef.current) {
                 callback([], false);
                 return;
               }
-              callback(result.bars, { backward: false, forward: false });
-              applyIndicators(chart, ctx.mainIndicators, ctx.subIndicators);
-              scheduleChartResize(chart);
+              callback(result.bars, { forward: result.hasMoreHistory, backward: false });
+              if (type === 'init') {
+                applyIndicators(chart, ctx.mainIndicators, ctx.subIndicators);
+                scheduleChartResize(chart);
+              }
             },
             (reason) => {
               if (!mountedRef.current || currentRequestId !== requestIdRef.current) {
@@ -149,8 +160,10 @@ export function TradingChart({
                 return;
               }
               callback([], false);
-              const message = reason instanceof Error ? reason.message : 'K 线加载失败';
-              onLoadErrorRef.current?.(message);
+              if (type === 'init') {
+                const message = reason instanceof Error ? reason.message : 'K 线加载失败';
+                onLoadErrorRef.current?.(message);
+              }
             },
           );
       },

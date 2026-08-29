@@ -196,6 +196,7 @@ export class AppService {
           request.params.period,
           request.params.adjust,
           request.params.limit,
+          request.params.beforeTimestamp,
         );
       case 'watchlist.listPools':
         return watchlistService.listPools();

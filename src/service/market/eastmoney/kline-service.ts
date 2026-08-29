@@ -42,25 +42,98 @@ const ADJUST_TO_FQT: Record<KLineAdjust, number> = {
 };
 
 const FUND_NAV_PAGE_SIZE = 20;
+const FUND_NAV_MAX_PAGES = 160;
+const DEFAULT_KLINE_LIMIT = 240;
+
+function isIntradayPeriod(period: KLinePeriod): boolean {
+  return period === '1m' || period === '5m' || period === '15m' || period === '30m' || period === '60m';
+}
+
+function periodStepMs(period: KLinePeriod): number {
+  switch (period) {
+    case '1m':
+      return 60_000;
+    case '5m':
+      return 5 * 60_000;
+    case '15m':
+      return 15 * 60_000;
+    case '30m':
+      return 30 * 60_000;
+    case '60m':
+      return 60 * 60_000;
+    case '1d':
+      return 86_400_000;
+    case '1w':
+      return 7 * 86_400_000;
+    case '1M':
+      return 30 * 86_400_000;
+  }
+}
+
+/** 将「早于该时间戳」转换为东方财富 K 线 end 参数。 */
+export function formatEastMoneyKLineEnd(beforeTimestamp: number | undefined, period: KLinePeriod): string {
+  if (beforeTimestamp === undefined) return '20500101';
+
+  const anchor = beforeTimestamp - periodStepMs(period);
+  const date = new Date(anchor);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  if (isIntradayPeriod(period)) {
+    const hour = String(date.getHours()).padStart(2, '0');
+    const minute = String(date.getMinutes()).padStart(2, '0');
+    return `${year}${month}${day}${hour}${minute}`;
+  }
+
+  return `${year}${month}${day}`;
+}
+
+/** 从完整序列中截取 init / forward 请求需要的 K 线段。 */
+export function sliceKLineBars(
+  bars: KLineBar[],
+  limit: number,
+  beforeTimestamp?: number,
+): { bars: KLineBar[]; hasMoreHistory: boolean } {
+  const sorted = [...bars].sort((left, right) => left.timestamp - right.timestamp);
+  const pool =
+    beforeTimestamp === undefined ? sorted : sorted.filter((bar) => bar.timestamp < beforeTimestamp);
+
+  if (pool.length === 0) {
+    return { bars: [], hasMoreHistory: false };
+  }
+
+  if (beforeTimestamp === undefined) {
+    const slice = pool.slice(-limit);
+    return {
+      bars: slice,
+      hasMoreHistory: pool.length > slice.length || slice.length >= limit,
+    };
+  }
+
+  const slice = pool.slice(-limit);
+  return {
+    bars: slice,
+    hasMoreHistory: pool.length > slice.length || slice.length >= limit,
+  };
+}
 
 /**
  * 拉取标的 K 线序列。
- * @param symbolInput 证券代码
- * @param period K 线周期
- * @param adjust 复权方式
- * @param limit 返回条数上限
+ * @param beforeTimestamp 仅返回早于该时间戳的 K 线（用于图表向左加载历史）
  */
 export async function listKlines(
   symbolInput: string,
   period: KLinePeriod = '1d',
   adjust: KLineAdjust = 'forward',
-  limit = 240,
+  limit = DEFAULT_KLINE_LIMIT,
+  beforeTimestamp?: number,
 ): Promise<KLineListResult> {
   const instrument = await resolveInstrument(symbolInput);
   const clampedLimit = Math.min(Math.max(limit, 1), 1023);
 
   if (instrument.kind === 'otc_fund') {
-    const bars = await listOtcFundNavBars(instrument.symbol, clampedLimit);
+    const { bars, hasMoreHistory } = await listOtcFundNavBars(instrument.symbol, clampedLimit, beforeTimestamp);
     return {
       symbol: instrument.symbol,
       name: instrument.name,
@@ -68,6 +141,7 @@ export async function listKlines(
       period: '1d',
       adjust: 'none',
       bars,
+      hasMoreHistory,
     };
   }
 
@@ -79,27 +153,40 @@ export async function listKlines(
   url.searchParams.set('klt', String(PERIOD_TO_KLT[period]));
   url.searchParams.set('fqt', String(ADJUST_TO_FQT[adjust]));
   url.searchParams.set('lmt', String(clampedLimit));
-  url.searchParams.set('end', '20500000');
+  url.searchParams.set('end', formatEastMoneyKLineEnd(beforeTimestamp, period));
   url.searchParams.set('fields1', 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13');
   url.searchParams.set('fields2', 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61');
 
   const payload = await eastMoneyFetchJson<KLineResponse>(url, { referer: 'https://quote.eastmoney.com/' });
   if (payload.rc !== 0 || !payload.data?.klines?.length) {
+    if (beforeTimestamp !== undefined) {
+      return {
+        symbol: instrument.symbol,
+        name: instrument.name,
+        kind: instrument.kind,
+        period,
+        adjust,
+        bars: [],
+        hasMoreHistory: false,
+      };
+    }
     throw new MarketNotFoundError(`K 线为空：${instrument.symbol}`);
   }
 
-  const bars = payload.data.klines
+  const parsed = payload.data.klines
     .map(parseExchangeKLineRow)
     .filter((bar): bar is KLineBar => bar !== null)
     .sort((left, right) => left.timestamp - right.timestamp);
 
+  const sliced = sliceKLineBars(parsed, clampedLimit, beforeTimestamp);
   return {
     symbol: payload.data.code ?? instrument.symbol,
     name: payload.data.name ?? instrument.name,
     kind: instrument.kind,
     period,
     adjust,
-    bars,
+    bars: sliced.bars,
+    hasMoreHistory: sliced.hasMoreHistory,
   };
 }
 
@@ -119,22 +206,56 @@ async function fetchFundNavPage(symbol: string, pageIndex: number): Promise<Fund
   return payload.Data?.LSJZList ?? [];
 }
 
-async function listOtcFundNavBars(symbol: string, limit: number): Promise<KLineBar[]> {
-  const pages = Math.ceil(limit / FUND_NAV_PAGE_SIZE);
+async function listOtcFundNavBars(
+  symbol: string,
+  limit: number,
+  beforeTimestamp?: number,
+): Promise<{ bars: KLineBar[]; hasMoreHistory: boolean }> {
   const rows: FundNavRow[] = [];
+  let pageIndex = 1;
+  let hasMorePages = true;
 
-  for (let pageIndex = 1; pageIndex <= pages; pageIndex += 1) {
+  while (pageIndex <= FUND_NAV_MAX_PAGES) {
     const batch = await fetchFundNavPage(symbol, pageIndex);
-    if (batch.length === 0) break;
+    if (batch.length === 0) {
+      hasMorePages = false;
+      break;
+    }
+
     rows.push(...batch);
-    if (rows.length >= limit) break;
+    pageIndex += 1;
+
+    const bars = buildOtcFundNavBars(rows);
+    const sliced = sliceKLineBars(bars, limit, beforeTimestamp);
+    if (sliced.bars.length >= limit) {
+      return {
+        bars: sliced.bars,
+        hasMoreHistory: sliced.hasMoreHistory && (hasMorePages || batch.length === FUND_NAV_PAGE_SIZE),
+      };
+    }
   }
 
   if (rows.length === 0) {
     throw new MarketNotFoundError(`基金净值历史为空：${symbol}`);
   }
 
-  const sorted = rows.slice(0, limit).reverse();
+  const bars = buildOtcFundNavBars(rows);
+  const sliced = sliceKLineBars(bars, limit, beforeTimestamp);
+  if (sliced.bars.length === 0 && beforeTimestamp !== undefined) {
+    return { bars: [], hasMoreHistory: false };
+  }
+  if (sliced.bars.length === 0) {
+    throw new MarketNotFoundError(`基金净值历史不可用：${symbol}`);
+  }
+
+  return {
+    bars: sliced.bars,
+    hasMoreHistory: sliced.hasMoreHistory && pageIndex <= FUND_NAV_MAX_PAGES,
+  };
+}
+
+function buildOtcFundNavBars(rows: FundNavRow[]): KLineBar[] {
+  const sorted = [...rows].sort((left, right) => left.FSRQ.localeCompare(right.FSRQ));
   const bars: KLineBar[] = [];
 
   for (let index = 0; index < sorted.length; index += 1) {
@@ -157,10 +278,6 @@ async function listOtcFundNavBars(symbol: string, limit: number): Promise<KLineB
       volume: 0,
       turnover: 0,
     });
-  }
-
-  if (bars.length === 0) {
-    throw new MarketNotFoundError(`基金净值历史不可用：${symbol}`);
   }
 
   return bars;

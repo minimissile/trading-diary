@@ -451,6 +451,7 @@ export interface DesktopApi {
       period?: KLinePeriod,
       adjust?: KLineAdjust,
       limit?: number,
+      beforeTimestamp?: number,
     ) => Promise<KLineListResult>;
   };
   watchlist: {

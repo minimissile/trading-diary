@@ -378,6 +378,7 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
         period: z.enum(['1m', '5m', '15m', '30m', '60m', '1d', '1w', '1M']).optional(),
         adjust: z.enum(['none', 'forward', 'backward']).optional(),
         limit: z.number().int().min(1).max(1023).optional(),
+        beforeTimestamp: z.number().int().positive().optional(),
       })
       .strict(),
   }),

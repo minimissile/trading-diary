@@ -257,7 +257,7 @@ export interface ServiceContract {
     result: MarketNewsItem[];
   };
   'market.listKlines': {
-    params: { symbol: string; period?: KLinePeriod; adjust?: KLineAdjust; limit?: number };
+    params: { symbol: string; period?: KLinePeriod; adjust?: KLineAdjust; limit?: number; beforeTimestamp?: number };
     result: KLineListResult;
   };
   'watchlist.listPools': {
