@@ -19,6 +19,7 @@ const routeByNavigationKey: Readonly<Record<string, string>> = {
   import: routePaths.import,
   analysis: routePaths.analysis,
   settings: routePaths.settings,
+  about: routePaths.about,
   devChart: routePaths.devChart,
 };
 

@@ -535,6 +535,27 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
   }),
   z.object({
     id: z.uuid(),
+    method: z.literal('portfolio.getDividendGoal'),
+    params: z.object({ accountId: z.string().trim().min(1).max(64).optional() }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('portfolio.saveDividendGoal'),
+    params: z
+      .object({
+        accountId: z.string().trim().min(1).max(64).optional(),
+        settings: z
+          .object({
+            ytdTarget: positiveNumberSchema.nullable(),
+            dailyTarget: positiveNumberSchema.nullable(),
+          })
+          .strict()
+          .nullable(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
     method: z.literal('license.getStatus'),
     params: z.object({}).strict(),
   }),

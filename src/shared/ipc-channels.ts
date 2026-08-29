@@ -1,5 +1,6 @@
 export const ipcChannels = {
   health: 'desktop:health',
+  openExternal: 'desktop:system:open-external',
   assetStats: 'desktop:assets:stats',
   importImage: 'desktop:assets:import-image',
   workspaceSnapshot: 'desktop:workspace:snapshot',
@@ -59,6 +60,8 @@ export const ipcChannels = {
   portfolioConfirmDividend: 'desktop:portfolio:confirm-dividend',
   portfolioRefreshDividends: 'desktop:portfolio:refresh-dividends',
   portfolioSyncMarketQuotes: 'desktop:portfolio:sync-market-quotes',
+  portfolioGetDividendGoal: 'desktop:portfolio:get-dividend-goal',
+  portfolioSaveDividendGoal: 'desktop:portfolio:save-dividend-goal',
   licenseGetStatus: 'desktop:license:get-status',
   licenseActivate: 'desktop:license:activate',
   accountsList: 'desktop:accounts:list',

@@ -365,6 +365,7 @@ export type {
 export interface DesktopApi {
   system: {
     health: () => Promise<HealthResult>;
+    openExternal: (url: string) => Promise<void>;
   };
   assets: {
     stats: () => Promise<AssetStats>;
@@ -489,6 +490,11 @@ export interface DesktopApi {
     ) => Promise<import('./portfolio/types').PortfolioDividendRecord[]>;
     refreshDividends: (accountId?: string, symbol?: string) => Promise<import('./portfolio/types').PortfolioRefreshResult>;
     syncMarketQuotes: (accountId?: string) => Promise<import('./portfolio/types').PortfolioPositionView[]>;
+    getDividendGoal: (accountId?: string) => Promise<import('./portfolio/dividend-goal').DividendGoalSettings | null>;
+    saveDividendGoal: (
+      accountId: string | undefined,
+      settings: import('./portfolio/dividend-goal').DividendGoalSettings | null,
+    ) => Promise<import('./portfolio/dividend-goal').DividendGoalSettings | null>;
   };
   license: {
     getStatus: () => Promise<import('./license/types').LicenseStatus>;

@@ -1,4 +1,4 @@
-import { app, dialog, ipcMain, Notification, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
+import { app, dialog, ipcMain, Notification, shell, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import path from 'node:path';
 import type {
   CreateTradeAlertInput,
@@ -105,6 +105,15 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
   ipcMain.handle(ipcChannels.health, async (event) => {
     assertTrustedSender(event, window);
     return service.request('system.health', {});
+  });
+
+  ipcMain.handle(ipcChannels.openExternal, async (event, input: { url: string }) => {
+    assertTrustedSender(event, window);
+    const url = input.url.trim();
+    if (!/^https?:\/\//iu.test(url)) {
+      throw new Error('仅支持打开 http/https 链接');
+    }
+    await shell.openExternal(url);
   });
 
   ipcMain.handle(ipcChannels.assetStats, async (event) => {
@@ -452,6 +461,19 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
     assertTrustedSender(event, window);
     return service.request('portfolio.syncMarketQuotes', input);
   });
+
+  ipcMain.handle(ipcChannels.portfolioGetDividendGoal, (event, input: { accountId?: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('portfolio.getDividendGoal', input);
+  });
+
+  ipcMain.handle(
+    ipcChannels.portfolioSaveDividendGoal,
+    (event, input: { accountId?: string; settings: import('../shared/portfolio/dividend-goal').DividendGoalSettings | null }) => {
+      assertTrustedSender(event, window);
+      return service.request('portfolio.saveDividendGoal', input);
+    },
+  );
 
   ipcMain.handle(ipcChannels.licenseGetStatus, (event) => {
     assertTrustedSender(event, window);

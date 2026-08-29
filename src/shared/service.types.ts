@@ -319,6 +319,17 @@ export interface ServiceContract {
     params: { accountId?: string };
     result: PortfolioPositionView[];
   };
+  'portfolio.getDividendGoal': {
+    params: { accountId?: string };
+    result: import('./portfolio/dividend-goal').DividendGoalSettings | null;
+  };
+  'portfolio.saveDividendGoal': {
+    params: {
+      accountId?: string;
+      settings: import('./portfolio/dividend-goal').DividendGoalSettings | null;
+    };
+    result: import('./portfolio/dividend-goal').DividendGoalSettings | null;
+  };
   'license.getStatus': {
     params: Record<string, never>;
     result: LicenseStatus;

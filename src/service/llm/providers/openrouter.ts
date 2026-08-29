@@ -24,6 +24,13 @@ function isJsonModeError(status: number, detail: string): boolean {
   return status === 400 || status === 422 || /response_format|json_object|structured output/i.test(detail);
 }
 
+/** 当前模型不可用时应切换 fallback，而不是立即失败。 */
+function shouldTryNextModel(status: number, detail: string): boolean {
+  if (status === 404) return true;
+  if (isRetryableError(status, detail)) return true;
+  return /no endpoints found|model not found|does not exist|invalid model|not a valid model/i.test(detail);
+}
+
 export class OpenRouterProvider implements LlmProvider {
   private readonly getApiKey: () => string | null;
   private readonly defaultModel: string;
@@ -110,12 +117,12 @@ export class OpenRouterProvider implements LlmProvider {
           lastError = new LlmProviderError(`OpenRouter 请求失败 (${response.status}, ${model})：${detail}`, response.status);
 
           if (useJson && isJsonModeError(response.status, detail)) continue;
-          if (isRetryableError(response.status, detail)) break;
+          if (shouldTryNextModel(response.status, detail)) break;
           throw lastError;
         } catch (error) {
           if (error instanceof LlmProviderError) {
             lastError = error;
-            if (error.status && isRetryableError(error.status, error.message)) break;
+            if (error.status && shouldTryNextModel(error.status, error.message)) break;
             throw error;
           }
           if (error instanceof Error && error.name === 'AbortError') {
@@ -128,7 +135,7 @@ export class OpenRouterProvider implements LlmProvider {
       }
     }
 
-    throw lastError ?? new LlmProviderError('OpenRouter 无可用模型');
+    throw lastError ?? new LlmProviderError(`OpenRouter 无可用模型（已尝试：${models.join('、')}）`);
   }
 
   async completeStream(
@@ -175,7 +182,7 @@ export class OpenRouterProvider implements LlmProvider {
         if (!response.ok) {
           const detail = await response.text();
           lastError = new LlmProviderError(`OpenRouter 请求失败 (${response.status}, ${model})：${detail}`, response.status);
-          if (isRetryableError(response.status, detail)) break;
+          if (shouldTryNextModel(response.status, detail)) break;
           throw lastError;
         }
 
@@ -239,7 +246,7 @@ export class OpenRouterProvider implements LlmProvider {
       } catch (error) {
         if (error instanceof LlmProviderError) {
           lastError = error;
-          if (error.status && isRetryableError(error.status, error.message)) break;
+          if (error.status && shouldTryNextModel(error.status, error.message)) break;
           throw error;
         }
         if (error instanceof Error && error.name === 'AbortError') {
@@ -252,6 +259,6 @@ export class OpenRouterProvider implements LlmProvider {
       }
     }
 
-    throw lastError ?? new LlmProviderError('OpenRouter 无可用模型');
+    throw lastError ?? new LlmProviderError(`OpenRouter 无可用模型（已尝试：${models.join('、')}）`);
   }
 }

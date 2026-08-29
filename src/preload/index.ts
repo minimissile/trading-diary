@@ -57,6 +57,7 @@ function startLlmStream<T>(
 const desktopApi: DesktopApi = {
   system: {
     health: () => ipcRenderer.invoke(ipcChannels.health),
+    openExternal: (url) => ipcRenderer.invoke(ipcChannels.openExternal, { url }),
   },
   assets: {
     stats: () => ipcRenderer.invoke(ipcChannels.assetStats),
@@ -166,6 +167,9 @@ const desktopApi: DesktopApi = {
     refreshDividends: (accountId, symbol) =>
       ipcRenderer.invoke(ipcChannels.portfolioRefreshDividends, { accountId, symbol }),
     syncMarketQuotes: (accountId) => ipcRenderer.invoke(ipcChannels.portfolioSyncMarketQuotes, { accountId }),
+    getDividendGoal: (accountId) => ipcRenderer.invoke(ipcChannels.portfolioGetDividendGoal, { accountId }),
+    saveDividendGoal: (accountId, settings) =>
+      ipcRenderer.invoke(ipcChannels.portfolioSaveDividendGoal, { accountId, settings }),
   },
   license: {
     getStatus: () => ipcRenderer.invoke(ipcChannels.licenseGetStatus),

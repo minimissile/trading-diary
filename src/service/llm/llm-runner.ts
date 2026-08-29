@@ -16,6 +16,8 @@ interface LlmDefaults {
   fallbackModels: string[];
   pingTestModel: string;
   pingTestFallbackModels: string[];
+  visionModel?: string;
+  visionFallbackModels?: string[];
   timeoutMs: number;
   maxRetries: number;
   defaultMonthlyTokenBudget?: number;
@@ -40,6 +42,8 @@ function loadDefaults(): LlmDefaults {
     fallbackModels: ['deepseek/deepseek-v4-flash-0731', 'qwen/qwen-plus', 'qwen/qwen3-32b'],
     pingTestModel: 'google/gemini-2.5-flash',
     pingTestFallbackModels: ['qwen/qwen-plus', 'openai/gpt-4o-mini'],
+    visionModel: 'google/gemini-2.5-flash',
+    visionFallbackModels: ['openai/gpt-4o-mini', 'qwen/qwen3-vl-8b-instruct'],
     timeoutMs: 60_000,
     maxRetries: 2,
     defaultMonthlyTokenBudget: 500_000,
@@ -172,7 +176,13 @@ export class LlmRunner {
       { role: 'user' as const, content: userContent },
     ];
 
-    return this.completeMessages(promptId, definition, messages);
+    const visionDefinition: PromptDefinition = {
+      ...definition,
+      model: definition.model ?? this.defaults.visionModel ?? this.defaults.pingTestModel,
+      fallbackModels: mergeModelList(definition.fallbackModels, this.defaults.visionFallbackModels),
+    };
+
+    return this.completeMessages(promptId, visionDefinition, messages);
   }
 
   private async completeMessages(
@@ -295,4 +305,12 @@ function loadImageDataUrl(imagePath: string): string {
           : 'image/jpeg';
   const base64 = fs.readFileSync(resolved).toString('base64');
   return `data:${mediaType};base64,${base64}`;
+}
+
+function mergeModelList(primary: string[], secondary: string[] | undefined): string[] {
+  const merged = [...primary];
+  for (const model of secondary ?? []) {
+    if (!merged.includes(model)) merged.push(model);
+  }
+  return merged;
 }

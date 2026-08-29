@@ -239,6 +239,10 @@ export class AppService {
         return this.portfolioService.refreshDividends(request.params.accountId, request.params.symbol);
       case 'portfolio.syncMarketQuotes':
         return this.portfolioService.syncMarketQuotes(request.params.accountId);
+      case 'portfolio.getDividendGoal':
+        return this.portfolioService.getDividendGoal(request.params.accountId);
+      case 'portfolio.saveDividendGoal':
+        return this.portfolioService.saveDividendGoal(request.params.accountId, request.params.settings);
       case 'license.getStatus':
         return this.licenseService.getStatus();
       case 'license.activate':

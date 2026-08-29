@@ -1,4 +1,4 @@
-/** CSV 可映射的定投扣款字段。 */
+import type { SipRecognizedPlanMode } from './import-hints';
 export type SipCsvField = 'symbol' | 'tradeAt' | 'nav' | 'amount' | 'quantity' | 'fees';
 
 /** 列索引映射（-1 表示未映射）。 */
@@ -13,7 +13,7 @@ export interface SipCsvParseResult {
   suggestedMapping: SipColumnMapping;
 }
 
-export type SipImportPreviewStatus = 'ready' | 'duplicate' | 'error';
+export type SipImportPreviewStatus = 'ready' | 'duplicate' | 'error' | 'incomplete';
 
 export interface SipImportPreviewRow {
   rowIndex: number;
@@ -33,6 +33,7 @@ export interface SipImportPreviewResult {
   readyCount: number;
   duplicateCount: number;
   errorCount: number;
+  incompleteCount: number;
 }
 
 export interface SipImportCommitResult {
@@ -63,12 +64,27 @@ export interface SipAiExtractedRecord {
   fees: number | null;
 }
 
+/** AI 从截图推断的计划信息（可能不完整）。 */
+export interface SipAiPlanHints {
+  symbol: string | null;
+  fundName: string | null;
+  amount: number | null;
+  startDate: string | null;
+  frequency: string | null;
+  dayOfMonth: number | null;
+  dayOfWeek: number | null;
+}
+
 /** 截图识别结果。 */
 export interface SipAiRecognizeResult {
   sourcePath: string;
   fileName: string;
   records: SipAiExtractedRecord[];
   warnings: string[];
+  hints: string[];
+  planMode: SipRecognizedPlanMode;
+  planModeLabel: string | null;
+  planHints: SipAiPlanHints | null;
   model: string;
 }
 

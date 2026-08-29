@@ -507,4 +507,35 @@ export class PortfolioDatabase {
     const row = this.db.prepare('SELECT COUNT(*) AS count FROM portfolio_dividends').get() as { count: number };
     return row.count;
   }
+
+  getPreference<T>(key: string): T | null {
+    const row = this.db.prepare('SELECT value_json FROM portfolio_preferences WHERE key = ?').get(key) as
+      | { value_json: string }
+      | undefined;
+    if (!row) return null;
+    try {
+      return JSON.parse(row.value_json) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  setPreference(key: string, value: unknown | null): void {
+    if (value === null) {
+      this.db.prepare('DELETE FROM portfolio_preferences WHERE key = ?').run(key);
+      return;
+    }
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `INSERT INTO portfolio_preferences (key, value_json, updated_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(key) DO UPDATE SET value_json = excluded.value_json, updated_at = excluded.updated_at`,
+      )
+      .run(key, JSON.stringify(value), now);
+  }
+
+  deletePreference(key: string): void {
+    this.db.prepare('DELETE FROM portfolio_preferences WHERE key = ?').run(key);
+  }
 }

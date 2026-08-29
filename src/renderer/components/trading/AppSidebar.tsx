@@ -6,7 +6,7 @@ import {
   FundOutlined,
   HistoryOutlined,
   ImportOutlined,
-  SafetyCertificateOutlined,
+  InfoCircleOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   ProjectOutlined,
@@ -15,7 +15,9 @@ import {
   SettingOutlined,
   MoneyCollectOutlined,
   LineChartOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
+import { useEffect, useMemo, useState } from 'react';
 
 const navItems = [
   { key: 'today', label: '今日指挥台', icon: DashboardOutlined },
@@ -42,10 +44,24 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ activeKey, alertCount, collapsed, onCollapse, onSelect }: AppSidebarProps): React.JSX.Element {
+  const [appVersion, setAppVersion] = useState<string>('');
+
+  const visibleNavItems = useMemo(() => {
+    if (!import.meta.env.DEV) return navItems;
+    return [...navItems, { key: 'devChart' as const, label: '图表测试', icon: LineChartOutlined }];
+  }, []);
+
+  useEffect(() => {
+    void window.desktop.updater
+      .getState()
+      .then((state) => setAppVersion(state.currentVersion))
+      .catch(() => setAppVersion(''));
+  }, []);
+
   return (
     <aside className="app-sidebar" aria-label="交易日记主导航">
       <div className="app-brand">
-        <img className="brand-mark" src="/logo.png" alt="" aria-hidden="true" draggable={false} />
+        <img className="brand-mark" src="./logo.png" alt="" aria-hidden="true" draggable={false} />
         <span className="brand-copy">
           <strong>交易日记</strong>
           <small>交易为生，复盘为师</small>
@@ -56,12 +72,13 @@ export function AppSidebar({ activeKey, alertCount, collapsed, onCollapse, onSel
       </div>
 
       <nav className="primary-nav" aria-label="主导航">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = item.key === activeKey;
+          const isDevItem = item.key === 'devChart';
           return (
             <button
-              className={isActive ? 'active' : ''}
+              className={`${isActive ? 'active' : ''}${isDevItem ? ' nav-item--dev' : ''}`}
               key={item.key}
               type="button"
               aria-current={isActive ? 'page' : undefined}
@@ -74,30 +91,31 @@ export function AppSidebar({ activeKey, alertCount, collapsed, onCollapse, onSel
                 <span className="nav-attention" aria-label={`${alertCount} 条未处理提醒`}>
                   {alertCount > 99 ? '99+' : alertCount}
                 </span>
+              ) : isDevItem ? (
+                <span className="nav-dev-badge">DEV</span>
               ) : null}
             </button>
           );
         })}
       </nav>
 
-      {import.meta.env.DEV ? (
-        <nav className="primary-nav sidebar-dev-nav" aria-label="开发工具">
-          <button
-            className={activeKey === 'devChart' ? 'active' : ''}
-            type="button"
-            aria-current={activeKey === 'devChart' ? 'page' : undefined}
-            title={collapsed ? '图表测试' : undefined}
-            onClick={() => onSelect('devChart')}
-          >
-            <LineChartOutlined className="nav-icon" aria-hidden="true" />
-            <span className="nav-label">图表测试</span>
-          </button>
-        </nav>
-      ) : null}
-
-      <button className="sidebar-collapse sidebar-collapse--bottom" type="button" aria-label="折叠侧栏" onClick={onCollapse}>
-        {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-      </button>
+      <div className="sidebar-footer">
+        <button
+          className={`sidebar-footer-link${activeKey === 'about' ? ' active' : ''}`}
+          type="button"
+          aria-current={activeKey === 'about' ? 'page' : undefined}
+          title={collapsed ? '关于我们' : undefined}
+          onClick={() => onSelect('about')}
+        >
+          <InfoCircleOutlined className="nav-icon" aria-hidden="true" />
+          <span className="nav-label">关于我们</span>
+        </button>
+        <div className="sidebar-footer-meta">
+          <span className="sidebar-version" title={appVersion ? `版本 ${appVersion}` : undefined}>
+            {appVersion ? `v${appVersion}` : '—'}
+          </span>
+        </div>
+      </div>
     </aside>
   );
 }

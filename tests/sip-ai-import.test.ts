@@ -69,6 +69,8 @@ describe('sip ai import', () => {
     expect(recognized.records).toHaveLength(1);
     expect(recognized.records[0]?.symbol).toBe('161725');
     expect(recognized.warnings).toContain('截图底部略有遮挡');
+    expect(recognized.planMode).toBe('unknown');
+    expect(recognized.hints.some((hint) => hint.includes('不会丢失'))).toBe(true);
 
     const preview = aiImportService.preview({ accountId, records: recognized.records });
     expect(preview.readyCount).toBe(1);
@@ -77,6 +79,108 @@ describe('sip ai import', () => {
     expect(result.errors, JSON.stringify(result)).toEqual([]);
     expect(result.imported).toBe(1);
     expect(result.linkedToPlan).toBe(1);
+
+    fs.unlinkSync(screenshotPath);
+    database.close();
+  });
+
+  it('surfaces smart plan hints without blocking import', async () => {
+    const database = createTestDatabase();
+    const importService = createSipImportService(database);
+    const runner = createLlmRunner(undefined, path.join(process.cwd(), 'src/prompts'));
+    runner.useProvider(
+      new MockProvider({
+        [PROMPT_IDS.SIP_IMPORT_SCREENSHOT]: JSON.stringify({
+          planMode: 'smart',
+          planModeLabel: '智能定投',
+          records: [
+            {
+              symbol: '110011',
+              fundName: '易方达优质精选',
+              tradeDate: '2026-01-02',
+              nav: 5.2,
+              amount: 480,
+              quantity: 92.3,
+              fees: 0,
+            },
+            {
+              symbol: '110011',
+              fundName: '易方达优质精选',
+              tradeDate: '2026-02-02',
+              nav: 5.1,
+              amount: 620,
+              quantity: 121.5,
+              fees: 0,
+            },
+          ],
+          warnings: ['截图仅包含扣款明细'],
+        }),
+      }),
+    );
+    const aiImportService = createSipAiImportService(importService, runner);
+    const accountId = database.portfolio.ensureDefaultAccount();
+    const screenshotPath = path.join(os.tmpdir(), `sip-ai-smart-${Date.now()}.png`);
+    fs.writeFileSync(screenshotPath, Buffer.from([137, 80, 78, 71]));
+
+    const recognized = await aiImportService.recognizeScreenshot(screenshotPath);
+    expect(recognized.planMode).toBe('smart');
+    expect(recognized.planModeLabel).toBe('智能定投');
+    expect(recognized.hints.some((hint) => hint.includes('普通定投'))).toBe(true);
+
+    const preview = aiImportService.preview({ accountId, records: recognized.records });
+    expect(preview.readyCount).toBe(2);
+
+    const result = await aiImportService.commit({ accountId, records: recognized.records });
+    expect(result.imported).toBe(2);
+    expect(result.ledgerOnly).toBe(2);
+
+    fs.unlinkSync(screenshotPath);
+    database.close();
+  });
+
+  it('returns incomplete preview rows for partial recognition and imports after manual completion', async () => {
+    const database = createTestDatabase();
+    const importService = createSipImportService(database);
+    const runner = createLlmRunner(undefined, path.join(process.cwd(), 'src/prompts'));
+    runner.useProvider(
+      new MockProvider({
+        [PROMPT_IDS.SIP_IMPORT_SCREENSHOT]: JSON.stringify({
+          screenshotType: 'plan_settings',
+          planMode: 'smart',
+          planModeLabel: '智能定投',
+          planHints: {
+            symbol: '110011',
+            fundName: '易方达优质精选',
+            amount: 500,
+            startDate: '2026-01-02',
+          },
+          records: [],
+        }),
+      }),
+    );
+    const aiImportService = createSipAiImportService(importService, runner);
+    const accountId = database.portfolio.ensureDefaultAccount();
+    const screenshotPath = path.join(os.tmpdir(), `sip-ai-incomplete-${Date.now()}.png`);
+    fs.writeFileSync(screenshotPath, Buffer.from([137, 80, 78, 71]));
+
+    const recognized = await aiImportService.recognizeScreenshot(screenshotPath);
+    expect(recognized.records).toHaveLength(1);
+    expect(recognized.planHints?.symbol).toBe('110011');
+
+    const incompletePreview = aiImportService.preview({ accountId, records: recognized.records });
+    expect(incompletePreview.incompleteCount).toBe(1);
+    expect(incompletePreview.readyCount).toBe(0);
+
+    const completedRecords = recognized.records.map((record) => ({
+      ...record,
+      nav: 5.2,
+    }));
+    const readyPreview = aiImportService.preview({ accountId, records: completedRecords });
+    expect(readyPreview.readyCount).toBe(1);
+
+    const result = await aiImportService.commit({ accountId, records: completedRecords });
+    expect(result.imported).toBe(1);
+    expect(result.ledgerOnly).toBe(1);
 
     fs.unlinkSync(screenshotPath);
     database.close();

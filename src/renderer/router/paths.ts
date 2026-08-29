@@ -15,6 +15,7 @@ export const routePaths = {
   playbook: '/playbook',
   analysis: '/analysis',
   settings: '/settings',
+  about: '/about',
   devLlm: '/dev/llm',
   devChart: '/dev/chart',
 } as const;

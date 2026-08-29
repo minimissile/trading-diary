@@ -13,6 +13,7 @@ import { marketService } from '../market/market-service';
 import { assertRequiredSipMapping, guessSipColumnMapping } from './sip-column-guess';
 import { csvBasename, parseCsvFile } from '../import/csv-parser';
 import type { SipDatabase } from './sip-database';
+import { hasPartialExtractedRecord } from './sip-ai-import-parser';
 import { normalizeSipImportRow, normalizeSipImportValues, type NormalizedSipImportRow } from './sip-row-normalizer';
 
 const ALLOWED_SIP_KINDS = new Set(['otc_fund', 'etf', 'lof']);
@@ -49,9 +50,7 @@ export class SipImportService {
 
   previewRecords(input: SipAiImportInput): SipImportPreviewResult {
     const accountId = this.database.portfolio.resolveAccountId(input.accountId);
-    const rows = input.records.map((record) =>
-      this.buildPreviewRow(accountId, input.planId, record.rowIndex, () => normalizeExtractedRecord(record)),
-    );
+    const rows = input.records.map((record) => this.buildPreviewRowFromExtracted(accountId, input.planId, record));
     return summarizePreview(rows);
   }
 
@@ -107,6 +106,54 @@ export class SipImportService {
       failed: result.failed + preFailed,
       errors: [...preErrors, ...result.errors].slice(0, 20),
     };
+  }
+
+  private buildPreviewRowFromExtracted(
+    accountId: string,
+    planId: string | undefined,
+    record: SipAiExtractedRecord,
+  ): SipImportPreviewRow {
+    const normalized = normalizeExtractedRecord(record);
+    const displayFields = {
+      symbol: record.symbol,
+      tradeAt: record.tradeAt,
+      nav: record.nav,
+      amount: record.amount,
+      quantity: record.quantity,
+      fees: record.fees,
+    };
+
+    if (!normalized.ok) {
+      if (hasPartialExtractedRecord(record)) {
+        return {
+          rowIndex: record.rowIndex,
+          status: 'incomplete',
+          message: `待补全：${normalized.message}`,
+          symbol: displayFields.symbol,
+          tradeAt: displayFields.tradeAt,
+          nav: displayFields.nav,
+          amount: displayFields.amount,
+          quantity: displayFields.quantity,
+          fees: displayFields.fees,
+          matchedPlanName: null,
+        };
+      }
+
+      return {
+        rowIndex: record.rowIndex,
+        status: 'error',
+        message: normalized.message,
+        symbol: null,
+        tradeAt: null,
+        nav: null,
+        amount: null,
+        quantity: null,
+        fees: null,
+        matchedPlanName: null,
+      };
+    }
+
+    return this.buildPreviewRow(accountId, planId, record.rowIndex, () => normalized);
   }
 
   private buildPreviewRow(
@@ -274,6 +321,7 @@ function summarizePreview(rows: SipImportPreviewRow[]): SipImportPreviewResult {
     readyCount: rows.filter((row) => row.status === 'ready').length,
     duplicateCount: rows.filter((row) => row.status === 'duplicate').length,
     errorCount: rows.filter((row) => row.status === 'error').length,
+    incompleteCount: rows.filter((row) => row.status === 'incomplete').length,
   };
 }
 

@@ -21,8 +21,12 @@ import type {
 import { ALL_ACCOUNTS_ID, isAllAccountsId } from '../../shared/accounts/constants';
 import { formatAccountSelectLabel } from '../../shared/accounts/account-display';
 import { pricePresetForKind, quantityPresetForKind } from '../../shared/format/display-presets';
+import type { DividendGoalSettings } from '../../shared/portfolio/dividend-goal';
+import { computeDividendGoalProgressList } from '../../shared/portfolio/dividend-goal';
 import { ValueDisplay } from '../lib/trading-format';
 import { AccountSelect } from '../components/trading/AccountSelect';
+import { DividendGoalModal } from '../components/trading/DividendGoalModal';
+import { DividendGoalPanel } from '../components/trading/DividendGoalPanel';
 
 type DividendsTab = 'overview' | 'calendar' | 'dividends';
 
@@ -45,6 +49,8 @@ export function DividendsPage(): React.JSX.Element {
   const [refreshing, setRefreshing] = useState(false);
   const [accountId, setAccountId] = useState<string>(ALL_ACCOUNTS_ID);
   const [accountLabels, setAccountLabels] = useState<Map<string, string>>(new Map());
+  const [goalSettings, setGoalSettings] = useState<DividendGoalSettings | null>(null);
+  const [goalModalOpen, setGoalModalOpen] = useState(false);
   const allAccountsView = isAllAccountsId(accountId);
 
   useEffect(() => {
@@ -52,6 +58,20 @@ export function DividendsPage(): React.JSX.Element {
       setAccountLabels(new Map(accounts.map((item) => [item.id, formatAccountSelectLabel(item)])));
     });
   }, []);
+
+  useEffect(() => {
+    void window.desktop.portfolio.getDividendGoal(accountId).then(setGoalSettings);
+  }, [accountId]);
+
+  const goalProgressList = useMemo(
+    () =>
+      computeDividendGoalProgressList(goalSettings, {
+        ytdReceived: summary?.ytdReceived ?? 0,
+        dailyAverage: summary?.dailyAverage ?? 0,
+        year: summary?.year ?? new Date().getFullYear(),
+      }),
+    [goalSettings, summary],
+  );
 
   const load = useCallback(async (silent = false): Promise<void> => {
     if (!silent) setLoading(true);
@@ -258,6 +278,13 @@ export function DividendsPage(): React.JSX.Element {
             </article>
           </section>
 
+          <DividendGoalPanel
+            progressList={goalProgressList}
+            allAccountsView={allAccountsView}
+            year={summary?.year ?? new Date().getFullYear()}
+            onEdit={() => setGoalModalOpen(true)}
+          />
+
           {tab === 'overview' ? (
             <section className="portfolio-milestones">
               <div className="portfolio-milestones-head">
@@ -370,6 +397,14 @@ export function DividendsPage(): React.JSX.Element {
           ) : null}
         </>
       )}
+
+      <DividendGoalModal
+        open={goalModalOpen}
+        accountId={accountId}
+        settings={goalSettings}
+        onClose={() => setGoalModalOpen(false)}
+        onSaved={setGoalSettings}
+      />
     </main>
   );
 }

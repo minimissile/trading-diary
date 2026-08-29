@@ -432,4 +432,15 @@ export const migrations: readonly Migration[] = [
         WHERE etf_sz_commission_rate_ppm IS NOT NULL;
     `,
   },
+  {
+    version: 15,
+    name: 'portfolio_preferences',
+    sql: `
+      CREATE TABLE portfolio_preferences (
+        key TEXT PRIMARY KEY,
+        value_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      ) STRICT;
+    `,
+  },
 ];

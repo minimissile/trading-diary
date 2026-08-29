@@ -3,6 +3,8 @@
   "fallbackModels": ["deepseek/deepseek-v4-flash-0731", "qwen/qwen-plus", "qwen/qwen3-32b"],
   "pingTestModel": "google/gemini-2.5-flash",
   "pingTestFallbackModels": ["qwen/qwen-plus", "openai/gpt-4o-mini"],
+  "visionModel": "google/gemini-2.5-flash",
+  "visionFallbackModels": ["openai/gpt-4o-mini", "qwen/qwen3-vl-8b-instruct"],
   "timeoutMs": 60000,
   "maxRetries": 2,
   "defaultMonthlyTokenBudget": 500000

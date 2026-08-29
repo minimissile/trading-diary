@@ -10,7 +10,9 @@ import type {
   PortfolioSummaryView,
   UpdatePortfolioLedgerInput,
 } from '../../shared/portfolio/types';
-import { isAllAccountsId } from '../../shared/accounts/constants';
+import { isAllAccountsId, ALL_ACCOUNTS_ID } from '../../shared/accounts/constants';
+import type { DividendGoalSettings } from '../../shared/portfolio/dividend-goal';
+import { dividendGoalStorageKey, normalizeDividendGoalSettings } from '../../shared/portfolio/dividend-goal';
 import type { FeeProfileRates } from '../../shared/accounts/types';
 import type { AppDatabase } from '../database/database';
 import { normalizeSymbol } from '../market/eastmoney/symbols';
@@ -316,6 +318,28 @@ export class PortfolioService {
   async syncMarketQuotes(accountId?: string): Promise<PortfolioPositionView[]> {
     this.lastRefreshedAt = new Date().toISOString();
     return this.listPositions(accountId);
+  }
+
+  getDividendGoal(accountId?: string): DividendGoalSettings | null {
+    const key = dividendGoalStorageKey(this.resolveGoalAccountId(accountId));
+    const raw = this.database.portfolio.getPreference<unknown>(key);
+    return normalizeDividendGoalSettings(raw);
+  }
+
+  saveDividendGoal(accountId: string | undefined, settings: DividendGoalSettings | null): DividendGoalSettings | null {
+    const key = dividendGoalStorageKey(this.resolveGoalAccountId(accountId));
+    const normalized = settings ? normalizeDividendGoalSettings(settings) : null;
+    if (!normalized) {
+      this.database.portfolio.deletePreference(key);
+      return null;
+    }
+    this.database.portfolio.setPreference(key, normalized);
+    return normalized;
+  }
+
+  private resolveGoalAccountId(accountId?: string): string {
+    if (isAllAccountsId(accountId)) return ALL_ACCOUNTS_ID;
+    return this.database.portfolio.resolveAccountId(accountId);
   }
 
   private resolveFeeProfile(

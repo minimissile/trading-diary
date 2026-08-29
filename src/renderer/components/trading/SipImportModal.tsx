@@ -1,8 +1,9 @@
-import { CheckCircleOutlined, CloseCircleOutlined, PictureOutlined, UploadOutlined } from '@ant-design/icons';
-import { Alert, App, Button, Modal, Segmented, Select, Space, Steps, Table, Tag } from 'antd';
+import { CheckCircleOutlined, CloseCircleOutlined, EditOutlined, PictureOutlined, UploadOutlined } from '@ant-design/icons';
+import { Alert, App, Button, Input, Modal, Segmented, Select, Space, Steps, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
 import type { FundSipPlanView } from '../../../shared/sip/types';
+import { buildSipAiImportHints, countUnmatchedReadyRows } from '../../../shared/sip/import-hints';
 import type {
   SipAiExtractedRecord,
   SipAiRecognizeResult,
@@ -154,9 +155,36 @@ export function SipImportModal({
       });
       setPreview(nextPreview);
       setStep(2);
-      void message.success(`已识别 ${recognized.records.length} 条记录，请核对后确认导入`);
+      const summary =
+        nextPreview.incompleteCount > 0
+          ? `已识别 ${recognized.records.length} 条，其中 ${nextPreview.incompleteCount} 条待补全`
+          : `已识别 ${recognized.records.length} 条记录，请核对后确认导入`;
+      void message.success(summary);
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : 'AI 识别失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const updateAiRecord = (rowIndex: number, patch: Partial<SipAiExtractedRecord>): void => {
+    setAiRecords((records) =>
+      records.map((record) => (record.rowIndex === rowIndex ? { ...record, ...patch } : record)),
+    );
+  };
+
+  const refreshAiPreview = async (): Promise<void> => {
+    if (!accountId || aiRecords.length === 0) {
+      void message.warning('没有可预览的记录');
+      return;
+    }
+    setBusy(true);
+    try {
+      const nextPreview = await window.desktop.sip.previewAiImport({ accountId, planId, records: aiRecords });
+      setPreview(nextPreview);
+      void message.success('已更新预览');
+    } catch (reason) {
+      void message.error(reason instanceof Error ? reason.message : '预览失败');
     } finally {
       setBusy(false);
     }
@@ -205,6 +233,13 @@ export function SipImportModal({
     }
   };
 
+  const parseOptionalNumber = (raw: string): number | null => {
+    const cleaned = raw.replace(/[,，\s￥¥元]/gu, '').trim();
+    if (!cleaned) return null;
+    const value = Number(cleaned);
+    return Number.isFinite(value) ? value : null;
+  };
+
   const previewColumns: ColumnsType<SipImportPreviewRow> = [
     { title: '行', dataIndex: 'rowIndex', width: 56 },
     {
@@ -218,33 +253,85 @@ export function SipImportModal({
           </Tag>
         ) : status === 'duplicate' ? (
           <Tag color="gold">重复</Tag>
+        ) : status === 'incomplete' ? (
+          <Tag icon={<EditOutlined />} color="processing">
+            待补全
+          </Tag>
         ) : (
           <Tag icon={<CloseCircleOutlined />} color="error">
             错误
           </Tag>
         ),
     },
-    { title: '标的', dataIndex: 'symbol', width: 88 },
+    {
+      title: '标的',
+      dataIndex: 'symbol',
+      width: 108,
+      render: (value: string | null, row) => {
+        if (mode !== 'ai') return value ?? '—';
+        const record = aiRecords.find((item) => item.rowIndex === row.rowIndex);
+        return (
+          <Input
+            size="small"
+            placeholder="6 位代码"
+            value={record?.symbol ?? ''}
+            onChange={(event) => updateAiRecord(row.rowIndex, { symbol: event.target.value || null })}
+          />
+        );
+      },
+    },
     {
       title: '扣款日',
       dataIndex: 'tradeAt',
-      width: 148,
-      render: (value: string | null) => (value ? formatDateTime(value) : '—'),
+      width: mode === 'ai' ? 132 : 148,
+      render: (value: string | null, row) => {
+        if (mode !== 'ai') return value ? formatDateTime(value) : '—';
+        const record = aiRecords.find((item) => item.rowIndex === row.rowIndex);
+        return (
+          <Input
+            size="small"
+            placeholder="YYYY-MM-DD"
+            value={record?.tradeAt ?? ''}
+            onChange={(event) => updateAiRecord(row.rowIndex, { tradeAt: event.target.value || null })}
+          />
+        );
+      },
     },
     {
       title: '净值',
       dataIndex: 'nav',
-      width: 88,
+      width: 96,
       align: 'right',
-      render: (value: number | null) => (value === null ? '—' : <ValueDisplay kind="price" value={value} />),
+      render: (value: number | null, row) => {
+        if (mode !== 'ai') return value === null ? '—' : <ValueDisplay kind="price" value={value} />;
+        const record = aiRecords.find((item) => item.rowIndex === row.rowIndex);
+        return (
+          <Input
+            size="small"
+            placeholder="净值"
+            value={record?.nav === null || record?.nav === undefined ? '' : String(record.nav)}
+            onChange={(event) => updateAiRecord(row.rowIndex, { nav: parseOptionalNumber(event.target.value) })}
+          />
+        );
+      },
     },
     {
       title: '金额',
       dataIndex: 'amount',
-      width: 96,
+      width: 108,
       align: 'right',
-      render: (value: number | null) =>
-        value === null ? '—' : <ValueDisplay kind="currency" value={value} />,
+      render: (value: number | null, row) => {
+        if (mode !== 'ai') return value === null ? '—' : <ValueDisplay kind="currency" value={value} />;
+        const record = aiRecords.find((item) => item.rowIndex === row.rowIndex);
+        return (
+          <Input
+            size="small"
+            placeholder="金额"
+            value={record?.amount === null || record?.amount === undefined ? '' : String(record.amount)}
+            onChange={(event) => updateAiRecord(row.rowIndex, { amount: parseOptionalNumber(event.target.value) })}
+          />
+        );
+      },
     },
     {
       title: '匹配计划',
@@ -252,6 +339,18 @@ export function SipImportModal({
       render: (value: string | null, row) => value ?? row.message ?? '—',
     },
   ];
+
+  const aiImportHints = useMemo(() => {
+    if (!aiRecognize) return [];
+    const unmatchedPlanCount = preview ? countUnmatchedReadyRows(preview.rows) : 0;
+    return buildSipAiImportHints({
+      planMode: aiRecognize.planMode,
+      planModeLabel: aiRecognize.planModeLabel,
+      readyCount: preview?.readyCount ?? aiRecognize.records.length,
+      unmatchedPlanCount,
+      ledgerOnlyCount: unmatchedPlanCount,
+    });
+  }, [aiRecognize, preview]);
 
   const stepItems =
     mode === 'csv'
@@ -296,7 +395,7 @@ export function SipImportModal({
       {mode === 'ai' && step === 0 ? (
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <p className="sip-import-hint">
-            上传基金 App 扣款记录截图，AI 将自动识别标的、日期、净值与金额。识别结果仅供核对，确认无误后再写入。
+            请截取 App 内「扣款记录 / 定投记录 / 交易明细」列表（需能看到扣款日期与金额或份额）。若只截计划设置页，将无法识别历史扣款；智能定投历史仍可导入，但不会自动复制策略。
           </p>
           <AccountSelect value={accountId} onChange={setAccountId} />
           <Select
@@ -374,28 +473,49 @@ export function SipImportModal({
           {mode === 'ai' && aiRecognize ? (
             <>
               <Alert
-                type="info"
+                type={aiRecognize.planMode === 'smart' ? 'warning' : 'info'}
                 showIcon
-                title={`AI 已从截图识别 ${aiRecognize.records.length} 条记录`}
+                title={
+                  aiRecognize.planMode === 'smart'
+                    ? `识别为${aiRecognize.planModeLabel ?? '智能定投'}，历史扣款可继续导入`
+                    : `AI 已从截图识别 ${aiRecognize.records.length} 条扣款记录`
+                }
                 description={
                   <>
                     模型 {aiRecognize.model} · 文件 {aiRecognize.fileName}
-                    {aiRecognize.warnings.length > 0 ? (
+                    {aiImportHints.length > 0 ? (
                       <ul className="sip-import-ai-warnings">
-                        {aiRecognize.warnings.map((warning) => (
-                          <li key={warning}>{warning}</li>
+                        {aiImportHints.map((hint) => (
+                          <li key={hint}>{hint}</li>
                         ))}
                       </ul>
+                    ) : null}
+                    {aiRecognize.warnings.length > 0 ? (
+                      <>
+                        <p className="sip-import-ai-subheading">识别备注</p>
+                        <ul className="sip-import-ai-warnings">
+                          {aiRecognize.warnings.map((warning) => (
+                            <li key={warning}>{warning}</li>
+                          ))}
+                        </ul>
+                      </>
                     ) : null}
                   </>
                 }
               />
-              <p className="sip-import-hint">请逐条核对识别结果，确认无误后再导入。错误行不会写入。</p>
+              <p className="sip-import-hint">
+                识别到的字段已自动填入；缺失项可在下表直接修改，补全后点击「重新预览」。错误行不会写入，不影响已识别数据。
+              </p>
             </>
           ) : null}
           <p>
-            可导入 <strong>{preview.readyCount}</strong> 笔，重复 {preview.duplicateCount} 笔，错误{' '}
-            {preview.errorCount} 笔
+            可导入 <strong>{preview.readyCount}</strong> 笔
+            {preview.incompleteCount > 0 ? (
+              <>
+                ，待补全 <strong>{preview.incompleteCount}</strong> 笔
+              </>
+            ) : null}
+            ，重复 {preview.duplicateCount} 笔，错误 {preview.errorCount} 笔
           </p>
           <Table
             className="watchlist-table"
@@ -408,6 +528,11 @@ export function SipImportModal({
           />
           <Space>
             <Button onClick={() => setStep(mode === 'ai' ? 0 : 1)}>上一步</Button>
+            {mode === 'ai' ? (
+              <Button loading={busy} onClick={() => void refreshAiPreview()}>
+                重新预览
+              </Button>
+            ) : null}
             <Button type="primary" loading={busy} disabled={preview.readyCount === 0} onClick={() => void commit()}>
               确认导入
             </Button>

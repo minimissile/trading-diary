@@ -15,6 +15,7 @@ import { NotFoundPage } from '../pages/NotFoundPage';
 import { PlansPage } from '../pages/PlansPage';
 import { SipPage } from '../pages/SipPage';
 import { SettingsPage } from '../pages/SettingsPage';
+import { AboutPage } from '../pages/AboutPage';
 import { LlmDebugPage } from '../pages/LlmDebugPage';
 import { ChartTestPage } from '../pages/ChartTestPage';
 import { routePaths } from './paths';
@@ -39,6 +40,7 @@ export function AppRouter(): React.JSX.Element {
           <Route path={routePaths.journal} element={<JournalPage />} />
           <Route path={routePaths.analysis} element={<AnalysisPage />} />
           <Route path={routePaths.settings} element={<SettingsPage />} />
+          <Route path={routePaths.about} element={<AboutPage />} />
           {import.meta.env.DEV ? <Route path={routePaths.devLlm} element={<LlmDebugPage />} /> : null}
           {import.meta.env.DEV ? <Route path={routePaths.devChart} element={<ChartTestPage />} /> : null}
         </Route>
