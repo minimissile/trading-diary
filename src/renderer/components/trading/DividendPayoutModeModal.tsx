@@ -29,14 +29,14 @@ export function DividendPayoutModeModal({
 }: DividendPayoutModeModalProps): React.JSX.Element {
   const { message } = App.useApp();
   const [payoutMode, setPayoutMode] = useState<DividendPayoutMode>('cash');
-  const [setDefault, setSetDefault] = useState(false);
+  const [setDefault, setSetDefault] = useState(true);
   const [defaultMode, setDefaultMode] = useState<DividendPayoutMode | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open || !record) return;
     setPayoutMode(record.payoutMode);
-    setSetDefault(false);
+    setSetDefault(true);
     void window.desktop.portfolio.getDividendPayoutDefault(record.accountId, record.symbol).then(setDefaultMode);
   }, [open, record]);
 
@@ -69,12 +69,13 @@ export function DividendPayoutModeModal({
     return <></>;
   }
 
-  const modeChanged = payoutMode !== record.payoutMode;
-  const defaultLabel = dividendPayoutModeLabel(payoutMode);
+  const modeLabel = dividendPayoutModeLabel(payoutMode);
+  const effectiveDefault = defaultMode ?? 'cash';
+  const savedDefaultLabel = dividendPayoutModeLabel(effectiveDefault);
 
   return (
     <Modal
-      title="切换分红方式"
+      title="分红方式"
       open={open}
       onCancel={onClose}
       onOk={() => void save()}
@@ -83,34 +84,48 @@ export function DividendPayoutModeModal({
       cancelText="取消"
       destroyOnHidden
     >
-      <p className="portfolio-dividend-payout-modal-intro">
-        {record.name}（{record.symbol}）· 除权日 {record.exDividendDate} · 税前{' '}
-        <ValueDisplay kind="currency" value={record.cashAmount} />
-      </p>
+      <div className="portfolio-dividend-payout-modal-intro">
+        <strong>
+          {record.name}（{record.symbol}）
+        </strong>
+        <p>
+          除权日 {record.exDividendDate} · 税前 <ValueDisplay kind="currency" value={record.cashAmount} />
+          {record.payoutMode === 'reinvest' && record.reinvestQuantity !== null ? (
+            <>
+              {' '}
+              · 再投 <ValueDisplay kind="quantity" value={record.reinvestQuantity} /> 份
+            </>
+          ) : null}
+        </p>
+      </div>
 
+      <p className="portfolio-dividend-payout-modal-label">本次分红</p>
       <Radio.Group
         value={payoutMode}
-        onChange={(event) => setPayoutMode(event.target.value as DividendPayoutMode)}
+        onChange={(event) => {
+          setPayoutMode(event.target.value as DividendPayoutMode);
+          setSetDefault(true);
+        }}
         style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
       >
-        <Radio value="cash">现金分红</Radio>
-        <Radio value="reinvest">红利再投资</Radio>
+        <Radio value="cash">现金分红 — 计入现金收益，不增加份额</Radio>
+        <Radio value="reinvest">红利再投资 — 按除权日净值折算份额</Radio>
       </Radio.Group>
 
       {payoutMode === 'reinvest' && record.status !== 'confirmed' ? (
         <p className="portfolio-dividend-payout-modal-hint">
-          待确认分红会在确认后，再按除权/到账日净值增加持仓份额。
+          待确认记录在确认后，才会按净值增加持仓份额。
         </p>
       ) : null}
 
-      {modeChanged || defaultMode !== payoutMode ? (
-        <Checkbox
-          checked={setDefault}
-          onChange={(event) => setSetDefault(event.target.checked)}
-          style={{ marginTop: 16 }}
-        >
-          同时将 {record.symbol} 的默认分红方式设为「{defaultLabel}」
-        </Checkbox>
+      <p className="portfolio-dividend-payout-modal-label">默认设置</p>
+      <Checkbox checked={setDefault} onChange={(event) => setSetDefault(event.target.checked)}>
+        以后 {record.symbol} 的新分红也默认按「{modeLabel}」处理
+      </Checkbox>
+      {effectiveDefault !== payoutMode ? (
+        <p className="portfolio-dividend-payout-modal-hint">
+          当前默认为「{savedDefaultLabel}」，勾选并保存后将更新。
+        </p>
       ) : null}
     </Modal>
   );

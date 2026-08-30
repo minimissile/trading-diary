@@ -1088,6 +1088,31 @@
   text-overflow: ellipsis;
 }
 
+.portfolio-dividend-payout-modal-intro {
+  margin-bottom: 4px;
+}
+
+.portfolio-dividend-payout-modal-intro p {
+  margin: 6px 0 0;
+  color: var(--ant-color-text-secondary);
+  font-size: 13px;
+}
+
+.portfolio-dividend-payout-modal-label {
+  margin: 16px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ant-color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.portfolio-dividend-payout-modal-hint {
+  margin: 8px 0 0;
+  color: var(--ant-color-text-secondary);
+  font-size: 12px;
+}
+
 .portfolio-calendar-wrap .ant-picker-calendar {
   background: transparent;
 }

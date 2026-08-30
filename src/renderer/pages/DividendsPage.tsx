@@ -5,6 +5,7 @@ import {
   App,
   Button,
   Calendar,
+  Dropdown,
   Empty,
   Segmented,
   Skeleton,
@@ -13,7 +14,7 @@ import {
   Tooltip,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { ReloadOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { ReloadOutlined, CheckOutlined, CloseOutlined, MoreOutlined, SwapOutlined } from '@ant-design/icons';
 import type {
   DividendCalendarDay,
   PortfolioDividendRecord,
@@ -118,7 +119,7 @@ export function DividendsPage(): React.JSX.Element {
     }
   };
 
-  const confirmDividend = async (id: string, confirmed: boolean): Promise<void> => {
+  const confirmDividend = useCallback(async (id: string, confirmed: boolean): Promise<void> => {
     const year = new Date().getFullYear();
     try {
       setDividends(await window.desktop.portfolio.confirmDividend(id, confirmed, undefined, accountId, year));
@@ -127,10 +128,24 @@ export function DividendsPage(): React.JSX.Element {
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '操作失败');
     }
-  };
+  }, [accountId, message]);
 
   const dividendColumns = useMemo<ColumnsType<PortfolioDividendRecord>>(
-    () => [
+    () => {
+      const symbolColumn = {
+        title: '标的',
+        key: 'symbol',
+        width: 220,
+        render: (_: unknown, row: PortfolioDividendRecord) => (
+          <span className="portfolio-dividend-symbol-cell">
+            <strong>{row.name}</strong>
+            <br />
+            <small>{row.symbol}</small>
+          </span>
+        ),
+      } as const;
+
+      return [
       ...(allAccountsView
         ? [
             {
@@ -139,24 +154,13 @@ export function DividendsPage(): React.JSX.Element {
               width: 120,
               render: (id: string) => accountLabels.get(id) ?? id,
             } as const,
+            symbolColumn,
           ]
-        : []),
+        : [symbolColumn]),
       {
         title: '除权日',
         dataIndex: 'exDividendDate',
         width: 108,
-      },
-      {
-        title: '标的',
-        key: 'symbol',
-        width: 140,
-        render: (_, row) => (
-          <span>
-            <strong>{row.name}</strong>
-            <br />
-            <small>{row.symbol}</small>
-          </span>
-        ),
       },
       {
         title: '每股派息',
@@ -175,9 +179,21 @@ export function DividendsPage(): React.JSX.Element {
       {
         title: '税前金额',
         dataIndex: 'cashAmount',
-        width: 108,
+        width: 120,
         align: 'right',
-        render: (value: number) => <ValueDisplay kind="currency" value={value} />,
+        render: (value: number, row) => (
+          <span className="portfolio-dividend-amount-cell">
+            <ValueDisplay kind="currency" value={value} />
+            {row.payoutMode === 'reinvest' && row.reinvestQuantity !== null ? (
+              <>
+                <br />
+                <small>
+                  <ValueDisplay kind={quantityPresetForKind(row.kind)} value={row.reinvestQuantity} /> 份
+                </small>
+              </>
+            ) : null}
+          </span>
+        ),
       },
       {
         title: '分红方式',
@@ -185,9 +201,7 @@ export function DividendsPage(): React.JSX.Element {
         width: 108,
         render: (mode: PortfolioDividendRecord['payoutMode'], row) =>
           supportsDividendPayoutMode(row.kind) ? (
-            <Button type="link" size="small" className="portfolio-dividend-payout-link" onClick={() => setPayoutRecord(row)}>
-              <Tag color={mode === 'reinvest' ? 'purple' : 'default'}>{dividendPayoutModeLabel(mode)}</Tag>
-            </Button>
+            <Tag color={mode === 'reinvest' ? 'purple' : 'default'}>{dividendPayoutModeLabel(mode)}</Tag>
           ) : (
             <Tag>{dividendPayoutModeLabel('cash')}</Tag>
           ),
@@ -205,17 +219,50 @@ export function DividendsPage(): React.JSX.Element {
       {
         title: '操作',
         key: 'actions',
-        width: 120,
-        render: (_, row) =>
-          row.status === 'estimated' ? (
-            <span className="portfolio-row-actions">
-              <Button type="link" icon={<CheckOutlined />} onClick={() => void confirmDividend(row.id, true)} />
-              <Button type="link" danger icon={<CloseOutlined />} onClick={() => void confirmDividend(row.id, false)} />
-            </span>
-          ) : null,
+        width: 64,
+        fixed: 'right',
+        align: 'center',
+        render: (_, row) => {
+          const items = [
+            ...(supportsDividendPayoutMode(row.kind)
+              ? [
+                  {
+                    key: 'payout-mode',
+                    label: '分红方式',
+                    icon: <SwapOutlined />,
+                    onClick: () => setPayoutRecord(row),
+                  },
+                ]
+              : []),
+            ...(row.status === 'estimated'
+              ? [
+                  {
+                    key: 'confirm',
+                    label: '确认',
+                    icon: <CheckOutlined />,
+                    onClick: () => void confirmDividend(row.id, true),
+                  },
+                  {
+                    key: 'reject',
+                    label: '驳回',
+                    icon: <CloseOutlined />,
+                    danger: true,
+                    onClick: () => void confirmDividend(row.id, false),
+                  },
+                ]
+              : []),
+          ];
+          if (items.length === 0) return null;
+          return (
+            <Dropdown trigger={['click']} menu={{ items }}>
+              <Button type="text" size="small" icon={<MoreOutlined />} aria-label="操作菜单" />
+            </Dropdown>
+          );
+        },
       },
-    ],
-    [accountLabels, allAccountsView],
+    ];
+    },
+    [accountLabels, allAccountsView, confirmDividend],
   );
 
   const calendarCellMap = useMemo(() => {
@@ -352,7 +399,7 @@ export function DividendsPage(): React.JSX.Element {
               pagination={false}
               rowKey="id"
               size="small"
-              scroll={{ x: 1020 }}
+              scroll={{ x: 1080 }}
             />
           ) : null}
 
@@ -414,7 +461,7 @@ export function DividendsPage(): React.JSX.Element {
                 pagination={{ pageSize: 20 }}
                 rowKey="id"
                 size="small"
-                scroll={{ x: 1020 }}
+                scroll={{ x: 1080 }}
               />
             )
           ) : null}

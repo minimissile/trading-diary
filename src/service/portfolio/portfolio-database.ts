@@ -564,6 +564,7 @@ export class PortfolioDatabase {
       source: row.source,
       payoutMode: row.payout_mode ?? 'cash',
       reinvestLedgerId: row.reinvest_ledger_id ?? null,
+      reinvestQuantity: null,
     };
   }
 

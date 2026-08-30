@@ -246,7 +246,8 @@ export class PortfolioService {
     statuses?: DividendRecordStatus[],
   ): Promise<PortfolioDividendRecord[]> {
     const records = this.database.portfolio.listDividends(accountId, year, statuses);
-    return this.enrichDividendNames(records);
+    const withNames = await this.enrichDividendNames(records);
+    return this.enrichDividendReinvestQuantities(withNames);
   }
 
   async addLedgerEntry(input: CreatePortfolioLedgerInput): Promise<PortfolioPositionView[]> {
@@ -720,6 +721,33 @@ export class PortfolioService {
         fundNameMap.get(record.symbol) ??
         resolveNameMap.get(record.symbol) ??
         record.symbol,
+    }));
+  }
+
+  private enrichDividendReinvestQuantities(
+    records: PortfolioDividendRecord[],
+  ): PortfolioDividendRecord[] {
+    if (records.length === 0) return records;
+
+    const reinvestIds = records
+      .map((record) => record.reinvestLedgerId)
+      .filter((id): id is string => Boolean(id));
+    if (reinvestIds.length === 0) {
+      return records.map((record) => ({ ...record, reinvestQuantity: null }));
+    }
+
+    const quantityByLedgerId = new Map<string, number>();
+    for (const entry of this.database.portfolio.listAllLedger()) {
+      if (reinvestIds.includes(entry.id)) {
+        quantityByLedgerId.set(entry.id, entry.quantity);
+      }
+    }
+
+    return records.map((record) => ({
+      ...record,
+      reinvestQuantity: record.reinvestLedgerId
+        ? (quantityByLedgerId.get(record.reinvestLedgerId) ?? null)
+        : null,
     }));
   }
 }

@@ -17,6 +17,7 @@ function record(partial: Partial<PortfolioDividendRecord> & Pick<PortfolioDivide
     source: 'api',
     payoutMode: 'cash',
     reinvestLedgerId: null,
+    reinvestQuantity: null,
     ...partial,
   };
 }

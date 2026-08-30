@@ -105,6 +105,8 @@ export interface PortfolioDividendRecord {
   source: DividendRecordSource;
   payoutMode: DividendPayoutMode;
   reinvestLedgerId: string | null;
+  /** 红利再投资对应持仓流水份额；无流水时为 null。 */
+  reinvestQuantity: number | null;
 }
 
 export interface DividendCalendarDay {
