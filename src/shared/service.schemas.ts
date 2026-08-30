@@ -787,7 +787,7 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
         accountId: z.string().trim().min(1).max(64).optional(),
         symbol: symbolSchema,
         amount: nonNegativeNumberSchema.refine((value) => value > 0, '每期金额必须大于 0'),
-        frequency: z.enum(['weekly', 'biweekly', 'monthly']),
+        frequency: z.enum(['daily', 'weekly', 'biweekly', 'monthly']),
         dayOfWeek: z.number().int().min(1).max(7).optional(),
         dayOfMonth: z.number().int().min(1).max(28).optional(),
         startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -806,7 +806,7 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
         input: z
           .object({
             amount: nonNegativeNumberSchema.optional(),
-            frequency: z.enum(['weekly', 'biweekly', 'monthly']).optional(),
+            frequency: z.enum(['daily', 'weekly', 'biweekly', 'monthly']).optional(),
             dayOfWeek: z.number().int().min(1).max(7).nullable().optional(),
             dayOfMonth: z.number().int().min(1).max(28).nullable().optional(),
             endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
@@ -834,7 +834,7 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
         accountId: z.string().trim().min(1).max(64).optional(),
         symbol: symbolSchema,
         amount: nonNegativeNumberSchema,
-        frequency: z.enum(['weekly', 'biweekly', 'monthly']),
+        frequency: z.enum(['daily', 'weekly', 'biweekly', 'monthly']),
         dayOfWeek: z.number().int().min(1).max(7).optional(),
         dayOfMonth: z.number().int().min(1).max(28).optional(),
         startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),

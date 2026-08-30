@@ -180,9 +180,16 @@ export function PositionsPage(): React.JSX.Element {
       {
         title: '类型',
         dataIndex: 'kind',
-        width: 88,
+        width: 120,
         align: 'right',
-        render: (kind: InstrumentKind) => <Tag>{kindLabels[kind] ?? kind}</Tag>,
+        render: (kind: InstrumentKind, row) => (
+          <span className="portfolio-kind-tags">
+            <Tag>{kindLabels[kind] ?? kind}</Tag>
+            {row.fundProfile?.operationModeLabel ? (
+              <Tag color="orange">{row.fundProfile.operationModeLabel}</Tag>
+            ) : null}
+          </span>
+        ),
       },
       {
         title: '份额',

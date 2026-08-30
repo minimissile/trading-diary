@@ -1,7 +1,7 @@
 import type { InstrumentKind } from '../market/types';
 
 export type SipPlanStatus = 'draft' | 'active' | 'paused' | 'completed' | 'cancelled';
-export type SipFrequency = 'weekly' | 'biweekly' | 'monthly';
+export type SipFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly';
 export type SipOccurrenceStatus = 'scheduled' | 'due' | 'completed' | 'skipped' | 'missed';
 
 /** 基金定投计划。 */
@@ -173,3 +173,5 @@ export interface SipPlanPositionLink {
 
 export const SIP_GRACE_DAYS = 3;
 export const SIP_ROLLING_HORIZON = 12;
+/** 每个交易日定投的滚动预生成期数（约 1 个月交易日）。 */
+export const SIP_DAILY_ROLLING_HORIZON = 22;

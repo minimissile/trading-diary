@@ -5,10 +5,25 @@ import {
   generateOccurrenceDates,
   previewSchedule,
   resolveDueTransitions,
+  rollingOccurrenceCount,
   shiftIsoDate,
 } from '../src/service/sip/sip-scheduler';
 
 describe('sip scheduler', () => {
+  it('generates daily trading-day dates and skips weekends', () => {
+    const dates = generateOccurrenceDates({
+      frequency: 'daily',
+      startDate: '2026-01-02',
+      count: 5,
+    });
+    expect(dates).toEqual(['2026-01-02', '2026-01-05', '2026-01-06', '2026-01-07', '2026-01-08']);
+  });
+
+  it('uses a larger rolling horizon for daily plans', () => {
+    expect(rollingOccurrenceCount(['2026-01-02'], '2026-01-02', 'daily')).toBe(21);
+    expect(rollingOccurrenceCount(['2026-01-02'], '2026-01-02', 'monthly')).toBe(11);
+  });
+
   it('generates weekly dates on the chosen weekday', () => {
     const dates = generateOccurrenceDates({
       frequency: 'weekly',

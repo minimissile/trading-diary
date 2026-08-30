@@ -9,7 +9,7 @@ import type {
   SipPlanStatus,
   UpdateFundSipPlanInput,
 } from '../../shared/sip/types';
-import { compareIsoDate, generateOccurrenceDates, resolveDueTransitions, SIP_ROLLING_HORIZON } from './sip-scheduler';
+import { compareIsoDate, generateOccurrenceDates, resolveDueTransitions, rollingHorizonForFrequency } from './sip-scheduler';
 
 const MONEY_SCALE = 100;
 const PRICE_SCALE = 10_000;
@@ -160,7 +160,7 @@ export class SipDatabase {
         resolved.kind,
         toCents(input.amount),
         input.frequency,
-        input.frequency === 'monthly' ? null : (input.dayOfWeek ?? null),
+        input.frequency === 'weekly' || input.frequency === 'biweekly' ? (input.dayOfWeek ?? null) : null,
         input.frequency === 'monthly' ? (input.dayOfMonth ?? null) : null,
         input.startDate,
         input.endDate ?? null,
@@ -187,9 +187,9 @@ export class SipDatabase {
     const dayOfWeek =
       input.dayOfWeek !== undefined
         ? input.dayOfWeek
-        : frequency === 'monthly'
-          ? null
-          : current.dayOfWeek;
+        : frequency === 'weekly' || frequency === 'biweekly'
+          ? current.dayOfWeek
+          : null;
     const dayOfMonth =
       input.dayOfMonth !== undefined
         ? input.dayOfMonth
@@ -199,8 +199,11 @@ export class SipDatabase {
     const endDate = input.endDate !== undefined ? input.endDate : current.endDate;
     const thesis = input.thesis?.trim() ?? current.thesis;
 
-    if (frequency !== 'monthly' && !dayOfWeek) throw new Error('每周/每两周定投需要指定 weekday');
-    if (frequency === 'monthly' && !dayOfMonth) throw new Error('每月定投需要指定 dayOfMonth');
+    if (frequency === 'weekly' || frequency === 'biweekly') {
+      if (!dayOfWeek) throw new Error('每周/每两周定投需要指定 weekday');
+    } else if (frequency === 'monthly' && !dayOfMonth) {
+      throw new Error('每月定投需要指定 dayOfMonth');
+    }
 
     this.db
       .prepare(
@@ -348,9 +351,10 @@ export class SipDatabase {
       (item) => compareIsoDate(item.scheduledDate, today) >= 0 && ['scheduled', 'due'].includes(item.status),
     ).length;
 
-    if (futureCount >= SIP_ROLLING_HORIZON) return;
+    const horizon = rollingHorizonForFrequency(plan.frequency);
+    if (futureCount >= horizon) return;
 
-    const need = SIP_ROLLING_HORIZON - futureCount;
+    const need = horizon - futureCount;
     const dates = generateOccurrenceDates({
       frequency: plan.frequency,
       startDate: plan.startDate,
@@ -482,8 +486,10 @@ export class SipDatabase {
       if (!input.dayOfMonth || input.dayOfMonth < 1 || input.dayOfMonth > 28) {
         throw new Error('每月定投日需在 1–28 之间');
       }
-    } else if (!input.dayOfWeek || input.dayOfWeek < 1 || input.dayOfWeek > 7) {
-      throw new Error('每周/每两周定投需要指定 weekday（1=周一 … 7=周日）');
+    } else if (input.frequency === 'weekly' || input.frequency === 'biweekly') {
+      if (!input.dayOfWeek || input.dayOfWeek < 1 || input.dayOfWeek > 7) {
+        throw new Error('每周/每两周定投需要指定 weekday（1=周一 … 7=周日）');
+      }
     }
   }
 

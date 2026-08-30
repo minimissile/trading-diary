@@ -469,4 +469,49 @@ export const migrations: readonly Migration[] = [
       ) STRICT;
     `,
   },
+  {
+    version: 17,
+    name: 'fund_sip_daily_frequency',
+    sql: `
+      CREATE TABLE fund_sip_plans__v17 (
+        id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        name TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK (kind IN ('stock','etf','lof','otc_fund')),
+        amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+        frequency TEXT NOT NULL CHECK (frequency IN ('daily','weekly','biweekly','monthly')),
+        day_of_week INTEGER CHECK (day_of_week BETWEEN 1 AND 7),
+        day_of_month INTEGER CHECK (day_of_month BETWEEN 1 AND 28),
+        start_date TEXT NOT NULL,
+        end_date TEXT,
+        thesis TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('draft','active','paused','completed','cancelled')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (account_id) REFERENCES portfolio_accounts(id)
+      ) STRICT;
+
+      INSERT INTO fund_sip_plans__v17
+      SELECT * FROM fund_sip_plans;
+
+      DROP TABLE fund_sip_plans;
+      ALTER TABLE fund_sip_plans__v17 RENAME TO fund_sip_plans;
+
+      CREATE INDEX fund_sip_plans_status_idx ON fund_sip_plans(status, updated_at DESC);
+      CREATE INDEX fund_sip_plans_symbol_idx ON fund_sip_plans(symbol, updated_at DESC);
+    `,
+  },
+  {
+    version: 18,
+    name: 'fund_profiles',
+    sql: `
+      CREATE TABLE fund_profiles (
+        symbol TEXT PRIMARY KEY,
+        kind TEXT NOT NULL CHECK (kind IN ('stock','etf','lof','otc_fund')),
+        profile_json TEXT NOT NULL,
+        fetched_at TEXT NOT NULL
+      ) STRICT;
+    `,
+  },
 ];

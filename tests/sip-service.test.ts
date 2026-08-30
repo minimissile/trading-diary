@@ -87,4 +87,29 @@ describe('sip service integration', () => {
 
     database.close();
   });
+
+  it('creates daily plan with trading-day occurrences only', () => {
+    const database = createTestDatabase();
+    const plan = database.sip.createPlan(
+      {
+        symbol: '004598',
+        amount: 90,
+        frequency: 'daily',
+        startDate: '2026-01-02',
+        thesis: '每个交易日定投',
+        activateNow: true,
+      },
+      { name: '南方中证银行ETF发起联接C', kind: 'otc_fund', accountId: database.portfolio.ensureDefaultAccount() },
+    );
+
+    database.sip.ensureRollingOccurrences(plan, '2026-01-02');
+    const occurrences = database.sip.listOccurrences(plan.id);
+    expect(occurrences.length).toBeGreaterThan(0);
+    expect(occurrences.every((item) => {
+      const day = new Date(`${item.scheduledDate}T12:00:00`).getDay();
+      return day >= 1 && day <= 5;
+    })).toBe(true);
+
+    database.close();
+  });
 });

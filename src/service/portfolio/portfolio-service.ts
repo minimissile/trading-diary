@@ -20,6 +20,8 @@ import type { InstrumentKind } from '../../shared/market/types';
 import type { FeeProfileRates } from '../../shared/accounts/types';
 import type { AppDatabase } from '../database/database';
 import { createDailyBarSyncService, type DailyBarSyncService } from '../market/daily-bar-sync-service';
+import { createFundProfileSyncService, FUND_PROFILE_STALE_MS, type FundProfileSyncService } from '../market/fund-profile-sync-service';
+import { buildFundProfileSummary, shouldCacheFundProfile, type FundProfileRecord } from '../../shared/market/fund-profile';
 import { normalizeSymbol } from '../market/eastmoney/symbols';
 import { marketService } from '../market/market-service';
 import { buildProjectedDividends, matchDividendEvent } from './dividend-matcher';
@@ -38,9 +40,11 @@ import { computeReferenceUnrealizedPnl, computeReferenceReturnPercent, inferMark
 export class PortfolioService {
   private lastRefreshedAt: string | null = null;
   private readonly dailyBarSync: DailyBarSyncService;
+  private readonly fundProfileSync: FundProfileSyncService;
 
   constructor(private readonly database: AppDatabase) {
     this.dailyBarSync = createDailyBarSyncService(database.marketDailyBars);
+    this.fundProfileSync = createFundProfileSyncService(database.fundProfiles);
   }
 
   async listPositions(accountId?: string): Promise<PortfolioPositionView[]> {
@@ -52,6 +56,13 @@ export class PortfolioService {
     const symbols = aggregates.map((item) => item.symbol);
     const quotes = await marketService.getQuotes(symbols);
     const quoteMap = new Map(quotes.map((quote) => [normalizeSymbol(quote.symbol), quote]));
+    const fundProfileMap = new Map(
+      this.database.fundProfiles.list(symbols).map((record) => [record.symbol, record]),
+    );
+    this.scheduleFundProfileMaintenance(
+      aggregates.map((item) => ({ symbol: item.symbol, kind: item.kind })),
+      fundProfileMap,
+    );
     const dividends = isAllAccountsId(accountId)
       ? portfolio.listAllDividends()
       : portfolio.listDividends(portfolio.resolveAccountId(accountId));
@@ -107,6 +118,9 @@ export class PortfolioService {
       const unrealizedReturnPercent =
         unrealizedPnl === null ? null : computeReferenceReturnPercent(unrealizedPnl, position.totalCost);
 
+      const cachedFundProfile = fundProfileMap.get(normalizeSymbol(position.symbol));
+      const fundProfile = cachedFundProfile ? buildFundProfileSummary(cachedFundProfile.profile) : null;
+
       return {
         symbol: position.symbol,
         name: quote?.name ?? position.symbol,
@@ -123,6 +137,7 @@ export class PortfolioService {
         ytdDividendReceived: ytd,
         expectedDividend: expected,
         dividendYieldTtm: quote?.dividendYieldTtm ?? null,
+        fundProfile,
       };
     });
   }
@@ -195,6 +210,9 @@ export class PortfolioService {
     }
     this.database.portfolio.addLedgerEntry(payload);
     this.dailyBarSync.scheduleSymbols([payload.symbol], new Map([[payload.symbol, payload.kind!]]));
+    if (payload.kind && shouldCacheFundProfile(payload.kind)) {
+      await this.fundProfileSync.syncSymbol(payload.symbol, payload.kind);
+    }
     return this.listPositions(payload.accountId);
   }
 
@@ -450,6 +468,25 @@ export class PortfolioService {
 
     const defaultAccount = accounts.getDefaultAccount();
     return accounts.getFeeProfileRates(defaultAccount.feeProfileId!);
+  }
+
+  private scheduleFundProfileMaintenance(
+    positions: ReadonlyArray<{ symbol: string; kind: InstrumentKind }>,
+    cached: ReadonlyMap<string, FundProfileRecord>,
+  ): void {
+    const now = Date.now();
+    const targets = positions.filter((item) => {
+      if (!shouldCacheFundProfile(item.kind)) return false;
+      const record = cached.get(normalizeSymbol(item.symbol));
+      if (!record) return true;
+      return now - new Date(record.fetchedAt).getTime() >= FUND_PROFILE_STALE_MS;
+    });
+    if (targets.length === 0) return;
+
+    this.fundProfileSync.scheduleSymbols(
+      targets.map((item) => item.symbol),
+      new Map(targets.map((item) => [normalizeSymbol(item.symbol), item.kind])),
+    );
   }
 
   private async enrichDividendNames(records: PortfolioDividendRecord[]): Promise<PortfolioDividendRecord[]> {

@@ -8,6 +8,9 @@ export const SIP_IMPORT_AUTO_PLAN_THESIS = '由历史扣款导入自动创建，
 function parseHintFrequency(raw: string | null | undefined): SipFrequency | null {
   if (!raw) return null;
   const text = raw.trim().toLowerCase();
+  if (text.includes('daily') || text.includes('交易日') || text.includes('每个交易日') || text.includes('每日')) {
+    return 'daily';
+  }
   if (text.includes('biweek') || text.includes('双周') || text.includes('两周')) return 'biweekly';
   if (text.includes('week') || text.includes('每周') || text.includes('周定')) return 'weekly';
   if (text.includes('month') || text.includes('每月') || text.includes('月')) return 'monthly';
@@ -49,6 +52,9 @@ function inferScheduleFromDates(
   hints?: SipAiPlanHints | null,
 ): Pick<CreateFundSipPlanInput, 'frequency' | 'dayOfWeek' | 'dayOfMonth'> {
   const hinted = parseHintFrequency(hints?.frequency ?? null);
+  if (hinted === 'daily') {
+    return { frequency: 'daily', dayOfWeek: undefined, dayOfMonth: undefined };
+  }
   if (hinted === 'monthly') {
     const day = clampDayOfMonth(hints?.dayOfMonth ?? dayFromDates(dates));
     return { frequency: 'monthly', dayOfMonth: day, dayOfWeek: undefined };
@@ -71,6 +77,9 @@ function inferScheduleFromDates(
   }
 
   const typicalGap = median(gaps);
+  if (typicalGap <= 3) {
+    return { frequency: 'daily', dayOfWeek: undefined, dayOfMonth: undefined };
+  }
   if (typicalGap <= 10) {
     return { frequency: 'weekly', dayOfWeek: weekdayFromDates(dates), dayOfMonth: undefined };
   }

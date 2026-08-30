@@ -1,3 +1,4 @@
+import type { FundProfileSummary } from '../market/fund-profile';
 import type { InstrumentKind } from '../market/types';
 
 export type PortfolioLedgerSide = 'buy' | 'sell' | 'dividend_reinvest';
@@ -50,6 +51,8 @@ export interface PortfolioPositionView {
   ytdDividendReceived: number;
   expectedDividend: number;
   dividendYieldTtm: number | null;
+  /** 基金档案摘要（本地缓存，入库时拉取）。 */
+  fundProfile?: FundProfileSummary | null;
 }
 
 export interface MilestoneDefinition {

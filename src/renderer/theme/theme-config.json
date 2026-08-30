@@ -40,6 +40,8 @@
     "colorBorder": "#2b4d64",
     "colorBorderSecondary": "#20394b",
     "colorSplit": "#20394b",
+    "controlItemBgHover": "#154b79",
+    "controlItemBgActive": "#123d65",
     "borderRadius": 5,
     "borderRadiusLG": 8,
     "borderRadiusSM": 4,

@@ -21,6 +21,7 @@ import type {
 import { migrations } from './migrations';
 import { PortfolioDatabase } from '../portfolio/portfolio-database';
 import { MarketDailyBarDatabase } from '../market/market-daily-bar-database';
+import { FundProfileDatabase } from '../market/fund-profile-database';
 import { AccountDatabase } from '../accounts/account-database';
 import { EpisodeDatabase } from '../episodes/episode-database';
 import { PlaybookDatabase } from '../playbook/playbook-database';
@@ -133,6 +134,7 @@ export class AppDatabase {
   readonly filePath: string;
   readonly portfolio: PortfolioDatabase;
   readonly marketDailyBars: MarketDailyBarDatabase;
+  readonly fundProfiles: FundProfileDatabase;
   readonly accounts: AccountDatabase;
   readonly episodes: EpisodeDatabase;
   readonly playbook: PlaybookDatabase;
@@ -165,6 +167,7 @@ export class AppDatabase {
     this.applyMigrations();
     this.portfolio = new PortfolioDatabase(this.db);
     this.marketDailyBars = new MarketDailyBarDatabase(this.db);
+    this.fundProfiles = new FundProfileDatabase(this.db);
     this.accounts = new AccountDatabase(this.db);
     this.episodes = new EpisodeDatabase(this.db);
     this.playbook = new PlaybookDatabase(this.db);

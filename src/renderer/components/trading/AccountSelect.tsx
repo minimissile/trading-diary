@@ -1,8 +1,9 @@
 import { Select } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { TradingAccountSummary } from '../../../shared/api.types';
 import { ALL_ACCOUNTS_ID } from '../../../shared/accounts/constants';
 import { formatAccountSelectLabel } from '../../../shared/accounts/account-display';
+import { AccountSelectOptionLabel } from './AccountSelectOption';
 
 interface AccountSelectProps {
   value?: string;
@@ -16,7 +17,7 @@ interface AccountSelectProps {
   allowClear?: boolean;
 }
 
-/** 交易账户下拉选择器。 */
+/** 交易账户下拉选择器（含券商图标）。 */
 export function AccountSelect({
   value,
   onChange,
@@ -45,6 +46,16 @@ export function AccountSelect({
     };
   }, [includeArchived]);
 
+  const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
+
+  const renderAccountOption = (accountId: string | undefined): React.ReactNode => {
+    if (accountId === ALL_ACCOUNTS_ID) {
+      return <AccountSelectOptionLabel allAccounts />;
+    }
+    const account = accountId ? accountById.get(accountId) : undefined;
+    return account ? <AccountSelectOptionLabel account={account} /> : null;
+  };
+
   return (
     <Select
       className={className ? `account-select ${className}` : 'account-select'}
@@ -68,6 +79,8 @@ export function AccountSelect({
           disabled: account.isArchived,
         })),
       ]}
+      optionRender={(option) => renderAccountOption(String(option.value ?? ''))}
+      labelRender={(option) => renderAccountOption(String(option.value ?? value ?? ''))}
     />
   );
 }

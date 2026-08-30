@@ -56,6 +56,13 @@
   padding-inline: 14px;
 }
 
+.portfolio-kind-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
 .watchlist-symbol-button {
   display: flex;
   flex-direction: column;
@@ -808,6 +815,71 @@
   font-weight: 700;
 }
 
+.account-select.ant-select {
+  width: auto;
+  max-width: 100%;
+}
+
+.portfolio-page .portfolio-account-select {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 148px;
+  max-width: min(280px, 100%);
+}
+
+.account-select.ant-select .ant-select-selection-item,
+.account-select.ant-select .ant-select-selection-placeholder {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.account-select .ant-select-selection-item .account-select-option {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.account-select-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.account-select-option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-select-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.account-select-icon--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--td-color-surface-subtle);
+  color: var(--td-color-ink-secondary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.account-select-icon--all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: var(--td-color-surface-subtle);
+  color: var(--td-color-ink-secondary);
+  flex-shrink: 0;
+}
+
 .account-kind-radio {
   display: flex;
   gap: 12px;
@@ -1141,9 +1213,12 @@
   white-space: nowrap;
 }
 
+.ant-form-item .account-select:not(.portfolio-account-select),
 .portfolio-ledger-form .symbol-search-input,
 .portfolio-ledger-form .account-select,
-.portfolio-ledger-form .broker-select {
+.portfolio-ledger-form .broker-select,
+.import-form-row .account-select,
+.ant-modal-body .ant-space-vertical > .account-select {
   width: 100%;
 }
 

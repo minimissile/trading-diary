@@ -59,7 +59,8 @@ export function SipCreateModal({
     symbol: values.symbol.trim().toUpperCase(),
     amount: values.amount,
     frequency: values.frequency,
-    dayOfWeek: values.frequency === 'monthly' ? undefined : values.dayOfWeek,
+    dayOfWeek:
+      values.frequency === 'weekly' || values.frequency === 'biweekly' ? values.dayOfWeek : undefined,
     dayOfMonth: values.frequency === 'monthly' ? values.dayOfMonth : undefined,
     startDate: values.startDate.format('YYYY-MM-DD'),
     thesis: values.thesis.trim(),
@@ -113,6 +114,7 @@ export function SipCreateModal({
         </Form.Item>
         <Form.Item label="扣款频率" name="frequency" rules={[{ required: true }]}>
           <Radio.Group>
+            <Radio.Button value="daily">每个交易日</Radio.Button>
             <Radio.Button value="weekly">每周</Radio.Button>
             <Radio.Button value="biweekly">每两周</Radio.Button>
             <Radio.Button value="monthly">每月</Radio.Button>
@@ -122,7 +124,7 @@ export function SipCreateModal({
           <Form.Item label="扣款日" name="dayOfMonth" rules={[{ required: true, message: '请选择扣款日' }]}>
             <InputNumber min={1} max={28} precision={0} style={{ width: '100%' }} addonAfter="日（1–28）" />
           </Form.Item>
-        ) : (
+        ) : frequency === 'weekly' || frequency === 'biweekly' ? (
           <Form.Item label="扣款 weekday" name="dayOfWeek" rules={[{ required: true, message: '请选择 weekday' }]}>
             <Select
               options={Object.entries(weekdayLabels).map(([value, label]) => ({
@@ -131,7 +133,7 @@ export function SipCreateModal({
               }))}
             />
           </Form.Item>
-        )}
+        ) : null}
         <Form.Item label="开始日期" name="startDate" rules={[{ required: true, message: '请选择开始日期' }]}>
           <DatePicker style={{ width: '100%' }} />
         </Form.Item>

@@ -1,5 +1,6 @@
 import type { CreateFundSipPlanInput, FundSipOccurrence, SipFrequency } from '../../shared/sip/types';
-import { SIP_GRACE_DAYS, SIP_ROLLING_HORIZON } from '../../shared/sip/types';
+import { SIP_DAILY_ROLLING_HORIZON, SIP_GRACE_DAYS, SIP_ROLLING_HORIZON } from '../../shared/sip/types';
+import { isTradingDay } from '../../shared/trade-calendar';
 
 /** ISO 日期比较：a 早于 b 返回 -1。 */
 export function compareIsoDate(a: string, b: string): number {
@@ -74,6 +75,21 @@ export function generateOccurrenceDates(input: ScheduleInput): string[] {
   const minDate = afterDate && compareIsoDate(afterDate, startDate) > 0 ? afterDate : startDate;
   const dates: string[] = [];
 
+  if (frequency === 'daily') {
+    let current = compareIsoDate(startDate, minDate) >= 0 ? startDate : minDate;
+    while (!isTradingDay(current)) {
+      current = shiftIsoDate(current, 1);
+    }
+    while (dates.length < count) {
+      if (endDate && compareIsoDate(current, endDate) > 0) break;
+      dates.push(current);
+      do {
+        current = shiftIsoDate(current, 1);
+      } while (!isTradingDay(current));
+    }
+    return dates;
+  }
+
   if (frequency === 'weekly') {
     if (!dayOfWeek) throw new Error('每周定投需要指定 weekday');
     let current = alignToWeekday(startDate, dayOfWeek);
@@ -146,6 +162,10 @@ export function computeQuantityFromAmount(amount: number, nav: number, fees = 0)
   return Math.round((investable / nav) * 100) / 100;
 }
 
+export function rollingHorizonForFrequency(frequency: SipFrequency): number {
+  return frequency === 'daily' ? SIP_DAILY_ROLLING_HORIZON : SIP_ROLLING_HORIZON;
+}
+
 /** 扫描应标记为 due / missed 的期次 ID。 */
 export function resolveDueTransitions(
   occurrences: Pick<FundSipOccurrence, 'id' | 'scheduledDate' | 'status'>[],
@@ -169,9 +189,10 @@ export function resolveDueTransitions(
 }
 
 /** 计算滚动窗口内还需补生成的期次数。 */
-export function rollingOccurrenceCount(existingDates: string[], today: string): number {
+export function rollingOccurrenceCount(existingDates: string[], today: string, frequency: SipFrequency = 'monthly'): number {
+  const horizon = rollingHorizonForFrequency(frequency);
   const scheduledAhead = existingDates.filter((date) => compareIsoDate(date, today) >= 0).length;
-  return Math.max(0, SIP_ROLLING_HORIZON - scheduledAhead);
+  return Math.max(0, horizon - scheduledAhead);
 }
 
-export { SIP_GRACE_DAYS, SIP_ROLLING_HORIZON };
+export { SIP_DAILY_ROLLING_HORIZON, SIP_GRACE_DAYS, SIP_ROLLING_HORIZON };

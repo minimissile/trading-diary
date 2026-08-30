@@ -180,6 +180,7 @@ export const sipOccurrenceStatusLabels: Readonly<
 };
 
 export const sipFrequencyLabels: Readonly<Record<import('../../shared/sip/types').SipFrequency, string>> = {
+  daily: '每个交易日',
   weekly: '每周',
   biweekly: '每两周',
   monthly: '每月',
@@ -199,6 +200,9 @@ export function formatSipSchedule(plan: Pick<
   import('../../shared/sip/types').FundSipPlan,
   'frequency' | 'dayOfWeek' | 'dayOfMonth'
 >): string {
+  if (plan.frequency === 'daily') {
+    return '每个交易日';
+  }
   if (plan.frequency === 'monthly') {
     return `每月 ${plan.dayOfMonth ?? '—'} 日`;
   }
