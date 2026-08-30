@@ -484,6 +484,25 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
   }),
   z.object({
     id: z.uuid(),
+    method: z.literal('portfolio.syncPnlCalendarBars'),
+    params: z
+      .object({
+        accountId: z.string().trim().min(1).max(64).optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('portfolio.syncPnlCalendarBar'),
+    params: z
+      .object({
+        accountId: z.string().trim().min(1).max(64).optional(),
+        symbol: symbolSchema,
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
     method: z.literal('portfolio.updateLedgerEntry'),
     params: z
       .object({

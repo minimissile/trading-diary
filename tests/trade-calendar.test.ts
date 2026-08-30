@@ -43,11 +43,11 @@ describe('trade calendar', () => {
     );
   });
 
-  it('detects trading days and weekend reference daily window', () => {
+  it('detects trading days and weekend has no reference daily window', () => {
     expect(isTradingDay('2026-08-28')).toBe(true);
     expect(isTradingDay('2026-08-30')).toBe(false);
     expect(countTradingDaysInclusive('2026-08-28', '2026-08-30')).toBe(1);
-    expect(shouldUseReferenceDailyPnl('2026-08-28', '2026-08-30', 'stock')).toBe(true);
-    expect(shouldUseReferenceDailyPnl('2026-08-28', '2026-08-31', 'stock')).toBe(false);
+    expect(shouldUseReferenceDailyPnl('2026-08-28', '2026-08-30', 'stock')).toBe(false);
+    expect(shouldUseReferenceDailyPnl('2026-08-28', '2026-08-29', 'stock')).toBe(true);
   });
 });

@@ -480,6 +480,11 @@ export interface DesktopApi {
       accountId?: string,
       month?: string,
     ) => Promise<import('./portfolio/types').PortfolioPnlCalendarView>;
+    syncPnlCalendarBars: (accountId?: string) => Promise<import('./portfolio/types').PortfolioPnlCalendarSyncResult>;
+    syncPnlCalendarBar: (
+      accountId: string | undefined,
+      symbol: string,
+    ) => Promise<import('./portfolio/types').PortfolioPnlCalendarSyncResult>;
     updateLedgerEntry: (
       id: string,
       input: import('./portfolio/types').UpdatePortfolioLedgerInput,

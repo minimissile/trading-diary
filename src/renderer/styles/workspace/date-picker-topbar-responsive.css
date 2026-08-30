@@ -1,0 +1,141 @@
+/* 成交日期选择器：仅日历、强化选中态 */
+.td-trade-date-picker .ant-picker-panel-container {
+  border: 1px solid var(--td-color-line-strong);
+  border-radius: var(--td-radius-panel);
+  overflow: hidden;
+}
+
+.td-trade-date-picker .ant-picker-header {
+  border-bottom-color: var(--td-color-line);
+}
+
+.td-trade-date-picker .ant-picker-header-view button {
+  color: var(--td-color-ink);
+  font-weight: 600;
+}
+
+.td-trade-date-picker .ant-picker-content th {
+  color: var(--td-color-ink-tertiary);
+  font-weight: 500;
+}
+
+.td-trade-date-picker .ant-picker-cell-inner {
+  border-radius: var(--td-radius-control);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.td-trade-date-picker .ant-picker-cell-in-view:not(.ant-picker-cell-selected):hover .ant-picker-cell-inner {
+  background: var(--td-color-accent-soft);
+  color: var(--td-color-ink);
+}
+
+.td-trade-date-picker .ant-picker-cell-selected .ant-picker-cell-inner {
+  background: var(--td-color-accent) !important;
+  color: #fff !important;
+  font-weight: 600;
+  box-shadow: 0 0 0 1px rgb(44 140 255 / 40%);
+}
+
+.td-trade-date-picker .ant-picker-cell-today:not(.ant-picker-cell-selected) .ant-picker-cell-inner {
+  color: var(--td-color-accent);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgb(44 140 255 / 55%);
+}
+
+.td-trade-date-picker .ant-picker-cell-today.ant-picker-cell-selected .ant-picker-cell-inner {
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 28%),
+    0 0 0 1px rgb(44 140 255 / 40%);
+}
+
+.td-trade-date-picker .ant-picker-cell-disabled .ant-picker-cell-inner {
+  color: var(--td-color-ink-tertiary);
+  background: transparent;
+}
+
+@media (max-width: 1450px) {
+  .command-topbar {
+    grid-template-columns: minmax(250px, 340px) 1fr auto;
+  }
+
+  .market-state {
+    display: none;
+  }
+
+  .market-context {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 1320px) {
+  .trading-app {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .app-brand {
+    justify-content: center;
+    height: 72px;
+    padding: 0;
+  }
+
+  .brand-copy,
+  .nav-label,
+  .sidebar-footer-meta {
+    display: none;
+  }
+
+  .sidebar-footer {
+    padding: 8px;
+  }
+
+  .sidebar-footer-link {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    height: 40px;
+    padding: 0;
+  }
+
+  .primary-nav {
+    padding: 8px;
+  }
+
+  .primary-nav button {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding: 0;
+  }
+
+  .nav-attention {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+  }
+
+  .command-topbar {
+    grid-template-columns: minmax(260px, 1fr) auto;
+  }
+
+  .market-context {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .command-topbar {
+    grid-template-columns: minmax(220px, 1fr) auto;
+    padding: 0 12px;
+  }
+
+  .topbar-actions .new-plan-button span:not(.anticon),
+  .record-trade-button {
+    display: none;
+  }
+
+  .new-plan-button {
+    width: 38px;
+    padding: 0 !important;
+  }
+}

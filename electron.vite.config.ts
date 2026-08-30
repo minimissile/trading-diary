@@ -45,6 +45,7 @@ export default defineConfig({
           'src/shared/ipc-channels.ts',
           'src/shared/service.types.ts',
           'src/shared/service.schemas.ts',
+          'src/shared/schemas/**',
         ],
       },
     },

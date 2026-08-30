@@ -75,14 +75,14 @@ describe('position daily pnl', () => {
       quote: { change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
       referenceUnrealizedPnl: referenceUnrealized,
       firstBuyAt: '2026-08-28T00:00:00+08:00',
-      asOf: new Date('2026-08-29T15:22:00+08:00'),
+      asOf: new Date('2026-08-28T15:22:00+08:00'),
     });
 
     expect(referenceUnrealized).toBeCloseTo(65.23, 2);
     expect(pnl).toBeCloseTo(65.23, 2);
   });
 
-  it('uses reference unrealized on weekend for position bought previous trading day', () => {
+  it('returns zero daily pnl for exchange-traded holdings on weekend', () => {
     const quantity = 600;
     const totalCost = quantity * 8.77 + 5.05;
     const referenceUnrealized = computeReferenceUnrealizedPnl({
@@ -104,7 +104,20 @@ describe('position daily pnl', () => {
       asOf: new Date('2026-08-30T01:00:00+08:00'),
     });
 
-    expect(pnl).toBeCloseTo(65.23, 2);
+    expect(pnl).toBe(0);
+  });
+
+  it('returns zero daily pnl for long-held stock on weekend', () => {
+    const pnl = computePositionDailyPnl({
+      kind: 'stock',
+      entries: [entry({ side: 'buy', quantity: 600, price: 8.79, tradeAt: '2026-08-25T00:00:00+08:00' })],
+      marketPrice: 8.9,
+      quote: { change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
+      referenceUnrealizedPnl: 50,
+      firstBuyAt: '2026-08-25T00:00:00+08:00',
+      asOf: new Date('2026-08-30T01:00:00+08:00'),
+    });
+    expect(pnl).toBe(0);
   });
 
   it('uses market move for stock held before yesterday', () => {
@@ -115,7 +128,7 @@ describe('position daily pnl', () => {
       quote: { change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
       referenceUnrealizedPnl: 50,
       firstBuyAt: '2026-08-25T00:00:00+08:00',
-      asOf: new Date('2026-08-29T15:22:00+08:00'),
+      asOf: new Date('2026-08-28T15:22:00+08:00'),
     });
     expect(pnl).toBeCloseTo(48, 2);
   });
@@ -131,12 +144,28 @@ describe('position daily pnl', () => {
       quote: { change: 0.09, changePercent: 1.724, price: 5.31, prevClose: 5.22 },
       referenceUnrealizedPnl: -28.64,
       firstBuyAt: '2026-08-20T00:00:00+08:00',
-      asOf: new Date('2026-08-30T01:00:00+08:00'),
+      asOf: new Date('2026-08-28T01:00:00+08:00'),
     });
     expect(pnl).toBeCloseTo(1200 * 0.09, 1);
   });
 
-  it('matches Tonghuashun daily reference for 002387', () => {
+  it('returns zero on weekend for multi-buy stock', () => {
+    const pnl = computePositionDailyPnl({
+      kind: 'stock',
+      entries: [
+        entry({ id: '1', symbol: '002575', side: 'buy', quantity: 800, price: 5.32, fees: 0.45, tradeAt: '2026-08-20T00:00:00+08:00' }),
+        entry({ id: '2', symbol: '002575', side: 'buy', quantity: 400, price: 5.35, fees: 0.23, tradeAt: '2026-08-28T00:00:00+08:00' }),
+      ],
+      marketPrice: 5.31,
+      quote: { change: 0.09, changePercent: 1.724, price: 5.31, prevClose: 5.22 },
+      referenceUnrealizedPnl: -28.64,
+      firstBuyAt: '2026-08-20T00:00:00+08:00',
+      asOf: new Date('2026-08-30T01:00:00+08:00'),
+    });
+    expect(pnl).toBe(0);
+  });
+
+  it('returns zero on weekend for long-held stock', () => {
     const pnl = computePositionDailyPnl({
       kind: 'stock',
       entries: [entry({ symbol: '002387', side: 'buy', quantity: 500, price: 9.01, fees: 0.47, tradeAt: '2026-07-01T00:00:00+08:00' })],
@@ -146,18 +175,18 @@ describe('position daily pnl', () => {
       firstBuyAt: '2026-07-01T00:00:00+08:00',
       asOf: new Date('2026-08-30T01:00:00+08:00'),
     });
-    expect(pnl).toBeCloseTo(105, 0);
+    expect(pnl).toBe(0);
   });
 
   it('uses buy price for shares purchased today (Shanghai calendar, UTC runtime)', () => {
     const pnl = computePositionDailyPnl({
       kind: 'stock',
-      entries: [entry({ side: 'buy', quantity: 600, price: 8.79, tradeAt: '2026-08-28T16:00:00.000Z' })],
+      entries: [entry({ side: 'buy', quantity: 600, price: 8.79, tradeAt: '2026-08-28T00:00:00+08:00' })],
       marketPrice: 8.90358,
       quote: { change: 0.08, changePercent: 0.91, price: 8.90358, prevClose: 8.82 },
       referenceUnrealizedPnl: 68.15,
-      firstBuyAt: '2026-08-28T16:00:00.000Z',
-      asOf: new Date('2026-08-29T15:22:00.000Z'),
+      firstBuyAt: '2026-08-28T00:00:00+08:00',
+      asOf: new Date('2026-08-28T15:22:00+08:00'),
     });
     expect(pnl).toBeCloseTo(68.15, 1);
   });
@@ -167,13 +196,13 @@ describe('position daily pnl', () => {
       kind: 'stock',
       entries: [
         entry({ id: '1', side: 'buy', quantity: 400, price: 8.5, tradeAt: '2026-08-25T00:00:00+08:00' }),
-        entry({ id: '2', side: 'buy', quantity: 200, price: 8.79, tradeAt: '2026-08-29T00:00:00+08:00' }),
+        entry({ id: '2', side: 'buy', quantity: 200, price: 8.79, tradeAt: '2026-08-28T00:00:00+08:00' }),
       ],
       marketPrice: 8.9,
       quote: { change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
       referenceUnrealizedPnl: 100,
       firstBuyAt: '2026-08-25T00:00:00+08:00',
-      asOf: new Date('2026-08-29T15:22:00+08:00'),
+      asOf: new Date('2026-08-28T15:22:00+08:00'),
     });
     expect(pnl).toBeCloseTo(600 * 0.08, 2);
   });
@@ -225,7 +254,7 @@ describe('position daily pnl', () => {
         entries: [entry({ side: 'buy', quantity: 100, price: 10, tradeAt: '2026-08-25T00:00:00+08:00' })],
         marketPrice: 10.5,
         quote: { change: null, changePercent: null, price: null, prevClose: null },
-        asOf: new Date('2026-08-29T12:00:00+08:00'),
+        asOf: new Date('2026-08-28T12:00:00+08:00'),
       }),
     ).toBeNull();
   });

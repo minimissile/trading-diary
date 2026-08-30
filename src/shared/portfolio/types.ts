@@ -172,6 +172,23 @@ export interface PnlCalendarSummary {
   dividendPnl: number;
 }
 
+export interface PnlCalendarMonthSummary {
+  month: string;
+  summary: PnlCalendarSummary;
+}
+
+export interface PnlCalendarSyncItem {
+  symbol: string;
+  name: string;
+  synced: boolean;
+  skipped: boolean;
+  error?: string;
+}
+
+export interface PortfolioPnlCalendarSyncResult {
+  items: PnlCalendarSyncItem[];
+}
+
 export interface PortfolioPnlCalendarView {
   month: string;
   days: PnlCalendarDay[];

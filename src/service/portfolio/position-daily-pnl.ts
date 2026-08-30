@@ -1,6 +1,7 @@
 import type { InstrumentKind, MarketQuote } from '../../shared/market/types';
 import type { PortfolioLedgerEntry } from '../../shared/portfolio/types';
 import {
+  isTradingDay,
   shouldUseReferenceDailyPnl,
   todayCalendarDate,
   tradeCalendarDate,
@@ -49,7 +50,7 @@ function consumeLots(lots: RemainingLot[], sellQty: number): void {
   }
 }
 
-function resolveFirstBuyDay(entries: readonly PortfolioLedgerEntry[]): string | null {
+export function resolveFirstBuyDay(entries: readonly PortfolioLedgerEntry[]): string | null {
   let first: string | null = null;
   for (const entry of entries) {
     if (ledgerQuantityDelta(entry) <= 0) continue;
@@ -97,17 +98,25 @@ export function resolveDayChangePerShare(
   return null;
 }
 
+function isExchangeTradedKind(kind: InstrumentKind): boolean {
+  return kind === 'stock' || kind === 'etf' || kind === 'lof';
+}
+
 /**
  * 持仓日收益（对齐同花顺）：
- * - 建仓当日 / 上一自然日（含周末查看）：参考浮盈
+ * - 建仓当日 / 上一自然日：参考浮盈
  * - 其余存量：份额 × 当日涨跌额
  * - 当日卖出：份额 × (卖出价 − 成本价)
+ * - A 股场内非交易日（周末等）：日收益为 0
  */
 export function computePositionDailyPnl(input: PositionDailyPnlInput): number | null {
   const { kind, entries, marketPrice, quote, asOf, referenceUnrealizedPnl, firstBuyAt } = input;
   if (!quote || marketPrice === null || entries.length === 0) return null;
 
   const today = todayCalendarDate(asOf ?? new Date());
+  if (isExchangeTradedKind(kind) && !isTradingDay(today)) {
+    return 0;
+  }
   const firstBuyDay = firstBuyAt ? tradeCalendarDate(firstBuyAt) : resolveFirstBuyDay(entries);
   if (
     firstBuyDay &&

@@ -41,12 +41,12 @@ describe('buildPnlCalendar', () => {
         side: 'buy',
         quantity: 100,
         price: 10,
-        tradeAt: '2026-08-01T00:00:00+08:00',
+        tradeAt: '2026-08-03T00:00:00+08:00',
       }),
     ];
 
     const bars = indexDailyBars([
-      bar('600941', '2026-08-01', 10.5, 10),
+      bar('600941', '2026-08-03', 10.5, 10),
       bar('600941', '2026-08-04', 11, 10.5),
     ]);
 
@@ -58,7 +58,7 @@ describe('buildPnlCalendar', () => {
       asOf: new Date('2026-08-30T12:00:00+08:00'),
     });
 
-    const dayOne = result.days.find((day) => day.date === '2026-08-01');
+    const dayOne = result.days.find((day) => day.date === '2026-08-03');
     const dayFour = result.days.find((day) => day.date === '2026-08-04');
 
     expect(dayOne?.positionPnl).toBeCloseTo(50, 2);

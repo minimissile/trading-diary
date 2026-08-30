@@ -1,0 +1,1149 @@
+
+.watchlist-page .watchlist-disclaimer,
+.portfolio-page .watchlist-disclaimer {
+  margin-bottom: 20px;
+  border-color: #2a6fa5;
+  background: #102f4c;
+}
+
+.watchlist-page .watchlist-disclaimer .ant-alert-message,
+.portfolio-page .watchlist-disclaimer .ant-alert-message {
+  color: #d7ebff;
+}
+
+.watchlist-page .watchlist-disclaimer .ant-alert-description,
+.portfolio-page .watchlist-disclaimer .ant-alert-description {
+  color: #9fb0c1;
+}
+
+.watchlist-page .watchlist-disclaimer .ant-alert-icon,
+.portfolio-page .watchlist-disclaimer .ant-alert-icon {
+  color: #55a9ff;
+}
+
+.portfolio-page .portfolio-overview .ant-empty-description,
+.portfolio-page .ant-empty-description {
+  color: var(--td-color-ink-secondary);
+}
+
+.watchlist-toolbar {
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+.watchlist-meta {
+  color: var(--td-color-ink-secondary);
+  font-size: 12px;
+}
+
+.watchlist-highlights {
+  margin: 0 0 18px;
+  padding: 12px 16px 12px 28px;
+  border: 1px solid var(--td-color-line);
+  border-radius: var(--td-radius-control);
+  background: #0a1d2a;
+  color: var(--td-color-ink-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.watchlist-table .ant-table {
+  border: 1px solid var(--td-color-line);
+  border-radius: var(--td-radius-control);
+}
+
+.watchlist-table .ant-table-cell {
+  padding-inline: 14px;
+}
+
+.watchlist-symbol-button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.watchlist-symbol-button strong {
+  color: var(--td-color-ink);
+  font-weight: 650;
+}
+
+.watchlist-symbol-button small {
+  color: var(--td-color-ink-secondary);
+  font-size: 11px;
+}
+
+.watchlist-symbol-button:hover strong {
+  color: var(--td-color-accent);
+}
+
+.watchlist-detail dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin: 0 0 20px;
+}
+
+.watchlist-detail dl div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.watchlist-detail dt {
+  color: var(--td-color-ink-secondary);
+  font-size: 12px;
+}
+
+.watchlist-detail dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: var(--td-numeric-weight);
+}
+
+.watchlist-detail dd .td-value {
+  font-size: 15px;
+}
+
+.watchlist-detail h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.watchlist-dividend-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--td-color-ink-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.watchlist-detail-empty {
+  color: var(--td-color-ink-secondary);
+  font-size: 13px;
+}
+
+.watch-row--loading,
+.watch-row--empty {
+  grid-column: 1 / -1;
+  padding: 12px 0;
+}
+
+.portfolio-page .portfolio-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.portfolio-page .portfolio-filters {
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-start;
+}
+
+.portfolio-page .portfolio-filters__stock {
+  margin-left: auto;
+}
+
+.confirm-dialog-icon {
+  font-size: 22px;
+}
+
+.confirm-dialog-icon--danger {
+  color: var(--ant-color-error, #ff626f);
+}
+
+.confirm-dialog-icon--warning {
+  color: var(--ant-color-warning, #faad14);
+}
+
+.portfolio-page .portfolio-filters .ant-segmented {
+  flex-shrink: 0;
+}
+
+.portfolio-metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.portfolio-metrics--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.portfolio-dividend-goal {
+  margin-bottom: 22px;
+  padding: 16px 18px;
+  border: 1px solid var(--td-color-line);
+  border-radius: var(--td-radius-panel);
+  background: var(--td-color-surface);
+  box-shadow: var(--td-shadow-panel);
+}
+
+.portfolio-dividend-goal--empty {
+  border-style: dashed;
+}
+
+.portfolio-dividend-goal--reached {
+  border-color: #319569;
+  background: linear-gradient(180deg, rgb(18 58 49 / 72%) 0%, var(--td-color-surface) 100%);
+}
+
+.portfolio-dividend-goal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.portfolio-dividend-goal-head-copy {
+  min-width: 0;
+}
+
+.portfolio-dividend-goal-head h2 {
+  margin: 0 0 4px;
+  color: var(--td-color-ink);
+  font-size: 16px;
+}
+
+.portfolio-dividend-goal-head p {
+  margin: 0;
+  color: var(--td-color-ink-secondary);
+  font-size: 12px;
+}
+
+.portfolio-dividend-goal-head .ant-btn {
+  flex-shrink: 0;
+}
+
+.portfolio-dividend-goal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.portfolio-dividend-goal-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.portfolio-dividend-goal-items {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  width: 100%;
+}
+
+.portfolio-dividend-goal-items[data-goal-count='2'] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.portfolio-dividend-goal-item {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--td-color-line);
+  border-radius: 12px;
+  background: rgb(8 24 36 / 72%);
+}
+
+.portfolio-dividend-goal-item--reached {
+  border-color: #319569;
+  background: linear-gradient(180deg, rgb(18 58 49 / 72%) 0%, rgb(8 24 36 / 72%) 100%);
+}
+
+.portfolio-dividend-goal-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.portfolio-dividend-goal-item-head strong {
+  color: var(--td-color-ink);
+  font-size: 13px;
+}
+
+.portfolio-dividend-goal-values {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  color: var(--td-color-ink-secondary);
+  font-size: 12px;
+}
+
+.portfolio-dividend-goal-values span:last-child {
+  text-align: right;
+}
+
+.portfolio-dividend-goal-values strong {
+  color: var(--td-color-accent);
+  font-family: var(--td-font-numeric);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--td-numeric-weight);
+}
+
+.portfolio-dividend-goal-bar {
+  height: 8px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: #20394b;
+  overflow: hidden;
+}
+
+.portfolio-dividend-goal-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2c8cff, #42cc8b);
+  transition: width 0.35s ease;
+}
+
+.portfolio-dividend-goal--reached .portfolio-dividend-goal-bar i {
+  background: linear-gradient(90deg, #42cc8b, #7be0a8);
+}
+
+.portfolio-dividend-goal-item--reached .portfolio-dividend-goal-bar i {
+  background: linear-gradient(90deg, #42cc8b, #7be0a8);
+}
+
+.portfolio-dividend-goal-caption {
+  margin: 8px 0 0;
+  color: var(--td-color-ink-tertiary);
+  font-size: 12px;
+}
+
+.portfolio-metric-card {
+  padding: 16px 18px;
+  border: 1px solid var(--td-color-line);
+  border-radius: var(--td-radius-control);
+  background: var(--td-color-surface);
+  box-shadow: var(--td-shadow-panel);
+}
+
+.portfolio-metric-card--primary {
+  border-color: #2a6fa5;
+  background: linear-gradient(135deg, #0d2433 0%, #133552 100%);
+  box-shadow:
+    var(--td-shadow-panel),
+    inset 0 1px 0 rgb(85 169 255 / 8%);
+}
+
+.portfolio-metric-card small {
+  display: block;
+  color: var(--td-color-ink-secondary);
+  font-size: 12px;
+}
+
+.portfolio-metric-card strong {
+  display: block;
+  margin: 6px 0 4px;
+  color: var(--td-color-ink);
+  font-family: var(--td-font-numeric);
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--td-numeric-weight);
+  letter-spacing: var(--td-numeric-letter-spacing);
+}
+
+.portfolio-metric-card strong.td-value--currency,
+.portfolio-metric-card strong.td-value--pnl {
+  letter-spacing: var(--td-currency-letter-spacing);
+}
+
+.portfolio-metric-card span .td-value {
+  letter-spacing: var(--td-currency-letter-spacing);
+}
+
+.portfolio-milestones {
+  margin-bottom: 22px;
+  padding: 16px 18px;
+  border: 1px solid var(--td-color-line);
+  border-radius: var(--td-radius-panel);
+  background: var(--td-color-surface);
+  box-shadow: var(--td-shadow-panel);
+}
+
+.portfolio-milestones-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.portfolio-milestones-head h2 {
+  margin: 0;
+  color: var(--td-color-ink);
+  font-size: 16px;
+}
+
+.portfolio-milestones-head span {
+  color: var(--td-color-ink-secondary);
+  font-size: 12px;
+}
+
+.portfolio-milestone-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 10px;
+}
+
+.portfolio-milestone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px 10px;
+  border: 1px dashed var(--td-color-line-strong);
+  border-radius: 12px;
+  background: #0a1d2a;
+  color: var(--td-color-ink-secondary);
+  text-align: center;
+  filter: grayscale(0.85);
+  opacity: 0.72;
+}
+
+.portfolio-milestone.lit {
+  border-style: solid;
+  border-color: #319569;
+  color: var(--td-color-ink);
+  background: linear-gradient(180deg, #123a31 0%, #0f2f28 100%);
+  box-shadow: 0 0 0 1px rgb(66 204 139 / 18%);
+  filter: none;
+  opacity: 1;
+}
+
+.portfolio-milestone-emoji {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.portfolio-milestone strong {
+  color: var(--td-color-ink);
+  font-size: 12px;
+}
+
+.portfolio-milestone small {
+  color: var(--td-color-ink-tertiary);
+  font-size: 10px;
+}
+
+.portfolio-milestone-progress {
+  width: 100%;
+  height: 4px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: #20394b;
+  overflow: hidden;
+}
+
+.portfolio-milestone-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2c8cff, #55a9ff);
+}
+
+.portfolio-form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.position-sell-summary {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--td-surface-muted, rgba(255, 255, 255, 0.04));
+  color: var(--td-text-secondary);
+  font-size: 13px;
+}
+
+.portfolio-history-page .page-toolbar {
+  margin-bottom: 16px;
+}
+
+.account-broker-row {
+  margin-bottom: 4px;
+}
+
+.account-broker-row .form-field-hint {
+  margin: 8px 0 0;
+}
+
+.form-field-hint {
+  color: var(--td-color-ink-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.portfolio-form-row--fees {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.2fr);
+  align-items: end;
+}
+
+.ledger-trade-context {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--td-color-line);
+  border-radius: var(--td-radius-control);
+  background: var(--td-color-surface-subtle);
+}
+
+.ledger-trade-context-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ledger-trade-context-head strong {
+  display: block;
+  color: var(--td-color-ink);
+  font-size: 15px;
+}
+
+.ledger-trade-context-head span {
+  color: var(--td-color-ink-tertiary);
+  font-size: 12px;
+}
+
+.ledger-trade-context-quote {
+  display: grid;
+  gap: 2px;
+  text-align: right;
+  font-family: var(--td-font-numeric);
+}
+
+.ledger-trade-context-quote span:first-child {
+  color: var(--td-color-ink);
+  font-weight: 650;
+}
+
+.ledger-trade-context-muted {
+  color: var(--td-color-ink-tertiary);
+  font-size: 12px;
+}
+
+.ledger-trade-context-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ledger-trade-context-metrics article {
+  padding: 10px 12px;
+  border: 1px solid var(--td-color-line);
+  border-radius: var(--td-radius-control);
+  background: var(--td-color-surface);
+}
+
+.ledger-trade-context-metrics small {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--td-color-ink-tertiary);
+  font-size: 11px;
+}
+
+.ledger-trade-context-metrics strong {
+  font-family: var(--td-font-numeric);
+  font-size: 14px;
+  color: var(--td-color-ink);
+}
+
+.trade-price-chart {
+  padding-top: 4px;
+  border-top: 1px solid var(--td-color-line);
+}
+
+.trade-price-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.trade-price-chart-head strong {
+  color: var(--td-color-ink);
+  font-size: 13px;
+}
+
+.trade-price-chart-head span,
+.trade-price-chart--empty small {
+  color: var(--td-color-ink-tertiary);
+  font-size: 11px;
+}
+
+.trade-price-chart-track {
+  position: relative;
+  height: 10px;
+  margin: 18px 0 8px;
+  border-radius: 999px;
+  background: #20394b;
+  overflow: visible;
+}
+
+.trade-price-chart-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(44, 140, 255, 0.15), rgba(44, 140, 255, 0.45));
+}
+
+.trade-price-chart-marker {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 16px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+}
+
+.trade-price-chart-marker--neutral {
+  background: #73889a;
+}
+
+.trade-price-chart-marker--reference {
+  background: #9fb0c1;
+}
+
+.trade-price-chart-marker--trade {
+  width: 3px;
+  height: 22px;
+  background: #2c8cff;
+  box-shadow: 0 0 0 3px rgba(44, 140, 255, 0.18);
+}
+
+.trade-price-chart-labels {
+  display: flex;
+  justify-content: space-between;
+  color: var(--td-color-ink-tertiary);
+  font-size: 11px;
+}
+
+.trade-price-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--td-color-ink-secondary);
+  font-size: 11px;
+}
+
+.trade-price-chart-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.trade-price-chart-dot--trade {
+  background: #2c8cff;
+}
+
+.trade-price-chart-dot--reference {
+  background: #9fb0c1;
+}
+
+.trade-price-chart-dot--neutral {
+  background: #73889a;
+}
+
+.trade-price-chart--empty p {
+  margin: 6px 0 0;
+  color: var(--td-color-ink-tertiary);
+  font-size: 12px;
+}
+
+.ledger-review-hint {
+  margin-left: 6px;
+  color: var(--td-color-ink-tertiary);
+  font-size: 12px;
+}
+
+.accounts-page-header {
+  align-items: center;
+}
+
+.accounts-toolbar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 14px;
+}
+
+.accounts-toolbar-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--td-color-ink-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.accounts-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.account-card {
+  padding: 18px 20px;
+  border: 1px solid var(--td-color-line);
+  border-radius: var(--td-radius-panel);
+  background: var(--td-color-surface);
+  box-shadow: var(--td-shadow-panel);
+}
+
+.account-card--archived {
+  opacity: 0.72;
+}
+
+.account-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--td-color-line);
+}
+
+.account-card-name-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.account-card-broker-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--td-color-surface);
+  object-fit: contain;
+}
+
+.account-card-broker-icon--fallback,
+.broker-avatar--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--td-color-ink);
+  font-weight: 700;
+  border: 1px solid var(--td-color-line);
+  background: var(--td-color-surface-subtle);
+}
+
+.broker-avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--td-color-surface);
+  object-fit: contain;
+}
+
+.account-card-name-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.account-card-name-row h2 {
+  margin: 0;
+  color: var(--td-color-ink);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.broker-select {
+  width: 100%;
+}
+
+.broker-select-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.broker-select-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.broker-select-icon--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--td-color-surface-subtle);
+  color: var(--td-color-ink-secondary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.account-kind-radio {
+  display: flex;
+  gap: 12px;
+}
+
+.account-fee-panel {
+  margin-bottom: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--td-color-line);
+  border-radius: var(--td-radius-control);
+  background: var(--td-color-surface-subtle);
+}
+
+.account-fee-panel-head {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.account-fee-panel-head strong {
+  color: var(--td-color-ink);
+  font-size: 13px;
+}
+
+.account-fee-panel-head span {
+  color: var(--td-color-ink-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.account-fee-note {
+  margin: 0 0 4px;
+  color: var(--td-color-ink-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.account-fee-subhead {
+  margin: 12px 0 0;
+  color: var(--td-color-ink-secondary);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.account-fee-subhead:first-of-type {
+  margin-top: 0;
+}
+
+.account-fee-switch {
+  margin-bottom: 8px;
+}
+
+.account-fee-switch .ant-form-item-control-input {
+  min-height: auto;
+}
+
+.account-card-title p {
+  margin: 0;
+  color: var(--td-color-ink-tertiary);
+  font-size: 12px;
+}
+
+.account-card-actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.account-card-default-icon {
+  margin-right: 4px;
+  color: #2c8cff;
+  font-size: 14px;
+}
+
+.account-card-meta {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(5, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin: 0;
+}
+
+.account-card-meta-item {
+  min-width: 0;
+}
+
+.account-card-meta-item--wide dd {
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.account-card-meta-item--highlight dd {
+  color: var(--td-color-accent);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.account-card-meta-item dt {
+  margin: 0 0 4px;
+  color: var(--td-color-ink-tertiary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.portfolio-metric-card span {
+  color: var(--td-color-ink-tertiary);
+  font-size: 11px;
+}
+
+.account-card-meta-item dd {
+  margin: 0;
+  color: var(--td-color-ink);
+  font-family: var(--td-font-numeric);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--td-numeric-weight);
+  letter-spacing: var(--td-numeric-letter-spacing);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.account-card-meta-item dd .td-value--currency,
+.account-card-meta-item dd .td-value--pnl {
+  letter-spacing: var(--td-currency-letter-spacing);
+}
+
+.account-card-meta-item--wide dd {
+  font-family: inherit;
+  font-size: 13px;
+}
+
+@media (max-width: 1100px) {
+  .account-card-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .account-card-meta-item--wide {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .accounts-page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .accounts-toolbar {
+    justify-content: space-between;
+  }
+
+  .account-card-head {
+    flex-direction: column;
+  }
+
+  .account-card-actions {
+    justify-content: flex-start;
+  }
+
+  .account-card-meta {
+    grid-template-columns: 1fr;
+  }
+}
+
+.full-width-input {
+  width: 100%;
+}
+
+.portfolio-calendar-wrap {
+  padding: 12px;
+  border: 1px solid var(--td-color-line);
+  border-radius: var(--td-radius-control);
+  background: var(--td-color-surface);
+}
+
+.portfolio-calendar-wrap .ant-picker-calendar {
+  background: transparent;
+}
+
+.portfolio-calendar-wrap .ant-picker-calendar-date-value {
+  color: var(--td-color-ink);
+}
+
+.portfolio-calendar-wrap .ant-picker-cell-disabled .ant-picker-calendar-date-value {
+  color: var(--td-color-ink-tertiary);
+}
+
+.portfolio-calendar-cell {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--td-color-ink-secondary);
+}
+
+.portfolio-calendar-total {
+  margin-top: 2px;
+  color: var(--td-color-accent);
+  font-weight: 650;
+}
+
+.pnl-calendar-wrap .ant-picker-calendar-date-content {
+  min-height: 34px;
+}
+
+.pnl-calendar-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 4px 12px;
+}
+
+.pnl-calendar-panel-head strong {
+  font-size: 16px;
+  color: var(--td-color-ink);
+}
+
+.pnl-calendar-panel-head span {
+  font-size: 12px;
+  color: var(--td-color-ink-tertiary);
+}
+
+.pnl-calendar-sync-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid rgb(56 189 248 / 22%);
+  border-radius: 12px;
+  background: rgb(56 189 248 / 8%);
+  color: var(--td-color-ink-secondary);
+  font-size: 13px;
+}
+
+.pnl-calendar-toolbar {
+  margin-bottom: 16px;
+}
+
+.pnl-calendar-toolbar .ant-segmented {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.pnl-calendar-cell {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pnl-calendar-cell li {
+  font-size: 11px;
+  line-height: 1.25;
+  font-weight: 650;
+}
+
+.pnl-calendar-wrap .ant-picker-cell-today .ant-picker-calendar-date {
+  border-color: rgb(56 189 248 / 45%);
+}
+
+.pnl-calendar-cell-note {
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  color: var(--td-color-ink-tertiary) !important;
+}
+
+.pnl-calendar-wrap .ant-picker-calendar-mode-switch {
+  display: none;
+}
+
+.pnl-calendar-wrap .ant-picker-calendar-header .ant-picker-calendar-year-select,
+.pnl-calendar-wrap .ant-picker-calendar-header .ant-picker-calendar-month-select {
+  display: none;
+}
+
+.portfolio-row-actions {
+  display: flex;
+  gap: 0;
+}
+
+@media (max-width: 1100px) {
+  .portfolio-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .portfolio-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .portfolio-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .portfolio-form-row--fees {
+    grid-template-columns: 1fr;
+  }
+
+  .ledger-trade-context-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
+.symbol-search-option {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 280px;
+}
+
+.symbol-search-option strong {
+  font-family: var(--td-font-mono, ui-monospace, monospace);
+  color: var(--td-color-ink);
+}
+
+.symbol-search-option span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--td-color-ink-secondary);
+}
+
+.symbol-search-option small {
+  color: var(--td-color-ink-tertiary);
+  white-space: nowrap;
+}
+
+.portfolio-ledger-form .symbol-search-input,
+.portfolio-ledger-form .account-select,
+.portfolio-ledger-form .broker-select {
+  width: 100%;
+}
+

@@ -1,0 +1,134 @@
+/* 次级页面与表单保持同一视觉语言。 */
+.workspace-page {
+  width: min(1220px, 100%);
+  padding: 32px 34px 56px;
+  color: var(--td-color-ink);
+  background: #061521;
+}
+
+.page-with-summary,
+.page-with-summary .workspace-page {
+  background: #061521;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-header h1 {
+  color: #eef6fc;
+  font-size: 34px;
+}
+
+.page-date,
+.page-kicker,
+.page-intro,
+.dialog-intro {
+  color: var(--td-color-ink-secondary);
+}
+
+.page-kicker,
+.section-label,
+.symbol-label {
+  color: #55a9ff;
+}
+
+.page-error {
+  border-color: #6e3542;
+  color: #ff8b94;
+  background: #3b1e29;
+}
+
+.empty-panel,
+.dashboard-metrics,
+.journal-stats,
+.analysis-hero,
+.dashboard-section-body,
+.plan-card,
+.review-card,
+.process-panel,
+.settings-panel,
+.alert-card {
+  border-color: var(--td-color-line);
+  color: var(--td-color-ink);
+  background: var(--td-color-surface);
+  box-shadow: var(--td-shadow-panel);
+}
+
+.dashboard-metrics article,
+.journal-stats article,
+.analysis-hero article,
+.plan-levels > div,
+.review-result-grid > div {
+  border-color: var(--td-color-line);
+}
+
+.plan-card-header h2,
+.review-card-header h2,
+.section-heading h2,
+.quote-evaluator h2,
+.action-title strong,
+.alert-card-title strong {
+  color: var(--td-color-ink);
+}
+
+.plan-card-thesis,
+.review-notes p,
+.quote-evaluator p,
+.section-heading > span,
+.action-main p,
+.alert-card-main p {
+  color: var(--td-color-ink-secondary);
+}
+
+.plan-levels,
+.review-result-grid,
+.plan-form-footer,
+.review-score-row,
+.review-form-switches,
+.quote-evaluator,
+.process-grid article {
+  border-color: var(--td-color-line);
+  background: #0a1d2a;
+}
+
+.quote-evaluator {
+  background: #0d2433;
+}
+
+.alert-card--triggered {
+  border-color: #73511d;
+  background: #2f2618;
+}
+
+.action-row,
+.plan-row {
+  border-color: var(--td-color-line);
+  color: var(--td-color-ink);
+  background: var(--td-color-surface);
+}
+
+.action-row--triggered {
+  background: #2f2618;
+}
+
+.plan-row:hover {
+  background: #123247;
+}
+
+.plan-summary-panel {
+  border-color: var(--td-color-line);
+  background: #091b28;
+}
+
+.status-bar {
+  display: none;
+}
+
+.ant-modal-content,
+.ant-popover-inner,
+.ant-select-dropdown,
+.ant-picker-dropdown .ant-picker-panel-container {
+  box-shadow: var(--td-shadow-floating) !important;
+}
+

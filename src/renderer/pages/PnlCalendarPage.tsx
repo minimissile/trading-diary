@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Calendar, Empty, Skeleton, Tag } from 'antd';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Button, Calendar, Empty, Segmented, Skeleton, Spin } from 'antd';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router';
 import { ALL_ACCOUNTS_ID } from '../../shared/accounts/constants';
 import type { PortfolioPnlCalendarView } from '../../shared/portfolio/types';
@@ -15,6 +15,11 @@ function monthFromDayjs(value: Dayjs): string {
   return formatMonthPrefix(value.year(), value.month() + 1);
 }
 
+function formatMonthLabel(month: string): string {
+  const { year, month: monthIndex } = parseMonthPrefix(month);
+  return `${year}年${monthIndex}月`;
+}
+
 /**
  * 近一年持仓收益日历（含浮盈日变动 + 分红；统计窗口最多 365 天）。
  */
@@ -24,19 +29,77 @@ export function PnlCalendarPage(): React.JSX.Element {
   const [calendarMonth, setCalendarMonth] = useState(currentMonthPrefix());
   const [view, setView] = useState<PortfolioPnlCalendarView | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncLabel, setSyncLabel] = useState<string | null>(null);
+  const [syncErrors, setSyncErrors] = useState<string[]>([]);
+  const syncRunId = useRef(0);
+  const autoSyncAccountRef = useRef<string | null>(null);
 
-  const load = useCallback(async (): Promise<void> => {
-    setLoading(true);
-    try {
-      setView(await window.desktop.portfolio.getPnlCalendar(accountId, calendarMonth));
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, calendarMonth]);
+  const refreshCalendar = useCallback(
+    async (month = calendarMonth, options?: { silent?: boolean }): Promise<PortfolioPnlCalendarView | null> => {
+      if (!options?.silent) setRefreshing(true);
+      try {
+        const next = await window.desktop.portfolio.getPnlCalendar(accountId, month);
+        setView(next);
+        return next;
+      } finally {
+        if (!options?.silent) setRefreshing(false);
+        setLoading(false);
+      }
+    },
+    [accountId, calendarMonth],
+  );
+
+  const runSync = useCallback(
+    async (symbols: readonly string[]): Promise<void> => {
+      if (symbols.length === 0) return;
+
+      const runId = syncRunId.current + 1;
+      syncRunId.current = runId;
+      setSyncing(true);
+      setSyncErrors([]);
+
+      const failed: string[] = [];
+      for (let index = 0; index < symbols.length; index += 1) {
+        if (syncRunId.current !== runId) return;
+        const symbol = symbols[index]!;
+        setSyncLabel(`${symbol} 正在同步历史收盘价… (${index + 1}/${symbols.length})`);
+        try {
+          const result = await window.desktop.portfolio.syncPnlCalendarBar(accountId, symbol);
+          const item = result.items[0];
+          const label = item?.name ?? symbol;
+          if (item?.error) failed.push(`${label}: ${item.error}`);
+          else setSyncLabel(`${label} 正在同步历史收盘价… (${index + 1}/${symbols.length})`);
+        } catch (error) {
+          failed.push(`${symbol}: ${error instanceof Error ? error.message : '同步失败'}`);
+        }
+      }
+
+      if (syncRunId.current !== runId) return;
+      setSyncErrors(failed);
+      setSyncLabel(null);
+      setSyncing(false);
+      await refreshCalendar(calendarMonth, { silent: true });
+    },
+    [accountId, calendarMonth, refreshCalendar],
+  );
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void refreshCalendar(calendarMonth);
+  }, [calendarMonth, refreshCalendar]);
+
+  useEffect(() => {
+    setCalendarMonth(currentMonthPrefix());
+    autoSyncAccountRef.current = null;
+  }, [accountId]);
+
+  useEffect(() => {
+    if (!view || view.missingBarSymbols.length === 0) return;
+    if (autoSyncAccountRef.current === accountId) return;
+    autoSyncAccountRef.current = accountId;
+    void runSync(view.missingBarSymbols);
+  }, [accountId, runSync, view]);
 
   const dayMap = useMemo(() => {
     const map = new Map<string, PortfolioPnlCalendarView['days'][number]>();
@@ -47,19 +110,21 @@ export function PnlCalendarPage(): React.JSX.Element {
   }, [view?.days]);
 
   const monthOptions = useMemo(() => {
-    if (!view) return [calendarMonth];
+    if (!view) return [{ label: formatMonthLabel(calendarMonth), value: calendarMonth }];
     const end = dayjs(view.windowEnd);
     const start = dayjs(view.windowStart);
-    const options: string[] = [];
+    const options: Array<{ label: string; value: string }> = [];
     let cursor = end.startOf('month');
     while (cursor.isAfter(start, 'month') || cursor.isSame(start, 'month')) {
-      options.push(monthFromDayjs(cursor));
+      const value = monthFromDayjs(cursor);
+      options.push({ label: formatMonthLabel(value), value });
       cursor = cursor.subtract(1, 'month');
     }
     return options;
   }, [calendarMonth, view]);
 
   const summary = view?.summary;
+
   const disabledDate = useCallback(
     (current: Dayjs): boolean => {
       if (!view) return false;
@@ -69,6 +134,22 @@ export function PnlCalendarPage(): React.JSX.Element {
     [view],
   );
 
+  const validRange = useMemo((): [Dayjs, Dayjs] | undefined => {
+    if (!view) return undefined;
+    return [dayjs(view.windowStart), dayjs(view.windowEnd)];
+  }, [view]);
+
+  const handleManualSync = (): void => {
+    if (!view) return;
+    const symbols = view.missingBarSymbols;
+    if (symbols.length === 0) {
+      setSyncLabel('行情已是最新，正在刷新日历…');
+      void refreshCalendar(calendarMonth, { silent: true }).finally(() => setSyncLabel(null));
+      return;
+    }
+    void runSync(symbols);
+  };
+
   return (
     <main className="workspace-page portfolio-page">
       <header className="page-header">
@@ -76,7 +157,7 @@ export function PnlCalendarPage(): React.JSX.Element {
           <p className="page-kicker">PNL CALENDAR</p>
           <h1>收益日历</h1>
           <p className="page-intro">
-            基于本地缓存的近一年日收盘价，汇总持仓浮盈变动与分红；首次打开会后台同步行情（串行限流）。
+            历史日期基于日收盘价；当日与持仓中心一致（实时行情）。仅统计持仓期间，不构成投资建议。
           </p>
         </div>
         <div className="portfolio-header-actions">
@@ -86,78 +167,109 @@ export function PnlCalendarPage(): React.JSX.Element {
             includeAllOption
             className="portfolio-account-select"
           />
+          <Button
+            icon={<ReloadOutlined spin={syncing || refreshing} />}
+            loading={syncing}
+            onClick={() => void handleManualSync()}
+          >
+            同步行情
+          </Button>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(routePaths.positions)}>
             返回持仓
           </Button>
         </div>
       </header>
 
-      {loading ? (
+      {syncLabel ? (
+        <div className="pnl-calendar-sync-status" role="status" aria-live="polite">
+          <Spin size="small" />
+          <span>{syncLabel}</span>
+        </div>
+      ) : null}
+
+      {!syncing && syncErrors.length > 0 ? (
+        <Alert
+          className="watchlist-disclaimer"
+          type="error"
+          showIcon
+          title="部分标的同步失败"
+          description={syncErrors.slice(0, 3).join('；')}
+        />
+      ) : null}
+
+      {!syncing && view && view.missingBarSymbols.length > 0 && !syncLabel ? (
+        <Alert
+          className="watchlist-disclaimer"
+          type="warning"
+          showIcon
+          title={`${view.missingBarSymbols.length} 个标的尚未同步历史收盘价`}
+          description={`${view.missingBarSymbols.slice(0, 6).join('、')}${view.missingBarSymbols.length > 6 ? '…' : ''}。可点击「同步行情」重试`}
+        />
+      ) : null}
+
+      {loading && !view ? (
         <Skeleton active paragraph={{ rows: 12 }} />
       ) : !view ? (
-        <Empty description="暂无收益数据" />
+        <Empty description="暂无收益数据，请先录入持仓流水" />
       ) : (
         <>
-          {view.missingBarSymbols.length > 0 ? (
-            <Alert
-              type="warning"
-              showIcon
-              className="portfolio-inline-alert"
-              message={`${view.missingBarSymbols.length} 个标的尚未同步历史收盘价，对应日期可能为空`}
-              description={view.missingBarSymbols.slice(0, 8).join('、')}
-            />
-          ) : null}
-
-          <section className="portfolio-summary-grid pnl-calendar-summary">
-            <article className={summary && summary.totalPnl >= 0 ? 'metric-profit' : 'metric-loss'}>
+          <section className="portfolio-metrics portfolio-metrics--four">
+            <article className="portfolio-metric-card portfolio-metric-card--primary">
               <small>本月合计</small>
-              <AnimatedValueDisplay kind="currency" value={summary?.totalPnl ?? 0} />
+              <AnimatedValueDisplay
+                as="strong"
+                cacheKey={`pnl-calendar:${accountId}:${calendarMonth}:total`}
+                kind="pnl"
+                value={summary?.totalPnl ?? 0}
+              />
+              <span>{formatMonthLabel(calendarMonth)}</span>
             </article>
-            <article>
+            <article className="portfolio-metric-card">
               <small>有效交易日</small>
               <strong>{summary?.activeDays ?? 0}</strong>
+              <span>
+                盈利 {summary?.positiveDays ?? 0} · 亏损 {summary?.negativeDays ?? 0}
+              </span>
             </article>
-            <article>
-              <small>盈利 / 亏损天</small>
-              <strong>
-                {summary?.positiveDays ?? 0} / {summary?.negativeDays ?? 0}
-              </strong>
-            </article>
-            <article>
+            <article className="portfolio-metric-card">
               <small>分红贡献</small>
-              <ValueDisplay kind="currency" value={summary?.dividendPnl ?? 0} />
+              <ValueDisplay as="strong" kind="currency" value={summary?.dividendPnl ?? 0} />
+              <span>除息日到账</span>
+            </article>
+            <article className="portfolio-metric-card">
+              <small>统计窗口</small>
+              <strong>
+                {view.windowStart.replace(/-/g, '/')} ~ {view.windowEnd.replace(/-/g, '/')}
+              </strong>
+              <span>近一年滚动</span>
             </article>
           </section>
 
-          <div className="pnl-calendar-toolbar">
-            <Tag color="blue">
-              统计窗口 {view.windowStart} ~ {view.windowEnd}
-            </Tag>
-            <div className="pnl-calendar-month-tabs">
-              {monthOptions.map((month) => {
-                const { year, month: monthIndex } = parseMonthPrefix(month);
-                return (
-                  <Button
-                    key={month}
-                    size="small"
-                    type={month === calendarMonth ? 'primary' : 'default'}
-                    onClick={() => setCalendarMonth(month)}
-                  >
-                    {year}年{monthIndex}月
-                  </Button>
-                );
-              })}
-            </div>
+          <div className="page-toolbar pnl-calendar-toolbar">
+            <Segmented
+              options={monthOptions}
+              value={calendarMonth}
+              onChange={(value) => setCalendarMonth(String(value))}
+            />
           </div>
 
           <div className="portfolio-calendar-wrap pnl-calendar-wrap">
             <Calendar
               fullscreen={false}
+              mode="month"
               value={dayjs(`${calendarMonth}-01`)}
+              validRange={validRange}
               disabledDate={disabledDate}
-              onPanelChange={(value) => {
+              headerRender={({ value }) => (
+                <div className="pnl-calendar-panel-head">
+                  <strong>{value.year()}年{value.month() + 1}月</strong>
+                  <span>按日汇总持仓盈亏</span>
+                </div>
+              )}
+              onPanelChange={(value, mode) => {
+                if (mode !== 'month') return;
                 const nextMonth = monthFromDayjs(value);
-                if (monthOptions.includes(nextMonth)) {
+                if (monthOptions.some((item) => item.value === nextMonth)) {
                   setCalendarMonth(nextMonth);
                 }
               }}
@@ -167,12 +279,13 @@ export function PnlCalendarPage(): React.JSX.Element {
                 const day = dayMap.get(key);
                 if (!day || Math.abs(day.totalPnl) < 1e-8) return null;
 
-                const positive = day.totalPnl > 0;
                 return (
-                  <div className={`pnl-calendar-cell ${positive ? 'pnl-calendar-cell--up' : 'pnl-calendar-cell--down'}`}>
-                    <ValueDisplay kind="currency" value={day.totalPnl} />
-                    {day.dividendPnl > 0 ? <small>含分红</small> : null}
-                  </div>
+                  <ul className="portfolio-calendar-cell pnl-calendar-cell">
+                    <li>
+                      <ValueDisplay kind="pnl" value={day.totalPnl} />
+                    </li>
+                    {day.dividendPnl > 0 ? <li className="pnl-calendar-cell-note">含分红</li> : null}
+                  </ul>
                 );
               }}
             />

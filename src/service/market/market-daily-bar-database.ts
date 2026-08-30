@@ -114,20 +114,16 @@ export class MarketDailyBarDatabase {
         fetched_at = excluded.fetched_at
     `);
 
-    const tx = this.db.transaction((items: readonly Omit<MarketDailyBar, 'symbol' | 'kind'>[]) => {
-      for (const bar of items) {
-        upsert.run(
-          normalized,
-          bar.tradeDate,
-          toScaledInteger(bar.close),
-          bar.prevClose === null ? null : toScaledInteger(bar.prevClose),
-          kind,
-          bar.fetchedAt || fetchedAt,
-        );
-      }
-    });
-
-    tx(bars);
+    for (const bar of bars) {
+      upsert.run(
+        normalized,
+        bar.tradeDate,
+        toScaledInteger(bar.close),
+        bar.prevClose === null ? null : toScaledInteger(bar.prevClose),
+        kind,
+        bar.fetchedAt || fetchedAt,
+      );
+    }
   }
 
   upsertSyncMeta(meta: MarketBarSyncMeta): void {

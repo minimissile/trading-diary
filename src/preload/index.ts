@@ -160,6 +160,10 @@ const desktopApi: DesktopApi = {
       ipcRenderer.invoke(ipcChannels.portfolioGetRealizedHistory, { accountId, year }),
     getPnlCalendar: (accountId, month) =>
       ipcRenderer.invoke(ipcChannels.portfolioGetPnlCalendar, { accountId, month }),
+    syncPnlCalendarBars: (accountId) =>
+      ipcRenderer.invoke(ipcChannels.portfolioSyncPnlCalendarBars, { accountId }),
+    syncPnlCalendarBar: (accountId, symbol) =>
+      ipcRenderer.invoke(ipcChannels.portfolioSyncPnlCalendarBar, { accountId, symbol }),
     updateLedgerEntry: (id, input) => ipcRenderer.invoke(ipcChannels.portfolioUpdateLedgerEntry, { id, input }),
     deleteLedgerEntry: (id) => ipcRenderer.invoke(ipcChannels.portfolioDeleteLedgerEntry, { id }),
     deletePosition: (accountId, symbol) =>

@@ -300,6 +300,14 @@ export interface ServiceContract {
     params: { accountId?: string; month?: string };
     result: import('./portfolio/types').PortfolioPnlCalendarView;
   };
+  'portfolio.syncPnlCalendarBars': {
+    params: { accountId?: string };
+    result: import('./portfolio/types').PortfolioPnlCalendarSyncResult;
+  };
+  'portfolio.syncPnlCalendarBar': {
+    params: { accountId?: string; symbol: string };
+    result: import('./portfolio/types').PortfolioPnlCalendarSyncResult;
+  };
   'portfolio.updateLedgerEntry': {
     params: { id: string; input: import('./portfolio/types').UpdatePortfolioLedgerInput };
     result: import('./portfolio/types').PortfolioLedgerEntry;

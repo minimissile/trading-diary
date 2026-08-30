@@ -4,6 +4,7 @@ import type {
   DividendRecordStatus,
   PortfolioDividendRecord,
   PortfolioLedgerEntry,
+  PortfolioPnlCalendarSyncResult,
   PortfolioPnlCalendarView,
   PortfolioPositionView,
   PortfolioRefreshResult,
@@ -33,8 +34,6 @@ import { computePositionDailyPnl, sumDailyPnl } from './position-daily-pnl';
 import { buildRealizedHistory } from './realized-pnl';
 import { buildPnlCalendar, indexDailyBars } from './pnl-calendar';
 import { computeReferenceUnrealizedPnl, computeReferenceReturnPercent, inferMarketFromSymbol } from './reference-unrealized-pnl';
-
-const PNL_CALENDAR_SYNC_SYMBOL_CAP = 25;
 
 export class PortfolioService {
   private lastRefreshedAt: string | null = null;
@@ -233,13 +232,6 @@ export class PortfolioService {
     const ledger = isAllAccountsId(accountId) ? portfolio.listAllLedger() : portfolio.listLedger(accountId);
     const resolvedMonth = month ?? currentMonthPrefix();
     const symbols = [...new Set(ledger.map((entry) => entry.symbol))];
-    const symbolKinds = collectSymbolKinds(ledger);
-
-    if (symbols.length > 0) {
-      await this.dailyBarSync.syncSymbolsNow(symbols, symbolKinds, {
-        maxSymbols: PNL_CALENDAR_SYNC_SYMBOL_CAP,
-      });
-    }
 
     const windowStart = pnlCalendarWindowStart();
     const windowEnd = pnlCalendarWindowEnd();
@@ -270,6 +262,45 @@ export class PortfolioService {
       windowStart: built.windowStart,
       windowEnd: built.windowEnd,
       missingBarSymbols,
+    };
+  }
+
+  async syncPnlCalendarBars(accountId?: string): Promise<PortfolioPnlCalendarSyncResult> {
+    const portfolio = this.database.portfolio;
+    const ledger = isAllAccountsId(accountId) ? portfolio.listAllLedger() : portfolio.listLedger(accountId);
+    const symbols = [...new Set(ledger.map((entry) => entry.symbol))];
+    return this.syncPnlCalendarSymbols(symbols, collectSymbolKinds(ledger));
+  }
+
+  async syncPnlCalendarBar(accountId: string | undefined, symbol: string): Promise<PortfolioPnlCalendarSyncResult> {
+    const portfolio = this.database.portfolio;
+    const ledger = isAllAccountsId(accountId) ? portfolio.listAllLedger() : portfolio.listLedger(accountId);
+    const normalized = symbol.trim().toUpperCase();
+    const entry = ledger.find((item) => item.symbol === normalized);
+    const kinds = new Map<string, InstrumentKind>([[normalized, entry?.kind ?? 'stock']]);
+    return this.syncPnlCalendarSymbols([normalized], kinds);
+  }
+
+  private async syncPnlCalendarSymbols(
+    symbols: readonly string[],
+    symbolKinds: ReadonlyMap<string, InstrumentKind>,
+  ): Promise<PortfolioPnlCalendarSyncResult> {
+    if (symbols.length === 0) {
+      return { items: [] };
+    }
+
+    const results = await this.dailyBarSync.syncSymbolsNow(symbols, symbolKinds);
+    const quotes = await marketService.getQuotes(symbols);
+    const nameMap = new Map(quotes.map((quote) => [normalizeSymbol(quote.symbol), quote.name]));
+
+    return {
+      items: results.map((item) => ({
+        symbol: item.symbol,
+        name: nameMap.get(item.symbol) ?? item.symbol,
+        synced: item.synced,
+        skipped: item.skipped,
+        error: item.error,
+      })),
     };
   }
 

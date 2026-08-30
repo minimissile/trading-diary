@@ -223,6 +223,10 @@ export class AppService {
         return this.portfolioService.getRealizedHistory(request.params.accountId, request.params.year);
       case 'portfolio.getPnlCalendar':
         return this.portfolioService.getPnlCalendar(request.params.accountId, request.params.month);
+      case 'portfolio.syncPnlCalendarBars':
+        return this.portfolioService.syncPnlCalendarBars(request.params.accountId);
+      case 'portfolio.syncPnlCalendarBar':
+        return this.portfolioService.syncPnlCalendarBar(request.params.accountId, request.params.symbol);
       case 'portfolio.updateLedgerEntry':
         return this.portfolioService.updateLedgerEntry(request.params.id, request.params.input);
       case 'portfolio.deleteLedgerEntry':

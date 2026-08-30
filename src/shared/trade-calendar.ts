@@ -54,7 +54,8 @@ export function previousTradingDay(date: string): string {
 }
 
 /**
- * 同花顺「当日参考盈亏」：建仓当日/上一自然日，或周末查看前一交易日建仓时，日收益等于参考浮盈。
+ * 同花顺「当日参考盈亏」：建仓当日或上一自然日，日收益等于参考浮盈。
+ * 非交易日由 computePositionDailyPnl 直接返回 0，不在此判定。
  */
 export function shouldUseReferenceDailyPnl(
   firstBuyDay: string,
@@ -63,9 +64,7 @@ export function shouldUseReferenceDailyPnl(
 ): boolean {
   if (kind === 'otc_fund') return false;
   const dayDiff = calendarDateToDayjs(today).diff(calendarDateToDayjs(firstBuyDay), 'day');
-  if (dayDiff <= 1) return true;
-  if (dayDiff <= 2 && !isTradingDay(today)) return true;
-  return false;
+  return dayDiff <= 1;
 }
 
 /** 持久化成交日：上海时区当天 0 点，带 +08:00 偏移。 */

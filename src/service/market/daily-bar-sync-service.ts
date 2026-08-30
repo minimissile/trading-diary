@@ -92,13 +92,16 @@ export class DailyBarSyncService {
   async syncSymbolsNow(
     symbols: readonly string[],
     kinds: ReadonlyMap<string, InstrumentKind>,
-    options?: { maxSymbols?: number },
   ): Promise<DailyBarSyncResult[]> {
     const unique = [...new Set(symbols.map((item) => item.trim().toUpperCase()).filter(Boolean))];
-    const capped = options?.maxSymbols ? unique.slice(0, options.maxSymbols) : unique;
+    const sorted = unique.sort((left, right) => {
+      const leftCached = this.bars.getSyncMeta(left) ? 1 : 0;
+      const rightCached = this.bars.getSyncMeta(right) ? 1 : 0;
+      return leftCached - rightCached;
+    });
     const results: DailyBarSyncResult[] = [];
 
-    for (const symbol of capped) {
+    for (const symbol of sorted) {
       const kind = kinds.get(symbol) ?? 'stock';
       try {
         results.push(await this.syncSymbol(symbol, kind));

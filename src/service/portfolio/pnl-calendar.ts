@@ -1,6 +1,7 @@
-import type { PortfolioDividendRecord, PortfolioLedgerEntry } from '../../shared/portfolio/types';
+import type { PortfolioDividendRecord, PortfolioLedgerEntry, PnlCalendarMonthSummary } from '../../shared/portfolio/types';
 import {
   datesInMonth,
+  formatMonthPrefix,
   isDateInPnlCalendarWindow,
   monthPrefixFromDate,
   pnlCalendarWindowEnd,
@@ -8,7 +9,7 @@ import {
 } from '../../shared/portfolio/pnl-calendar-window';
 import { tradeCalendarDate } from '../../shared/trade-calendar';
 import type { MarketDailyBar } from '../market/market-daily-bar-database';
-import { computePositionDailyPnl } from './position-daily-pnl';
+import { computePositionDailyPnl, resolveFirstBuyDay } from './position-daily-pnl';
 
 export interface PnlCalendarDayCore {
   date: string;
@@ -51,36 +52,28 @@ function calendarDateToAsOf(date: string): Date {
   return new Date(`${date}T15:00:00+08:00`);
 }
 
-function resolveFirstBuyAt(entries: readonly PortfolioLedgerEntry[]): string | null {
-  let first: string | null = null;
-  for (const entry of entries) {
-    if (entry.side === 'sell') continue;
-    if (first === null || entry.tradeAt < first) first = entry.tradeAt;
-  }
-  return first;
-}
-
 export function computeSymbolDailyPnlForDate(
   entries: readonly PortfolioLedgerEntry[],
   series: DailyBarSeries,
   date: string,
 ): number | null {
   const bar = series.get(date);
-  if (!bar || bar.prevClose === null) return null;
+  if (!bar) return null;
 
-  const dayChange = bar.close - bar.prevClose;
+  const prevClose = bar.prevClose ?? bar.close;
+  const dayChange = bar.close - prevClose;
   return computePositionDailyPnl({
     kind: entries[0]?.kind ?? 'stock',
     entries,
     marketPrice: bar.close,
     quote: {
       price: bar.close,
-      prevClose: bar.prevClose,
+      prevClose,
       change: dayChange,
-      changePercent: bar.prevClose !== 0 ? (dayChange / bar.prevClose) * 100 : null,
+      changePercent: prevClose !== 0 ? (dayChange / prevClose) * 100 : null,
     },
     asOf: calendarDateToAsOf(date),
-    firstBuyAt: resolveFirstBuyAt(entries),
+    firstBuyAt: resolveFirstBuyDay(entries),
     referenceUnrealizedPnl: null,
   });
 }
@@ -108,9 +101,9 @@ function symbolActiveDates(
 ): string[] {
   if (entries.length === 0) return [];
   const firstTradeDay = entries.reduce((min, entry) => {
-    const day = entry.tradeAt.slice(0, 10);
+    const day = tradeCalendarDate(entry.tradeAt);
     return day < min ? day : min;
-  }, entries[0]!.tradeAt.slice(0, 10));
+  }, tradeCalendarDate(entries[0]!.tradeAt));
 
   return [...series.keys()]
     .filter((date) => date >= windowStart && date <= windowEnd && date >= firstTradeDay)
@@ -214,4 +207,46 @@ export function buildPnlCalendar(input: {
     windowStart,
     windowEnd,
   };
+}
+
+export function buildPnlCalendarYearSummaries(input: {
+  ledger: readonly PortfolioLedgerEntry[];
+  dividends: readonly PortfolioDividendRecord[];
+  barsBySymbol: Map<string, DailyBarSeries>;
+  year: number;
+  asOf?: Date;
+}): PnlCalendarMonthSummary[] {
+  const windowStart = pnlCalendarWindowStart(input.asOf);
+  const windowEnd = pnlCalendarWindowEnd(input.asOf);
+  const summaries: PnlCalendarMonthSummary[] = [];
+
+  for (let monthIndex = 1; monthIndex <= 12; monthIndex += 1) {
+    const month = formatMonthPrefix(input.year, monthIndex);
+    const monthStart = `${month}-01`;
+    const monthEnd = datesInMonth(month).at(-1) ?? monthStart;
+    if (monthEnd < windowStart || monthStart > windowEnd) {
+      summaries.push({
+        month,
+        summary: {
+          totalPnl: 0,
+          positiveDays: 0,
+          negativeDays: 0,
+          activeDays: 0,
+          dividendPnl: 0,
+        },
+      });
+      continue;
+    }
+
+    const built = buildPnlCalendar({
+      ledger: input.ledger,
+      dividends: input.dividends,
+      barsBySymbol: input.barsBySymbol,
+      month,
+      asOf: input.asOf,
+    });
+    summaries.push({ month, summary: built.summary });
+  }
+
+  return summaries;
 }
