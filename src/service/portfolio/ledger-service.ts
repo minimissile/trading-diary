@@ -36,6 +36,28 @@ export function ledgerQuantityDelta(entry: PortfolioLedgerEntry): number {
   return Math.abs(entry.quantity);
 }
 
+/**
+ * 场内标的累计净投入（对齐同花顺 / 券商「持仓盈亏」）：
+ * 买入金额 + 买入费用 − 卖出到账（成交金额 − 卖出费用）− 已到账现金分红。
+ * 部分卖出后仍与「市值 − 净投入」口径一致；仅买入时与剩余持仓总成本相同。
+ */
+export function computeExchangeTradedNetCashInvested(
+  entries: readonly PortfolioLedgerEntry[],
+  cashDividendsReceived = 0,
+): number {
+  let net = 0;
+  for (const entry of sortedEntries(entries)) {
+    if (entry.side === 'buy') {
+      net += entry.quantity * entry.price + entry.fees;
+      continue;
+    }
+    if (entry.side === 'sell') {
+      net -= entry.quantity * entry.price - entry.fees;
+    }
+  }
+  return net - cashDividendsReceived;
+}
+
 export function aggregatePositions(entries: readonly PortfolioLedgerEntry[]): PositionAggregate[] {
   const byKey = new Map<string, PortfolioLedgerEntry[]>();
   for (const entry of entries) {

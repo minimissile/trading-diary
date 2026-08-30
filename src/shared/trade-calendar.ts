@@ -48,7 +48,8 @@ export function isFundNavPublishedOnDate(navDate: string | null | undefined, dat
 
 /**
  * 场外基金是否应在该日计入日收益。
- * 交易日始终计入；非交易日仅当净值当日有更新（如部分货币基金周末公布净值）。
+ * 仅当净值日期与当日一致时计入（避免凌晨仍显示上一交易日涨跌）。
+ * 非交易日若货币基金等公布当日净值，仍可通过 navDate 匹配计入。
  */
 export function shouldCountOtcFundDailyPnl(input: {
   date: string;
@@ -56,8 +57,19 @@ export function shouldCountOtcFundDailyPnl(input: {
   close?: number | null;
   prevClose?: number | null;
 }): boolean {
-  if (isTradingDay(input.date)) return true;
-  return isFundNavPublishedOnDate(input.navDate, input.date);
+  if (input.navDate) {
+    return isFundNavPublishedOnDate(input.navDate, input.date);
+  }
+  return isTradingDay(input.date);
+}
+
+/** A 股 / 场内日收益是否已开启（9:30 前不计入，避免凌晨仍显示上一交易日涨跌）。 */
+export function isExchangeDailyPnlSessionActive(asOf: Date = new Date()): boolean {
+  const shanghai = dayjs(asOf).tz(TRADE_MARKET_TIMEZONE);
+  const today = shanghai.format(TRADE_DATE_FORMAT);
+  if (!isTradingDay(today)) return false;
+  const minutes = shanghai.hour() * 60 + shanghai.minute();
+  return minutes >= 9 * 60 + 30;
 }
 
 /**  inclusive 区间内的交易日数量。 */

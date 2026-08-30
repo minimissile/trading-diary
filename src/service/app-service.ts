@@ -20,6 +20,8 @@ import { pollActiveAlerts } from './alerts/alert-poll-service';
 import { createSipService, type SipService } from './sip/sip-service';
 import { createSipImportService, type SipImportService } from './sip/sip-import-service';
 import { createSipAiImportService, type SipAiImportService } from './sip/sip-ai-import-service';
+import { createLedgerAiImportService, type LedgerAiImportService } from './portfolio/ledger-ai-import-service';
+import { saveLedgerImportPasteImages, readLedgerImportImagePreviews } from './portfolio/ledger-import-paste-store';
 import { AccessLockStore } from './security/access-lock-store';
 
 const reviewAiDraftParamsSchema = z
@@ -55,6 +57,7 @@ const llmDebugRunParamsSchema = z
 
 export class AppService {
   private readonly startedAt = new Date().toISOString();
+  private readonly dataDir: string;
   private readonly database: AppDatabase;
   private readonly images: ImageStore;
   private readonly llmRunner: LlmRunner;
@@ -66,9 +69,11 @@ export class AppService {
   private readonly sipService: SipService;
   private readonly sipImportService: SipImportService;
   private readonly sipAiImportService: SipAiImportService;
+  private readonly ledgerAiImportService: LedgerAiImportService;
   private readonly accessLockStore: AccessLockStore;
 
   constructor(dataDir: string, appVersion: string) {
+    this.dataDir = dataDir;
     this.database = new AppDatabase(path.join(dataDir, 'database', 'app.sqlite'));
     this.images = new ImageStore(dataDir, this.database);
     this.llmRunner = createLlmRunner(dataDir);
@@ -80,6 +85,12 @@ export class AppService {
     this.sipService = createSipService(this.database);
     this.sipImportService = createSipImportService(this.database);
     this.sipAiImportService = createSipAiImportService(this.sipImportService, this.llmRunner);
+    this.ledgerAiImportService = createLedgerAiImportService(
+      this.database,
+      this.portfolioService,
+      this.sipImportService,
+      this.llmRunner,
+    );
     this.accessLockStore = new AccessLockStore(dataDir);
   }
 
@@ -269,6 +280,20 @@ export class AppService {
             year: request.params.year,
           },
         );
+      case 'portfolio.saveLedgerImportPasteImages':
+        return saveLedgerImportPasteImages(this.dataDir, request.params.images);
+      case 'portfolio.readLedgerImportImagePreviews':
+        return readLedgerImportImagePreviews(request.params.sourcePaths);
+      case 'portfolio.recognizeLedgerImportScreenshots': {
+        this.licenseService.assertFeature('ai_review');
+        return this.ledgerAiImportService.recognizeScreenshots(request.params.sourcePaths);
+      }
+      case 'portfolio.previewLedgerAiImport':
+        return this.ledgerAiImportService.preview(request.params);
+      case 'portfolio.commitLedgerAiImport': {
+        this.licenseService.assertFeature('ai_review');
+        return this.ledgerAiImportService.commit(request.params);
+      }
       case 'license.getStatus':
         return this.licenseService.getStatus();
       case 'license.activate':

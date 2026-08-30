@@ -1,10 +1,30 @@
 import { describe, expect, it } from 'vitest';
+import type { PortfolioLedgerEntry } from '../src/shared/portfolio/types';
 import { FEE_PROFILE_A_SHARE_STANDARD } from '../src/shared/accounts/fee-presets';
+import { computeExchangeTradedNetCashInvested } from '../src/service/portfolio/ledger-service';
 import {
   computeReferenceUnrealizedPnl,
   computeReferenceReturnPercent,
   inferMarketFromSymbol,
 } from '../src/service/portfolio/reference-unrealized-pnl';
+
+function ledgerEntry(
+  partial: Partial<PortfolioLedgerEntry> & Pick<PortfolioLedgerEntry, 'side' | 'quantity' | 'price' | 'tradeAt'>,
+): PortfolioLedgerEntry {
+  return {
+    id: partial.id ?? '1',
+    accountId: 'default',
+    symbol: '000158',
+    kind: 'stock',
+    fees: 0,
+    planId: null,
+    note: '',
+    source: 'manual',
+    sipOccurrenceId: null,
+    createdAt: partial.tradeAt,
+    ...partial,
+  };
+}
 
 const xiangcaiProfile = {
   commissionWan: 1.054,
@@ -115,5 +135,30 @@ describe('computeReferenceUnrealizedPnl', () => {
     });
 
     expect(pnl).toBe(-45.6);
+  });
+
+  it('matches Tonghuashun reference PnL for 000158 after partial sell', () => {
+    const entries = [
+      ledgerEntry({ id: '1', side: 'buy', quantity: 200, price: 21.4, fees: 0.45, tradeAt: '2026-03-09T14:49:00+08:00' }),
+      ledgerEntry({ id: '2', side: 'buy', quantity: 100, price: 21.22, fees: 0.22, tradeAt: '2026-03-11T14:16:00+08:00' }),
+      ledgerEntry({ id: '3', side: 'sell', quantity: 200, price: 16.65, fees: 2.02, tradeAt: '2026-05-25T13:19:00+08:00' }),
+      ledgerEntry({ id: '4', side: 'buy', quantity: 200, price: 16.46, fees: 0.35, tradeAt: '2026-05-25T14:21:00+08:00' }),
+      ledgerEntry({ id: '5', side: 'buy', quantity: 200, price: 13.51, fees: 0.28, tradeAt: '2026-08-19T09:32:00+08:00' }),
+    ];
+    const netCash = computeExchangeTradedNetCashInvested(entries, 8.1);
+
+    expect(netCash).toBeCloseTo(9061.22, 2);
+
+    const pnl = computeReferenceUnrealizedPnl({
+      marketPrice: 12.61,
+      quantity: 500,
+      totalCost: netCash,
+      kind: 'stock',
+      market: 'SZ',
+      feeProfile: xiangcaiProfile,
+    });
+
+    expect(pnl).toBeCloseTo(-2760.13, 1);
+    expect(computeReferenceReturnPercent(pnl, netCash)).toBeCloseTo(-30.46, 1);
   });
 });

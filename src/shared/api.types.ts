@@ -516,6 +516,20 @@ export interface DesktopApi {
       accountId?: string,
       year?: number,
     ) => Promise<import('./portfolio/types').PortfolioDividendRecord[]>;
+    selectLedgerImportScreenshots: () => Promise<{ sourcePaths: string[]; fileNames: string[] } | null>;
+    saveLedgerImportPasteImages: (
+      images: Array<{ data: string; mimeType: string }>,
+    ) => Promise<{ sourcePaths: string[]; fileNames: string[] }>;
+    readLedgerImportImagePreviews: (sourcePaths: string[]) => Promise<string[]>;
+    recognizeLedgerImportScreenshots: (
+      sourcePaths: string[],
+    ) => Promise<import('./portfolio/ledger-import-types').LedgerAiRecognizeResult>;
+    previewLedgerAiImport: (
+      input: import('./portfolio/ledger-import-types').LedgerAiImportInput,
+    ) => Promise<import('./portfolio/ledger-import-types').LedgerAiImportPreviewResult>;
+    commitLedgerAiImport: (
+      input: import('./portfolio/ledger-import-types').LedgerAiImportInput,
+    ) => Promise<import('./portfolio/ledger-import-types').LedgerImportCommitResult>;
   };
   license: {
     getStatus: () => Promise<import('./license/types').LicenseStatus>;

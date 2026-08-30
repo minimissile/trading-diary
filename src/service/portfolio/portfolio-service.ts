@@ -41,7 +41,7 @@ import {
   computeExpectedFromEvents,
   computeYtdReceived,
 } from './dividend-stats';
-import { aggregatePositions, computeOtcFundHoldMetrics } from './ledger-service';
+import { aggregatePositions, computeExchangeTradedNetCashInvested, computeOtcFundHoldMetrics } from './ledger-service';
 import { resolveDividendEligibleQuantity } from './dividend-matcher';
 import { computePositionDailyPnl, sumDailyPnl } from './position-daily-pnl';
 import { buildRealizedHistory } from './realized-pnl';
@@ -134,6 +134,11 @@ export class PortfolioService {
       const displayAvgPrice = otcHoldMetrics?.holdPrice ?? position.avgPrice;
       const displayAvgCost = otcHoldMetrics?.holdPrice ?? position.avgCost;
       const displayTotalCost = otcHoldMetrics?.totalCost ?? position.totalCost;
+      const exchangeTradedNetCash =
+        position.kind === 'otc_fund'
+          ? null
+          : computeExchangeTradedNetCashInvested(symbolEntries, cashDividendsReceived);
+      const pnlCostBasis = exchangeTradedNetCash ?? displayTotalCost;
       const feeProfile = this.resolveFeeProfile(accountId, symbolEntries);
       const feeMarket =
         position.venue === 'HK' ? 'HK' : position.venue === 'US' ? 'US' : inferMarketFromSymbol(position.symbol);
@@ -143,7 +148,7 @@ export class PortfolioService {
           : computeReferenceUnrealizedPnl({
               marketPrice,
               quantity: position.quantity,
-              totalCost: displayTotalCost,
+              totalCost: pnlCostBasis,
               kind: position.kind,
               market: feeMarket,
               feeProfile,
@@ -157,7 +162,7 @@ export class PortfolioService {
         firstBuyAt: position.firstBuyAt,
       });
       const unrealizedReturnPercent =
-        unrealizedPnl === null ? null : computeReferenceReturnPercent(unrealizedPnl, displayTotalCost);
+        unrealizedPnl === null ? null : computeReferenceReturnPercent(unrealizedPnl, pnlCostBasis);
 
       const cachedFundProfile = fundProfileMap.get(normalizeSymbol(position.symbol));
       const fundProfile = cachedFundProfile ? buildFundProfileSummary(cachedFundProfile.profile) : null;

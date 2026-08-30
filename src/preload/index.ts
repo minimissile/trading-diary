@@ -187,6 +187,15 @@ const desktopApi: DesktopApi = {
         accountId,
         year,
       }),
+    selectLedgerImportScreenshots: () => ipcRenderer.invoke(ipcChannels.portfolioSelectLedgerImportScreenshots),
+    saveLedgerImportPasteImages: (images) =>
+      ipcRenderer.invoke(ipcChannels.portfolioSaveLedgerImportPasteImages, { images }),
+    readLedgerImportImagePreviews: (sourcePaths) =>
+      ipcRenderer.invoke(ipcChannels.portfolioReadLedgerImportImagePreviews, { sourcePaths }),
+    recognizeLedgerImportScreenshots: (sourcePaths) =>
+      ipcRenderer.invoke(ipcChannels.portfolioRecognizeLedgerImportScreenshots, { sourcePaths }),
+    previewLedgerAiImport: (input) => ipcRenderer.invoke(ipcChannels.portfolioPreviewLedgerAiImport, input),
+    commitLedgerAiImport: (input) => ipcRenderer.invoke(ipcChannels.portfolioCommitLedgerAiImport, input),
   },
   license: {
     getStatus: () => ipcRenderer.invoke(ipcChannels.licenseGetStatus),

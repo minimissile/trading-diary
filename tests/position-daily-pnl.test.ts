@@ -144,9 +144,38 @@ describe('position daily pnl', () => {
       quote: { change: 0.09, changePercent: 1.724, price: 5.31, prevClose: 5.22 },
       referenceUnrealizedPnl: -28.64,
       firstBuyAt: '2026-08-20T00:00:00+08:00',
-      asOf: new Date('2026-08-28T01:00:00+08:00'),
+      asOf: new Date('2026-08-28T15:22:00+08:00'),
     });
     expect(pnl).toBeCloseTo(1200 * 0.09, 1);
+  });
+
+  it('returns zero for exchange-traded holdings before market open on trading day', () => {
+    const pnl = computePositionDailyPnl({
+      kind: 'stock',
+      entries: [
+        entry({ id: '1', symbol: '002575', side: 'buy', quantity: 800, price: 5.32, fees: 0.45, tradeAt: '2026-08-20T00:00:00+08:00' }),
+        entry({ id: '2', symbol: '002575', side: 'buy', quantity: 400, price: 5.35, fees: 0.23, tradeAt: '2026-08-28T00:00:00+08:00' }),
+      ],
+      marketPrice: 5.31,
+      quote: { change: 0.09, changePercent: 1.724, price: 5.31, prevClose: 5.22 },
+      referenceUnrealizedPnl: -28.64,
+      firstBuyAt: '2026-08-20T00:00:00+08:00',
+      asOf: new Date('2026-08-28T01:00:00+08:00'),
+    });
+    expect(pnl).toBe(0);
+  });
+
+  it('returns zero after midnight when quote is still from previous session', () => {
+    const pnl = computePositionDailyPnl({
+      kind: 'stock',
+      entries: [entry({ side: 'buy', quantity: 600, price: 8.79, tradeAt: '2026-08-25T00:00:00+08:00' })],
+      marketPrice: 8.9,
+      quote: { change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
+      referenceUnrealizedPnl: 50,
+      firstBuyAt: '2026-08-25T00:00:00+08:00',
+      asOf: new Date('2026-08-31T00:11:00+08:00'),
+    });
+    expect(pnl).toBe(0);
   });
 
   it('returns zero on weekend for multi-buy stock', () => {
@@ -245,6 +274,26 @@ describe('position daily pnl', () => {
       asOf: new Date('2026-08-28T15:00:00+08:00'),
     });
     expect(pnl).toBeCloseTo(1053.1 * ((0.6214 * -0.35) / 99.65), 2);
+  });
+
+  it('returns zero daily pnl for fund after midnight when nav is stale', () => {
+    const pnl = computePositionDailyPnl({
+      kind: 'otc_fund',
+      entries: [
+        entry({
+          symbol: '004598',
+          kind: 'otc_fund',
+          side: 'buy',
+          quantity: 760.99,
+          price: 1.3457,
+          tradeAt: '2026-08-20T00:00:00.000Z',
+        }),
+      ],
+      marketPrice: 1.3513,
+      quote: { change: null, changePercent: -0.49, price: 1.3513, prevClose: 1.3579, navDate: '2026-08-28', nav: 1.3513 },
+      asOf: new Date('2026-08-31T00:11:00+08:00'),
+    });
+    expect(pnl).toBe(0);
   });
 
   it('returns zero daily pnl for fund on weekend when nav was not updated', () => {

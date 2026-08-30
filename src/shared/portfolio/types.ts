@@ -3,7 +3,7 @@ import type { InstrumentKind } from '../market/types';
 import type { InstrumentVenue, QuoteCurrency } from '../market/venues';
 
 export type PortfolioLedgerSide = 'buy' | 'sell' | 'dividend_reinvest';
-export type PortfolioLedgerSource = 'manual' | 'csv' | 'plan' | 'sip';
+export type PortfolioLedgerSource = 'manual' | 'csv' | 'plan' | 'sip' | 'ai_import';
 export type DividendRecordStatus = 'estimated' | 'confirmed' | 'rejected';
 export type DividendRecordSource = 'api' | 'manual';
 export type DividendPayoutMode = 'cash' | 'reinvest';
@@ -46,9 +46,9 @@ export interface PortfolioPositionView {
   avgCost: number;
   marketPrice: number | null;
   marketValue: number | null;
-  /** 参考浮动盈亏 = 市值 − 成本 − 预估卖出费用（对齐券商展示）。 */
+  /** 参考浮动盈亏 = 市值 − 净投入/成本 − 预估卖出费用（对齐同花顺持仓盈亏）。 */
   unrealizedPnl: number | null;
-  /** 参考收益率 = 参考浮盈 / 含费总成本（对齐同花顺）。 */
+  /** 参考收益率 = 参考浮盈 / 净投入或总成本（对齐同花顺）。 */
   unrealizedReturnPercent: number | null;
   /** 当日盈亏（持仓数量 × 当日涨跌额），无行情时为 null。 */
   dailyPnl: number | null;

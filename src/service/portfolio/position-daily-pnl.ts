@@ -2,6 +2,7 @@ import type { InstrumentKind, MarketQuote } from '../../shared/market/types';
 import type { PortfolioLedgerEntry } from '../../shared/portfolio/types';
 import {
   isTradingDay,
+  isExchangeDailyPnlSessionActive,
   shouldCountOtcFundDailyPnl,
   shouldUseReferenceDailyPnl,
   todayCalendarDate,
@@ -115,8 +116,11 @@ export function computePositionDailyPnl(input: PositionDailyPnlInput): number | 
   if (!quote || marketPrice === null || entries.length === 0) return null;
 
   const today = todayCalendarDate(asOf ?? new Date());
-  if (isExchangeTradedKind(kind) && !isTradingDay(today)) {
-    return 0;
+  const asOfDate = asOf ?? new Date();
+  if (isExchangeTradedKind(kind)) {
+    if (!isTradingDay(today) || !isExchangeDailyPnlSessionActive(asOfDate)) {
+      return 0;
+    }
   }
   if (
     kind === 'otc_fund' &&

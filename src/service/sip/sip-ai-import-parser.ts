@@ -47,7 +47,7 @@ const aiResponseSchema = z.object({
   planMode: planModeSchema.optional(),
   planModeLabel: z.union([z.string(), z.null()]).optional(),
   screenshotType: screenshotTypeSchema.optional(),
-  planHints: planHintsSchema.optional(),
+  planHints: planHintsSchema.nullish(),
   records: z.array(rawRecordSchema).optional(),
   transactions: z.array(rawRecordSchema).optional(),
   items: z.array(rawRecordSchema).optional(),
@@ -119,7 +119,7 @@ function normalizeRawRecord(raw: z.infer<typeof rawRecordSchema>): SipAiExtracte
   };
 }
 
-function parsePlanHints(raw: z.infer<typeof planHintsSchema> | undefined): SipAiPlanHints | null {
+export function parsePlanHints(raw: z.infer<typeof planHintsSchema> | undefined): SipAiPlanHints | null {
   if (!raw) return null;
   const amount = coerceNullableNumber(raw.amount);
   const dayOfMonth = coerceNullableNumber(raw.dayOfMonth);

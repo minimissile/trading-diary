@@ -26,7 +26,7 @@ function event(partial: Partial<DividendEvent>): DividendEvent {
   return {
     symbol: '600941',
     planText: '10派2元',
-    cashPerShare: 2,
+    cashPerShare: 0.2,
     status: 'implemented',
     progress: '实施',
     reportDate: null,
@@ -62,7 +62,7 @@ describe('dividend matcher', () => {
       event: event({}),
       today: '2026-06-20',
     });
-    expect(result.upsert?.cashAmount).toBe(400);
+    expect(result.upsert?.cashAmount).toBe(40);
     expect(result.upsert?.eligibleQuantity).toBe(200);
     expect(result.upsert?.status).toBe('confirmed');
   });

@@ -8,6 +8,7 @@ import {
   countTradingDaysInclusive,
   shouldUseReferenceDailyPnl,
   shouldCountOtcFundDailyPnl,
+  isExchangeDailyPnlSessionActive,
   parseTradeAt,
   todayCalendarDate,
   tradeAtToStorage,
@@ -52,8 +53,24 @@ describe('trade calendar', () => {
     expect(shouldUseReferenceDailyPnl('2026-08-28', '2026-08-29', 'stock')).toBe(true);
   });
 
-  it('counts otc fund daily pnl on trading days and weekend nav updates only', () => {
+  it('counts otc fund daily pnl only when nav date matches', () => {
     expect(shouldCountOtcFundDailyPnl({ date: '2026-08-28' })).toBe(true);
+    expect(
+      shouldCountOtcFundDailyPnl({
+        date: '2026-08-28',
+        navDate: '2026-08-28',
+        close: 1.1611,
+        prevClose: 1.1491,
+      }),
+    ).toBe(true);
+    expect(
+      shouldCountOtcFundDailyPnl({
+        date: '2026-08-31',
+        navDate: '2026-08-28',
+        close: 1.1611,
+        prevClose: 1.1491,
+      }),
+    ).toBe(false);
     expect(
       shouldCountOtcFundDailyPnl({
         date: '2026-08-30',
@@ -77,5 +94,12 @@ describe('trade calendar', () => {
         prevClose: 1.1611,
       }),
     ).toBe(false);
+  });
+
+  it('treats exchange daily pnl as inactive before 9:30 Shanghai', () => {
+    expect(isExchangeDailyPnlSessionActive(new Date('2026-08-31T00:11:00+08:00'))).toBe(false);
+    expect(isExchangeDailyPnlSessionActive(new Date('2026-08-31T09:29:00+08:00'))).toBe(false);
+    expect(isExchangeDailyPnlSessionActive(new Date('2026-08-31T09:30:00+08:00'))).toBe(true);
+    expect(isExchangeDailyPnlSessionActive(new Date('2026-08-30T12:00:00+08:00'))).toBe(false);
   });
 });

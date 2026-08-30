@@ -357,6 +357,26 @@ export interface ServiceContract {
     };
     result: PortfolioDividendRecord[];
   };
+  'portfolio.saveLedgerImportPasteImages': {
+    params: { images: Array<{ data: string; mimeType: string }> };
+    result: { sourcePaths: string[]; fileNames: string[] };
+  };
+  'portfolio.readLedgerImportImagePreviews': {
+    params: { sourcePaths: string[] };
+    result: string[];
+  };
+  'portfolio.recognizeLedgerImportScreenshots': {
+    params: { sourcePaths: string[] };
+    result: import('./portfolio/ledger-import-types').LedgerAiRecognizeResult;
+  };
+  'portfolio.previewLedgerAiImport': {
+    params: import('./portfolio/ledger-import-types').LedgerAiImportInput;
+    result: import('./portfolio/ledger-import-types').LedgerAiImportPreviewResult;
+  };
+  'portfolio.commitLedgerAiImport': {
+    params: import('./portfolio/ledger-import-types').LedgerAiImportInput;
+    result: import('./portfolio/ledger-import-types').LedgerImportCommitResult;
+  };
   'license.getStatus': {
     params: Record<string, never>;
     result: LicenseStatus;

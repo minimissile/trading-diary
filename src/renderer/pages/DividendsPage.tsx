@@ -14,7 +14,7 @@ import {
   Tooltip,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { ReloadOutlined, CheckOutlined, CloseOutlined, MoreOutlined, SwapOutlined } from '@ant-design/icons';
+import { ReloadOutlined, CheckOutlined, CloseOutlined, MoreOutlined, SwapOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
 import type {
   DividendCalendarDay,
   PortfolioDividendRecord,
@@ -101,6 +101,15 @@ export function DividendsPage(): React.JSX.Element {
       setRefreshing(false);
     }
   }, [accountId, calendarMonth, message]);
+
+  const changeCalendarMonth = useCallback(
+    (value: dayjs.Dayjs): void => {
+      const month = `${value.year()}-${String(value.month() + 1).padStart(2, '0')}`;
+      setCalendarMonth(month);
+      void window.desktop.portfolio.getDividendCalendar(accountId, month).then(setCalendarDays);
+    },
+    [accountId],
+  );
 
   useEffect(() => {
     void load();
@@ -417,15 +426,29 @@ export function DividendsPage(): React.JSX.Element {
                 value={dayjs(`${calendarMonth}-01`)}
                 headerRender={({ value }) => (
                   <div className="portfolio-calendar-panel-head">
-                    <strong>{value.year()}年{value.month() + 1}月</strong>
+                    <div className="portfolio-calendar-panel-nav">
+                      <Button
+                        type="text"
+                        size="small"
+                        aria-label="上一月"
+                        icon={<LeftOutlined />}
+                        onClick={() => changeCalendarMonth(value.clone().subtract(1, 'month'))}
+                      />
+                      <strong>{value.year()}年{value.month() + 1}月</strong>
+                      <Button
+                        type="text"
+                        size="small"
+                        aria-label="下一月"
+                        icon={<RightOutlined />}
+                        onClick={() => changeCalendarMonth(value.clone().add(1, 'month'))}
+                      />
+                    </div>
                     <span>除权日分红</span>
                   </div>
                 )}
                 onPanelChange={(value, mode) => {
                   if (mode !== 'month') return;
-                  const month = `${value.year()}-${String(value.month() + 1).padStart(2, '0')}`;
-                  setCalendarMonth(month);
-                  void window.desktop.portfolio.getDividendCalendar(accountId, month).then(setCalendarDays);
+                  changeCalendarMonth(value);
                 }}
                 cellRender={(current, info) => {
                   if (info.type !== 'date') return info.originNode;

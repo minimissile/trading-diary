@@ -41,4 +41,11 @@ describe('PromptLoader', () => {
   it('能定位仓库内 prompts 目录', () => {
     expect(fs.existsSync(resolvePromptsDir())).toBe(true);
   });
+
+  it('loads portfolio ledger import prompt', () => {
+    const loader = new PromptLoader(resolvePromptsDir());
+    const definition = loader.load(PROMPT_IDS.PORTFOLIO_LEDGER_IMPORT_SCREENSHOT);
+    expect(definition.id).toBe('portfolio.ledger.import.screenshot');
+    expect(definition.responseFormat).toBe('json');
+  });
 });

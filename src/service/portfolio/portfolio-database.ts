@@ -195,6 +195,29 @@ export class PortfolioDatabase {
     );
   }
 
+  /** 检测是否已有相同 AI/手动导入流水（同日、同标的、同方向、同份额与价格）。 */
+  hasSimilarLedgerImport(
+    accountId: string,
+    symbol: string,
+    tradeAt: string,
+    quantity: number,
+    price: number,
+    side: PortfolioLedgerSide,
+  ): boolean {
+    const resolved = this.resolveAccountId(accountId);
+    const normalized = normalizeSymbol(symbol);
+    const tradeDay = tradeAt.slice(0, 10);
+    const entries = this.listLedger(resolved).filter(
+      (entry) =>
+        entry.symbol === normalized &&
+        entry.side === side &&
+        entry.tradeAt.slice(0, 10) === tradeDay,
+    );
+    return entries.some(
+      (entry) => Math.abs(entry.quantity - quantity) < 1e-6 && Math.abs(entry.price - price) < 1e-6,
+    );
+  }
+
   listLedgerBySymbol(accountId: string, symbol: string): PortfolioLedgerEntry[] {
     const rows = this.db
       .prepare(
@@ -386,16 +409,18 @@ export class PortfolioDatabase {
     const existing = this.db
       .prepare(
         `SELECT id FROM portfolio_dividends
-         WHERE account_id = ? AND symbol = ? AND ex_dividend_date = ? AND external_event_key = ?`,
+         WHERE account_id = ? AND symbol = ? AND ex_dividend_date = ?
+         LIMIT 1`,
       )
-      .get(input.accountId, symbol, input.exDividendDate, input.externalEventKey) as { id: string } | undefined;
+      .get(input.accountId, symbol, input.exDividendDate) as { id: string } | undefined;
 
     if (existing) {
       this.db
         .prepare(
           `UPDATE portfolio_dividends SET
             kind = ?, record_date = ?, pay_date = ?, cash_per_share_micros = ?,
-            eligible_quantity_micros = ?, cash_amount_cents = ?, status = ?, source = ?, updated_at = ?
+            eligible_quantity_micros = ?, cash_amount_cents = ?, status = ?, source = ?,
+            external_event_key = ?, updated_at = ?
            WHERE id = ?`,
         )
         .run(
@@ -407,6 +432,7 @@ export class PortfolioDatabase {
           toScaledInteger(input.cashAmount, MONEY_SCALE),
           input.status,
           input.source,
+          input.externalEventKey,
           now,
           existing.id,
         );

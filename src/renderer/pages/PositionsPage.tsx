@@ -10,6 +10,7 @@ import {
   ReloadOutlined,
   PlusOutlined,
   FallOutlined,
+  PictureOutlined,
 } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router';
 import type { InstrumentKind } from '../../shared/market/types';
@@ -17,6 +18,7 @@ import type { PortfolioPositionView, PortfolioSummaryView } from '../../shared/p
 import { ALL_ACCOUNTS_ID } from '../../shared/accounts/constants';
 import { priceListPresetForKind, quantityPresetForKind } from '../../shared/format/display-presets';
 import { PortfolioLedgerModal } from '../components/trading/PortfolioLedgerModal';
+import { LedgerAiImportModal } from '../components/trading/LedgerAiImportModal';
 import { PositionLedgerDrawer } from '../components/trading/PositionLedgerDrawer';
 import { PositionSellModal } from '../components/trading/PositionSellModal';
 import { AccountSelect } from '../components/trading/AccountSelect';
@@ -69,6 +71,7 @@ export function PositionsPage(): React.JSX.Element {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [ledgerOpen, setLedgerOpen] = useState(false);
+  const [aiImportOpen, setAiImportOpen] = useState(false);
   const [accountId, setAccountId] = useState<string>(ALL_ACCOUNTS_ID);
   const [assetCategory, setAssetCategory] = useState<AssetCategory>('all');
   const [stockSubKind, setStockSubKind] = useState<StockSubKind>('all');
@@ -382,6 +385,9 @@ export function PositionsPage(): React.JSX.Element {
           <Link to={routePaths.positionPnlCalendar}>
             <Button icon={<CalendarOutlined />}>收益日历</Button>
           </Link>
+          <Button icon={<PictureOutlined />} onClick={() => setAiImportOpen(true)}>
+            AI 识图导入
+          </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setLedgerOpen(true)}>
             录入流水
           </Button>
@@ -492,6 +498,13 @@ export function PositionsPage(): React.JSX.Element {
         open={ledgerOpen}
         defaultAccountId={accountId === ALL_ACCOUNTS_ID ? undefined : accountId}
         onClose={() => setLedgerOpen(false)}
+        onSaved={() => void load(true)}
+      />
+
+      <LedgerAiImportModal
+        open={aiImportOpen}
+        defaultAccountId={accountId === ALL_ACCOUNTS_ID ? undefined : accountId}
+        onClose={() => setAiImportOpen(false)}
         onSaved={() => void load(true)}
       />
 

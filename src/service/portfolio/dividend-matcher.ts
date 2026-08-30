@@ -51,11 +51,7 @@ export function matchDividendEvent(input: DividendMatchInput): DividendMatchResu
   const autoConfirmCutoff = shiftDate(event.exDividendDate, 3);
   const status = today >= autoConfirmCutoff ? 'confirmed' : 'estimated';
 
-  const externalEventKey = [
-    event.exDividendDate,
-    event.cashPerShare.toFixed(4),
-    event.planText.slice(0, 32),
-  ].join('|');
+  const externalEventKey = [event.exDividendDate, event.planText.slice(0, 64)].join('|');
 
   return {
     upsert: {

@@ -4,6 +4,7 @@ export const PROMPT_IDS = {
   RELEASE_NOTES: 'release.notes',
   RELEASE_PLAN: 'release.plan',
   SIP_IMPORT_SCREENSHOT: 'sip.import.screenshot',
+  PORTFOLIO_LEDGER_IMPORT_SCREENSHOT: 'portfolio.ledger.import.screenshot',
 } as const;
 
 export type PromptId = (typeof PROMPT_IDS)[keyof typeof PROMPT_IDS];

@@ -1,4 +1,5 @@
 import { app, dialog, ipcMain, shell } from 'electron';
+import path from 'node:path';
 import type {
   CreateTradeAlertInput,
   CreateTradeReviewInput,
@@ -168,5 +169,55 @@ export function registerPortfolioHandlers({ window, service, updater }: IpcHandl
       return service.request('portfolio.setDividendPayoutMode', input);
     },
   );
+
+  ipcMain.handle(ipcChannels.portfolioSelectLedgerImportScreenshots, async (event) => {
+    assertTrustedSender(event, window);
+    const selection = await dialog.showOpenDialog(window, {
+      title: '选择交易记录截图（可多选）',
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: '图片文件', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
+    });
+    if (selection.canceled || selection.filePaths.length === 0) return null;
+    return {
+      sourcePaths: selection.filePaths,
+      fileNames: selection.filePaths.map((filePath) => path.basename(filePath)),
+    };
+  });
+
+  ipcMain.handle(
+    ipcChannels.portfolioSaveLedgerImportPasteImages,
+    (event, input: { images: Array<{ data: string; mimeType: string }> }) => {
+      assertTrustedSender(event, window);
+      return service.request('portfolio.saveLedgerImportPasteImages', input);
+    },
+  );
+
+  ipcMain.handle(
+    ipcChannels.portfolioReadLedgerImportImagePreviews,
+    (event, input: { sourcePaths: string[] }) => {
+      assertTrustedSender(event, window);
+      return service.request('portfolio.readLedgerImportImagePreviews', input);
+    },
+  );
+
+  ipcMain.handle(
+    ipcChannels.portfolioRecognizeLedgerImportScreenshots,
+    (event, input: { sourcePaths: string[] }) => {
+      assertTrustedSender(event, window);
+      return service.request('portfolio.recognizeLedgerImportScreenshots', input);
+    },
+  );
+
+  ipcMain.handle(ipcChannels.portfolioPreviewLedgerAiImport, (event, input: Record<string, unknown>) => {
+    assertTrustedSender(event, window);
+    return service.request('portfolio.previewLedgerAiImport', input as never);
+  });
+
+  ipcMain.handle(ipcChannels.portfolioCommitLedgerAiImport, async (event, input: Record<string, unknown>) => {
+    assertTrustedSender(event, window);
+    const result = await service.request('portfolio.commitLedgerAiImport', input as never);
+    if (!window.isDestroyed()) window.webContents.send(ipcChannels.workspaceChanged);
+    return result;
+  });
 
 }

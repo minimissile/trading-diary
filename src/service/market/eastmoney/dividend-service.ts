@@ -99,12 +99,18 @@ async function listExchangeDividends(
   };
 }
 
+/** 东方财富 RPT_SHAREBONUS_DET 的 PRETAX_BONUS_RMB 为「每10股」税前分红（如 10派0.27元 → 0.27）。 */
+export function exchangePretaxBonusToCashPerShare(pretaxBonusRmb: number | null): number | null {
+  if (pretaxBonusRmb === null || pretaxBonusRmb <= 0) return null;
+  return pretaxBonusRmb / 10;
+}
+
 function mapShareBonusRow(symbol: string, row: ShareBonusRow): DividendEvent {
   const progress = row.ASSIGN_PROGRESS ?? '';
   return {
     symbol: normalizeSymbol(symbol),
     planText: row.IMPL_PLAN_PROFILE ?? '',
-    cashPerShare: asNumber(row.PRETAX_BONUS_RMB),
+    cashPerShare: exchangePretaxBonusToCashPerShare(asNumber(row.PRETAX_BONUS_RMB)),
     status: mapDividendStatus(progress),
     progress,
     reportDate: parseEastMoneyDate(row.REPORT_DATE),
