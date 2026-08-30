@@ -3900,6 +3900,56 @@ body {
   font-weight: 650;
 }
 
+.pnl-calendar-wrap .ant-picker-calendar-date-content {
+  min-height: 34px;
+}
+
+.pnl-calendar-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 650;
+}
+
+.pnl-calendar-cell--up {
+  color: var(--td-color-up);
+}
+
+.pnl-calendar-cell--down {
+  color: var(--td-color-down);
+}
+
+.pnl-calendar-cell small {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--td-color-text-muted);
+}
+
+.pnl-calendar-summary {
+  margin-bottom: 16px;
+}
+
+.pnl-calendar-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.pnl-calendar-month-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.portfolio-inline-alert {
+  margin-bottom: 16px;
+}
+
 .portfolio-row-actions {
   display: flex;
   gap: 0;

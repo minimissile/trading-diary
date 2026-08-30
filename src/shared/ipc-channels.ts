@@ -54,6 +54,7 @@ export const ipcChannels = {
   portfolioAddLedgerEntry: 'desktop:portfolio:add-ledger-entry',
   portfolioListLedgerEntries: 'desktop:portfolio:list-ledger-entries',
   portfolioGetRealizedHistory: 'desktop:portfolio:get-realized-history',
+  portfolioGetPnlCalendar: 'desktop:portfolio:get-pnl-calendar',
   portfolioUpdateLedgerEntry: 'desktop:portfolio:update-ledger-entry',
   portfolioDeleteLedgerEntry: 'desktop:portfolio:delete-ledger-entry',
   portfolioDeletePosition: 'desktop:portfolio:delete-position',

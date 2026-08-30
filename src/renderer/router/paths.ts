@@ -4,6 +4,7 @@ export const routePaths = {
   watchlist: '/watchlist',
   positions: '/positions',
   positionHistory: '/positions/history',
+  positionPnlCalendar: '/positions/pnl-calendar',
   positionChart: '/positions/chart/:symbol',
   dividends: '/dividends',
   /** @deprecated 兼容旧链接，路由层重定向至 positions */

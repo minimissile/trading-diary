@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BROKER_REGISTRY,
   defaultBrokerForAccountKind,
+  getBrokerIconCandidates,
   getBrokerMeta,
   isBrokerAllowedForAccountKind,
   listBrokersForAccountKind,
@@ -61,5 +62,11 @@ describe('fund broker registry', () => {
   it('注册表 id 唯一', () => {
     const ids = BROKER_REGISTRY.map((item) => item.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('蚂蚁财富使用可用的直连图标地址', () => {
+    const urls = getBrokerIconCandidates('antfortune');
+    expect(urls[0]).toBe('https://zos.alipayobjects.com/rmsportal/uAkGrrhlPyyCHzPzssfS.ico');
+    expect(urls.length).toBeGreaterThan(1);
   });
 });

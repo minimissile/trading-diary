@@ -474,6 +474,16 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
   }),
   z.object({
     id: z.uuid(),
+    method: z.literal('portfolio.getPnlCalendar'),
+    params: z
+      .object({
+        accountId: z.string().trim().min(1).max(64).optional(),
+        month: z.string().regex(/^\d{4}-\d{2}$/u).optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
     method: z.literal('portfolio.updateLedgerEntry'),
     params: z
       .object({

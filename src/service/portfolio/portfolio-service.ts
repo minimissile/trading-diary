@@ -4,6 +4,7 @@ import type {
   DividendRecordStatus,
   PortfolioDividendRecord,
   PortfolioLedgerEntry,
+  PortfolioPnlCalendarView,
   PortfolioPositionView,
   PortfolioRefreshResult,
   PortfolioRealizedHistoryView,
@@ -13,8 +14,11 @@ import type {
 import { isAllAccountsId, ALL_ACCOUNTS_ID } from '../../shared/accounts/constants';
 import type { DividendGoalSettings } from '../../shared/portfolio/dividend-goal';
 import { dividendGoalStorageKey, normalizeDividendGoalSettings } from '../../shared/portfolio/dividend-goal';
+import { currentMonthPrefix, pnlCalendarWindowEnd, pnlCalendarWindowStart } from '../../shared/portfolio/pnl-calendar-window';
+import type { InstrumentKind } from '../../shared/market/types';
 import type { FeeProfileRates } from '../../shared/accounts/types';
 import type { AppDatabase } from '../database/database';
+import { createDailyBarSyncService, type DailyBarSyncService } from '../market/daily-bar-sync-service';
 import { normalizeSymbol } from '../market/eastmoney/symbols';
 import { marketService } from '../market/market-service';
 import { buildProjectedDividends, matchDividendEvent } from './dividend-matcher';
@@ -27,12 +31,18 @@ import {
 import { aggregatePositions } from './ledger-service';
 import { computePositionDailyPnl, sumDailyPnl } from './position-daily-pnl';
 import { buildRealizedHistory } from './realized-pnl';
+import { buildPnlCalendar, indexDailyBars } from './pnl-calendar';
 import { computeReferenceUnrealizedPnl, computeReferenceReturnPercent, inferMarketFromSymbol } from './reference-unrealized-pnl';
+
+const PNL_CALENDAR_SYNC_SYMBOL_CAP = 25;
 
 export class PortfolioService {
   private lastRefreshedAt: string | null = null;
+  private readonly dailyBarSync: DailyBarSyncService;
 
-  constructor(private readonly database: AppDatabase) {}
+  constructor(private readonly database: AppDatabase) {
+    this.dailyBarSync = createDailyBarSyncService(database.marketDailyBars);
+  }
 
   async listPositions(accountId?: string): Promise<PortfolioPositionView[]> {
     const portfolio = this.database.portfolio;
@@ -185,6 +195,7 @@ export class PortfolioService {
       payload = { ...payload, kind: instrument.kind, symbol: instrument.symbol };
     }
     this.database.portfolio.addLedgerEntry(payload);
+    this.dailyBarSync.scheduleSymbols([payload.symbol], new Map([[payload.symbol, payload.kind!]]));
     return this.listPositions(payload.accountId);
   }
 
@@ -214,6 +225,51 @@ export class PortfolioService {
         ...item,
         name: nameMap.get(item.symbol) ?? item.symbol,
       })),
+    };
+  }
+
+  async getPnlCalendar(accountId?: string, month?: string): Promise<PortfolioPnlCalendarView> {
+    const portfolio = this.database.portfolio;
+    const ledger = isAllAccountsId(accountId) ? portfolio.listAllLedger() : portfolio.listLedger(accountId);
+    const resolvedMonth = month ?? currentMonthPrefix();
+    const symbols = [...new Set(ledger.map((entry) => entry.symbol))];
+    const symbolKinds = collectSymbolKinds(ledger);
+
+    if (symbols.length > 0) {
+      await this.dailyBarSync.syncSymbolsNow(symbols, symbolKinds, {
+        maxSymbols: PNL_CALENDAR_SYNC_SYMBOL_CAP,
+      });
+    }
+
+    const windowStart = pnlCalendarWindowStart();
+    const windowEnd = pnlCalendarWindowEnd();
+    const bars = this.database.marketDailyBars.listBarsForSymbols(symbols, windowStart, windowEnd);
+    const barsBySymbol = indexDailyBars(bars);
+    const dividends = isAllAccountsId(accountId)
+      ? portfolio.listAllDividends()
+      : portfolio.listDividends(portfolio.resolveAccountId(accountId));
+
+    const built = buildPnlCalendar({
+      ledger,
+      dividends,
+      barsBySymbol,
+      month: resolvedMonth,
+    });
+
+    const missingBarSymbols = symbols.filter((symbol) => !barsBySymbol.has(symbol));
+
+    return {
+      month: resolvedMonth,
+      days: built.days.map((day) => ({
+        date: day.date,
+        totalPnl: day.totalPnl,
+        dividendPnl: day.dividendPnl,
+        positionPnl: day.positionPnl,
+      })),
+      summary: built.summary,
+      windowStart: built.windowStart,
+      windowEnd: built.windowEnd,
+      missingBarSymbols,
     };
   }
 
@@ -383,6 +439,14 @@ function shiftDate(isoDate: string, days: number): string {
   const date = new Date(`${isoDate}T12:00:00`);
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
+}
+
+function collectSymbolKinds(ledger: readonly PortfolioLedgerEntry[]): Map<string, InstrumentKind> {
+  const map = new Map<string, InstrumentKind>();
+  for (const entry of ledger) {
+    map.set(entry.symbol, entry.kind);
+  }
+  return map;
 }
 
 export function createPortfolioService(database: AppDatabase): PortfolioService {

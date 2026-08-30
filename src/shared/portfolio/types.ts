@@ -157,6 +157,30 @@ export interface PortfolioRealizedHistoryView {
   summary: RealizedHistorySummary;
 }
 
+export interface PnlCalendarDay {
+  date: string;
+  totalPnl: number;
+  dividendPnl: number;
+  positionPnl: number;
+}
+
+export interface PnlCalendarSummary {
+  totalPnl: number;
+  positiveDays: number;
+  negativeDays: number;
+  activeDays: number;
+  dividendPnl: number;
+}
+
+export interface PortfolioPnlCalendarView {
+  month: string;
+  days: PnlCalendarDay[];
+  summary: PnlCalendarSummary;
+  windowStart: string;
+  windowEnd: string;
+  missingBarSymbols: string[];
+}
+
 export interface PortfolioLedgerEntry {
   id: string;
   accountId: string;

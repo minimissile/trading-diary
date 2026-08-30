@@ -5,6 +5,8 @@ export interface BrokerMeta {
   label: string;
   /** 用于拉取 favicon 的域名。 */
   domain?: string;
+  /** 直连图标地址；域名 favicon 不可用时的优先候选。 */
+  iconUrls?: string[];
   group: 'head' | 'regional' | 'internet' | 'fund' | 'bank' | 'other';
   /** 搜索别名：简称、拼音、常用 APP 名等。 */
   keywords?: string[];
@@ -40,7 +42,7 @@ export const BROKER_REGISTRY: readonly BrokerMeta[] = [
   { id: 'tiger', label: '老虎证券', domain: 'itiger.com', group: 'internet', keywords: ['老虎', 'tiger', 'itiger'] },
 
   { id: 'ttfund', label: '天天基金', domain: 'fund.eastmoney.com', group: 'fund', keywords: ['天天', 'ttjj', '东财基金', 'fund.eastmoney', '天天基金网'] },
-  { id: 'antfortune', label: '蚂蚁财富', domain: 'fund.antfortune.com', group: 'fund', keywords: ['蚂蚁', '支付宝', 'alipay', 'antfortune', '蚂蚁基金', '余额宝'] },
+  { id: 'antfortune', label: '蚂蚁财富', domain: 'fund.antfortune.com', group: 'fund', iconUrls: ['https://zos.alipayobjects.com/rmsportal/uAkGrrhlPyyCHzPzssfS.ico', 'https://i.alipayobjects.com/common/favicon/favicon.ico'], keywords: ['蚂蚁', '支付宝', 'alipay', 'antfortune', '蚂蚁基金', '余额宝'] },
   { id: 'qieman', label: '且慢', domain: 'qieman.com', group: 'fund', keywords: ['qieman', '且慢基金', '盈米且慢', '长赢'] },
   { id: 'licaitong', label: '微信理财通', domain: 'txfund.com', group: 'fund', keywords: ['理财通', '微信', 'wechat', 'txfund', '腾讯理财', '腾安基金'] },
   { id: 'jdjr', label: '京东金融', domain: 'jr.jd.com', group: 'fund', keywords: ['京东', 'jd', '京东金融', '京东基金', 'jdjr'] },
@@ -180,20 +182,24 @@ function brokerIconHosts(domain: string): string[] {
 
 /** 券商 favicon 候选地址（按优先级，国内网络友好；不含 Google）。 */
 export function getBrokerIconCandidates(id: AccountBroker): string[] {
-  const domain = getBrokerMeta(id).domain;
-  if (!domain) return [];
+  const meta = getBrokerMeta(id);
+  const domain = meta.domain;
+  if (!domain && !meta.iconUrls?.length) return [];
 
-  const urls: string[] = [];
-  for (const host of brokerIconHosts(domain)) {
-    urls.push(`https://${host}/favicon.ico`, `https://${host}/favicon.png`);
+  const urls: string[] = [...(meta.iconUrls ?? [])];
+  if (domain) {
+    for (const host of brokerIconHosts(domain)) {
+      urls.push(`https://${host}/favicon.ico`, `https://${host}/favicon.png`);
+    }
+    urls.push(`https://icons.duckduckgo.com/ip3/${domain}.ico`);
   }
-  urls.push(`https://icons.duckduckgo.com/ip3/${domain}.ico`);
   return urls;
 }
 
 /** 通过主进程 app-asset 协议加载券商 favicon（本地缓存 + 多源拉取）。 */
 export function getBrokerIconAssetUrl(id: AccountBroker): string | null {
-  if (!getBrokerMeta(id).domain) return null;
+  const meta = getBrokerMeta(id);
+  if (!meta.domain && !meta.iconUrls?.length) return null;
   return `app-asset://broker-icon/${id}`;
 }
 

@@ -422,6 +422,14 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
   );
 
   ipcMain.handle(
+    ipcChannels.portfolioGetPnlCalendar,
+    (event, input: { accountId?: string; month?: string }) => {
+      assertTrustedSender(event, window);
+      return service.request('portfolio.getPnlCalendar', input);
+    },
+  );
+
+  ipcMain.handle(
     ipcChannels.portfolioUpdateLedgerEntry,
     (event, input: { id: string; input: Record<string, unknown> }) => {
       assertTrustedSender(event, window);

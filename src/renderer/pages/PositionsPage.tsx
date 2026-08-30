@@ -5,6 +5,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   HistoryOutlined,
+  CalendarOutlined,
   MoreOutlined,
   ReloadOutlined,
   PlusOutlined,
@@ -370,6 +371,9 @@ export function PositionsPage(): React.JSX.Element {
           </Button>
           <Link to={routePaths.positionHistory}>
             <Button icon={<HistoryOutlined />}>历史持仓</Button>
+          </Link>
+          <Link to={routePaths.positionPnlCalendar}>
+            <Button icon={<CalendarOutlined />}>收益日历</Button>
           </Link>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setLedgerOpen(true)}>
             录入流水

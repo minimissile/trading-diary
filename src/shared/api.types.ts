@@ -476,6 +476,10 @@ export interface DesktopApi {
       accountId?: string,
       year?: number,
     ) => Promise<import('./portfolio/types').PortfolioRealizedHistoryView>;
+    getPnlCalendar: (
+      accountId?: string,
+      month?: string,
+    ) => Promise<import('./portfolio/types').PortfolioPnlCalendarView>;
     updateLedgerEntry: (
       id: string,
       input: import('./portfolio/types').UpdatePortfolioLedgerInput,

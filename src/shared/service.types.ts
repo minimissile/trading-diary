@@ -296,6 +296,10 @@ export interface ServiceContract {
     params: { accountId?: string; year?: number };
     result: import('./portfolio/types').PortfolioRealizedHistoryView;
   };
+  'portfolio.getPnlCalendar': {
+    params: { accountId?: string; month?: string };
+    result: import('./portfolio/types').PortfolioPnlCalendarView;
+  };
   'portfolio.updateLedgerEntry': {
     params: { id: string; input: import('./portfolio/types').UpdatePortfolioLedgerInput };
     result: import('./portfolio/types').PortfolioLedgerEntry;

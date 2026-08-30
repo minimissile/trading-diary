@@ -9,6 +9,7 @@ import { PlaybookPage } from '../pages/PlaybookPage';
 import { JournalPage } from '../pages/JournalPage';
 import { PositionsPage } from '../pages/PositionsPage';
 import { PositionHistoryPage } from '../pages/PositionHistoryPage';
+import { PnlCalendarPage } from '../pages/PnlCalendarPage';
 import { AccountsPage } from '../pages/AccountsPage';
 import { WatchlistPage } from '../pages/WatchlistPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
@@ -30,6 +31,7 @@ export function AppRouter(): React.JSX.Element {
           <Route path={routePaths.watchlist} element={<WatchlistPage />} />
           <Route path={routePaths.positions} element={<PositionsPage />} />
           <Route path={routePaths.positionHistory} element={<PositionHistoryPage />} />
+          <Route path={routePaths.positionPnlCalendar} element={<PnlCalendarPage />} />
           <Route path={routePaths.positionChart} element={<SymbolChartPage />} />
           <Route path={routePaths.dividends} element={<DividendsPage />} />
           <Route path={routePaths.accounts} element={<AccountsPage />} />

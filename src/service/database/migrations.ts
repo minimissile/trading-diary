@@ -443,4 +443,30 @@ export const migrations: readonly Migration[] = [
       ) STRICT;
     `,
   },
+  {
+    version: 16,
+    name: 'market_daily_bars',
+    sql: `
+      CREATE TABLE market_daily_bars (
+        symbol TEXT NOT NULL,
+        trade_date TEXT NOT NULL,
+        close_micros INTEGER NOT NULL,
+        prev_close_micros INTEGER,
+        kind TEXT NOT NULL,
+        fetched_at TEXT NOT NULL,
+        PRIMARY KEY (symbol, trade_date)
+      ) STRICT;
+
+      CREATE INDEX market_daily_bars_date_idx ON market_daily_bars(trade_date);
+
+      CREATE TABLE market_bar_sync_meta (
+        symbol TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        earliest_date TEXT NOT NULL,
+        latest_date TEXT NOT NULL,
+        last_synced_at TEXT NOT NULL,
+        bar_count INTEGER NOT NULL
+      ) STRICT;
+    `,
+  },
 ];
