@@ -11,7 +11,7 @@ interface DividendGoalPanelProps {
 }
 
 function GoalProgressItem({ progress }: { progress: DividendGoalProgressView }): React.JSX.Element {
-  const barWidth = Math.min(Math.max(progress.progressPercent, progress.reached ? 100 : 2), 100);
+  const barWidth = progress.reached ? 100 : Math.min(progress.progressPercent, 100);
 
   return (
     <article className={`portfolio-dividend-goal-item${progress.reached ? ' portfolio-dividend-goal-item--reached' : ''}`}>
@@ -23,7 +23,7 @@ function GoalProgressItem({ progress }: { progress: DividendGoalProgressView }):
         <span>
           当前 <ValueDisplay kind="currency" value={progress.currentAmount} />
         </span>
-        <strong>{progress.progressPercent}%</strong>
+        <ValueDisplay as="strong" kind="progressPercent" value={progress.progressPercent} />
         <span>
           目标 <ValueDisplay kind="currency" value={progress.targetAmount} />
         </span>

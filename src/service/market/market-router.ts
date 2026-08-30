@@ -115,6 +115,7 @@ export async function getQuotesMulti(
   items: Array<{ symbol: string; venue?: InstrumentVenue }>,
 ): Promise<MarketQuote[]> {
   const cnSymbols: string[] = [];
+  const otcSymbols: string[] = [];
   const offshoreItems: Array<{ venue: Extract<InstrumentVenue, 'HK' | 'US'>; symbol: string }> = [];
   const yahooFallbackItems: Array<{ venue: Extract<InstrumentVenue, 'HK' | 'US'>; symbol: string }> = [];
 
@@ -126,17 +127,29 @@ export async function getQuotesMulti(
       cnSymbols.push(normalizeSymbol(item.symbol));
       continue;
     }
-    if (isOffshoreVenue(parsed.venue)) {
+    if (parsed.venue === 'OTC') {
+      otcSymbols.push(parsed.symbol);
+    } else if (isOffshoreVenue(parsed.venue)) {
       offshoreItems.push({ venue: parsed.venue, symbol: parsed.symbol });
     } else {
       cnSymbols.push(parsed.symbol);
     }
   }
 
-  const [cnQuotes, offshoreQuotes] = await Promise.all([
+  const [cnQuotes, otcQuotes, offshoreQuotes] = await Promise.all([
     cnSymbols.length > 0
       ? import('./eastmoney/quote-service').then((mod) => mod.getQuotes(cnSymbols))
       : Promise.resolve([]),
+    Promise.all(
+      otcSymbols.map(async (symbol) => {
+        try {
+          const { getQuote } = await import('./eastmoney/quote-service');
+          return await getQuote(symbol);
+        } catch {
+          return null;
+        }
+      }),
+    ).then((quotes) => quotes.filter((item): item is MarketQuote => item !== null)),
     offshoreItems.length > 0
       ? import('./eastmoney/quote-service')
           .then((mod) => mod.getQuotesByVenue(offshoreItems))
@@ -164,5 +177,5 @@ export async function getQuotesMulti(
     return enrichEastMoneyQuote(quote, venue);
   });
 
-  return [...enrichedCn, ...offshoreQuotes, ...yahooQuotes];
+  return [...enrichedCn, ...otcQuotes, ...offshoreQuotes, ...yahooQuotes];
 }

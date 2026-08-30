@@ -182,6 +182,7 @@ export class SipService {
       accountId: plan.accountId,
       symbol: plan.symbol,
       kind: plan.kind,
+      venue: plan.kind === 'otc_fund' ? 'OTC' : undefined,
       side: 'buy',
       quantity,
       price: input.nav,

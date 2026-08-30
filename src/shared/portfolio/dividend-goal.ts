@@ -104,7 +104,7 @@ function buildDividendGoalProgress(
     currentAmount,
     targetAmount,
     progress,
-    progressPercent: Math.min(Math.round(progress * 100), 999),
+    progressPercent: Math.min(progress * 100, 999),
     remaining: Math.max(targetAmount - currentAmount, 0),
     reached: currentAmount >= targetAmount,
     year: input.year,

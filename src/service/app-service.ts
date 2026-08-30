@@ -254,6 +254,21 @@ export class AppService {
         return this.portfolioService.getDividendGoal(request.params.accountId);
       case 'portfolio.saveDividendGoal':
         return this.portfolioService.saveDividendGoal(request.params.accountId, request.params.settings);
+      case 'portfolio.getDividendPayoutDefault':
+        return this.portfolioService.getDividendPayoutDefault(
+          request.params.accountId,
+          request.params.symbol,
+        );
+      case 'portfolio.setDividendPayoutMode':
+        return this.portfolioService.setDividendPayoutMode(
+          request.params.id,
+          request.params.payoutMode,
+          {
+            setDefault: request.params.setDefault,
+            accountId: request.params.accountId,
+            year: request.params.year,
+          },
+        );
       case 'license.getStatus':
         return this.licenseService.getStatus();
       case 'license.activate':

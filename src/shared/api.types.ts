@@ -505,6 +505,17 @@ export interface DesktopApi {
       accountId: string | undefined,
       settings: import('./portfolio/dividend-goal').DividendGoalSettings | null,
     ) => Promise<import('./portfolio/dividend-goal').DividendGoalSettings | null>;
+    getDividendPayoutDefault: (
+      accountId: string,
+      symbol: string,
+    ) => Promise<import('./portfolio/dividend-payout').DividendPayoutMode | null>;
+    setDividendPayoutMode: (
+      id: string,
+      payoutMode: import('./portfolio/dividend-payout').DividendPayoutMode,
+      setDefault?: boolean,
+      accountId?: string,
+      year?: number,
+    ) => Promise<import('./portfolio/types').PortfolioDividendRecord[]>;
   };
   license: {
     getStatus: () => Promise<import('./license/types').LicenseStatus>;

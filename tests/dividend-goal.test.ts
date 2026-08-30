@@ -52,4 +52,12 @@ describe('dividend goal', () => {
     expect(progressList[1]?.kind).toBe('daily');
     expect(progressList[1]?.reached).toBe(true);
   });
+
+  it('keeps fractional progress percent', () => {
+    const [progress] = computeDividendGoalProgressList(
+      { ytdTarget: 1000, dailyTarget: null },
+      { ytdReceived: 251, dailyAverage: 2, year: 2026 },
+    );
+    expect(progress?.progressPercent).toBeCloseTo(25.1, 5);
+  });
 });

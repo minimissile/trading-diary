@@ -623,4 +623,13 @@ export const migrations: readonly Migration[] = [
       ALTER TABLE fee_profiles ADD COLUMN us_commission_per_share REAL;
     `,
   },
+  {
+    version: 21,
+    name: 'dividend_payout_mode',
+    sql: `
+      ALTER TABLE portfolio_dividends ADD COLUMN payout_mode TEXT NOT NULL DEFAULT 'cash'
+        CHECK (payout_mode IN ('cash','reinvest'));
+      ALTER TABLE portfolio_dividends ADD COLUMN reinvest_ledger_id TEXT;
+    `,
+  },
 ];

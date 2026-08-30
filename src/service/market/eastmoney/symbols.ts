@@ -118,7 +118,7 @@ export function parseEastMoneyDate(value: unknown): string | null {
   if (typeof value !== 'string' || value.trim().length === 0) return null;
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toISOString();
+  return parsed.toISOString().slice(0, 10);
 }
 
 export function scalePrice(value: unknown): number | null {

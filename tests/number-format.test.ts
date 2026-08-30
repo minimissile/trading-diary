@@ -47,9 +47,11 @@ describe('display presets', () => {
       'price',
       'priceStock',
       'priceFund',
+      'priceList',
       'quantity',
       'quantityShares',
       'percent',
+      'progressPercent',
     ]);
   });
 
@@ -80,6 +82,12 @@ describe('display presets', () => {
     expect(formatWithPreset(1.002, 'priceFund')).toBe('1.002');
   });
 
+  it('formats position list price with fixed 3 decimals', () => {
+    expect(formatWithPreset(8.77, 'priceList')).toBe('8.770');
+    expect(formatWithPreset(0.6647, 'priceList')).toBe('0.665');
+    expect(formatWithPreset(1.1611, 'priceList')).toBe('1.161');
+  });
+
   it('formats quantity presets by asset type', () => {
     expect(formatWithPreset(500, 'quantityShares')).toBe('500');
     expect(formatWithPreset(87.03, 'quantity')).toBe('87.03');
@@ -89,10 +97,17 @@ describe('display presets', () => {
     expect(formatWithPreset(1.234, 'percent')).toBe('+1.23%');
   });
 
+  it('formats progress percent preset with fixed 2 decimals', () => {
+    expect(formatWithPreset(25, 'progressPercent')).toBe('25.00%');
+    expect(formatWithPreset(0, 'progressPercent')).toBe('0.00%');
+    expect(formatWithPreset(33.333, 'progressPercent')).toBe('33.33%');
+  });
+
   it('maps animation decimal places to preset precision', () => {
     expect(animationDecimalPlacesForPreset('pnl')).toBe(2);
     expect(animationDecimalPlacesForPreset('priceStock')).toBe(2);
     expect(animationDecimalPlacesForPreset('priceFund')).toBe(4);
+    expect(animationDecimalPlacesForPreset('priceList')).toBe(3);
     expect(animationDecimalPlacesForPreset('quantityShares')).toBe(0);
   });
 });

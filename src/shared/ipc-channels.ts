@@ -65,6 +65,8 @@ export const ipcChannels = {
   portfolioSyncMarketQuotes: 'desktop:portfolio:sync-market-quotes',
   portfolioGetDividendGoal: 'desktop:portfolio:get-dividend-goal',
   portfolioSaveDividendGoal: 'desktop:portfolio:save-dividend-goal',
+  portfolioGetDividendPayoutDefault: 'desktop:portfolio:get-dividend-payout-default',
+  portfolioSetDividendPayoutMode: 'desktop:portfolio:set-dividend-payout-mode',
   licenseGetStatus: 'desktop:license:get-status',
   licenseActivate: 'desktop:license:activate',
   accountsList: 'desktop:accounts:list',

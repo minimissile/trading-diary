@@ -16,9 +16,11 @@ export type DisplayPresetKind =
   | 'price'
   | 'priceStock'
   | 'priceFund'
+  | 'priceList'
   | 'quantity'
   | 'quantityShares'
-  | 'percent';
+  | 'percent'
+  | 'progressPercent';
 
 export interface DisplayPreset {
   /** 是否为货币（加 ¥ 前缀）。 */
@@ -81,6 +83,15 @@ export const DISPLAY_PRESETS: Readonly<Record<DisplayPresetKind, DisplayPreset>>
       trimTrailingZeros: true,
     },
   },
+  /** 持仓列表成本/现价：固定 3 位小数。 */
+  priceList: {
+    number: {
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 3,
+      useGrouping: false,
+      trimTrailingZeros: false,
+    },
+  },
   /** 场外基金份额：最多 4 位小数，去末尾零。 */
   quantity: {
     number: {
@@ -105,6 +116,15 @@ export const DISPLAY_PRESETS: Readonly<Record<DisplayPresetKind, DisplayPreset>>
     number: {
       maximumFractionDigits: 2,
       trimTrailingZeros: true,
+    },
+  },
+  /** 完成进度：固定 2 位小数 + %，无符号、无涨跌色。 */
+  progressPercent: {
+    suffix: '%',
+    number: {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+      trimTrailingZeros: false,
     },
   },
 };

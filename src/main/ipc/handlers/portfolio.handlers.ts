@@ -147,4 +147,26 @@ export function registerPortfolioHandlers({ window, service, updater }: IpcHandl
     },
   );
 
+  ipcMain.handle(
+    ipcChannels.portfolioGetDividendPayoutDefault,
+    (event, input: { accountId: string; symbol: string }) => {
+      assertTrustedSender(event, window);
+      return service.request('portfolio.getDividendPayoutDefault', input);
+    },
+  );
+
+  ipcMain.handle(
+    ipcChannels.portfolioSetDividendPayoutMode,
+    (event, input: {
+      id: string;
+      payoutMode: 'cash' | 'reinvest';
+      setDefault?: boolean;
+      accountId?: string;
+      year?: number;
+    }) => {
+      assertTrustedSender(event, window);
+      return service.request('portfolio.setDividendPayoutMode', input);
+    },
+  );
+
 }

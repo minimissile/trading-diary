@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { app, dialog, ipcMain, shell } from 'electron';
 import type {
   CreateTradeAlertInput,

@@ -343,6 +343,20 @@ export interface ServiceContract {
     };
     result: import('./portfolio/dividend-goal').DividendGoalSettings | null;
   };
+  'portfolio.getDividendPayoutDefault': {
+    params: { accountId: string; symbol: string };
+    result: import('./portfolio/dividend-payout').DividendPayoutMode | null;
+  };
+  'portfolio.setDividendPayoutMode': {
+    params: {
+      id: string;
+      payoutMode: import('./portfolio/dividend-payout').DividendPayoutMode;
+      setDefault?: boolean;
+      accountId?: string;
+      year?: number;
+    };
+    result: PortfolioDividendRecord[];
+  };
   'license.getStatus': {
     params: Record<string, never>;
     result: LicenseStatus;

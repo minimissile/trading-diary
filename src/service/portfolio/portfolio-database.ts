@@ -7,6 +7,7 @@ import { parseInstrumentInput } from '../../shared/market/instrument-id';
 import { isAllAccountsId } from '../../shared/accounts/constants';
 import type {
   CreatePortfolioLedgerInput,
+  DividendPayoutMode,
   DividendRecordSource,
   DividendRecordStatus,
   PortfolioDividendRecord,
@@ -69,6 +70,8 @@ interface PortfolioDividendRow {
   status: DividendRecordStatus;
   source: DividendRecordSource;
   external_event_key: string;
+  payout_mode: DividendPayoutMode;
+  reinvest_ledger_id: string | null;
   confirmed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -87,6 +90,7 @@ export interface UpsertPortfolioDividendInput {
   status: DividendRecordStatus;
   source: DividendRecordSource;
   externalEventKey: string;
+  payoutMode?: DividendPayoutMode;
 }
 
 export class PortfolioDatabase {
@@ -415,8 +419,9 @@ export class PortfolioDatabase {
         `INSERT INTO portfolio_dividends (
           id, account_id, symbol, kind, ex_dividend_date, record_date, pay_date,
           cash_per_share_micros, eligible_quantity_micros, cash_amount_cents,
-          status, source, external_event_key, confirmed_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+          status, source, external_event_key, payout_mode, reinvest_ledger_id,
+          confirmed_at, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?)`,
       )
       .run(
         id,
@@ -432,9 +437,30 @@ export class PortfolioDatabase {
         input.status,
         input.source,
         input.externalEventKey,
+        input.payoutMode ?? 'cash',
         now,
         now,
       );
+    return this.getDividend(id);
+  }
+
+  getDividendById(id: string): PortfolioDividendRecord {
+    return this.getDividend(id);
+  }
+
+  setDividendPayoutMode(id: string, payoutMode: DividendPayoutMode): PortfolioDividendRecord {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(`UPDATE portfolio_dividends SET payout_mode = ?, updated_at = ? WHERE id = ?`)
+      .run(payoutMode, now, id);
+    return this.getDividend(id);
+  }
+
+  setDividendReinvestLedgerId(id: string, reinvestLedgerId: string | null): PortfolioDividendRecord {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(`UPDATE portfolio_dividends SET reinvest_ledger_id = ?, updated_at = ? WHERE id = ?`)
+      .run(reinvestLedgerId, now, id);
     return this.getDividend(id);
   }
 
@@ -515,6 +541,8 @@ export class PortfolioDatabase {
       cashAmount: fromScaledInteger(row.cash_amount_cents, MONEY_SCALE),
       status: row.status,
       source: row.source,
+      payoutMode: row.payout_mode ?? 'cash',
+      reinvestLedgerId: row.reinvest_ledger_id ?? null,
     };
   }
 

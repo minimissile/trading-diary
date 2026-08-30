@@ -594,6 +594,29 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
   }),
   z.object({
     id: z.uuid(),
+    method: z.literal('portfolio.getDividendPayoutDefault'),
+    params: z
+      .object({
+        accountId: z.string().trim().min(1).max(64),
+        symbol: symbolSchema,
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('portfolio.setDividendPayoutMode'),
+    params: z
+      .object({
+        id: z.uuid(),
+        payoutMode: z.enum(['cash', 'reinvest']),
+        setDefault: z.boolean().optional(),
+        accountId: z.string().trim().min(1).max(64).optional(),
+        year: z.number().int().min(2000).max(2100).optional(),
+      })
+      .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
     method: z.literal('license.getStatus'),
     params: z.object({}).strict(),
   }),

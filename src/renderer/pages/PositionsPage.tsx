@@ -15,7 +15,7 @@ import { Link, useNavigate } from 'react-router';
 import type { InstrumentKind } from '../../shared/market/types';
 import type { PortfolioPositionView, PortfolioSummaryView } from '../../shared/portfolio/types';
 import { ALL_ACCOUNTS_ID } from '../../shared/accounts/constants';
-import { pricePresetForKind, quantityPresetForKind } from '../../shared/format/display-presets';
+import { quantityPresetForKind } from '../../shared/format/display-presets';
 import { PortfolioLedgerModal } from '../components/trading/PortfolioLedgerModal';
 import { PositionLedgerDrawer } from '../components/trading/PositionLedgerDrawer';
 import { PositionSellModal } from '../components/trading/PositionSellModal';
@@ -205,9 +205,7 @@ export function PositionsPage(): React.JSX.Element {
         dataIndex: 'avgPrice',
         width: 96,
         align: 'right',
-        render: (value: number, row) => (
-          <ValueDisplay kind={pricePresetForKind(row.kind)} value={value} />
-        ),
+        render: (value: number) => <ValueDisplay kind="priceList" value={value} />,
       },
       {
         title: '现价',
@@ -220,7 +218,7 @@ export function PositionsPage(): React.JSX.Element {
           ) : (
             <AnimatedValueDisplay
               cacheKey={`positions:${accountId}:${row.symbol}:marketPrice`}
-              kind={pricePresetForKind(row.kind)}
+              kind="priceList"
               value={row.marketPrice}
             />
           ),

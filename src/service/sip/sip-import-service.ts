@@ -346,6 +346,7 @@ export class SipImportService {
           accountId,
           symbol: value.symbol,
           kind: instrument.kind as InstrumentKind,
+          venue: instrument.kind === 'otc_fund' ? 'OTC' : instrument.venue,
           side: 'buy',
           quantity: value.quantity,
           price: value.nav,

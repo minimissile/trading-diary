@@ -27,6 +27,11 @@ import { ValueDisplay } from '../lib/trading-format';
 import { AccountSelect } from '../components/trading/AccountSelect';
 import { DividendGoalModal } from '../components/trading/DividendGoalModal';
 import { DividendGoalPanel } from '../components/trading/DividendGoalPanel';
+import { DividendPayoutModeModal } from '../components/trading/DividendPayoutModeModal';
+import {
+  dividendPayoutModeLabel,
+  supportsDividendPayoutMode,
+} from '../../shared/portfolio/dividend-payout';
 
 type DividendsTab = 'overview' | 'calendar' | 'dividends';
 
@@ -51,6 +56,7 @@ export function DividendsPage(): React.JSX.Element {
   const [accountLabels, setAccountLabels] = useState<Map<string, string>>(new Map());
   const [goalSettings, setGoalSettings] = useState<DividendGoalSettings | null>(null);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
+  const [payoutRecord, setPayoutRecord] = useState<PortfolioDividendRecord | null>(null);
   const allAccountsView = isAllAccountsId(accountId);
 
   useEffect(() => {
@@ -171,6 +177,19 @@ export function DividendsPage(): React.JSX.Element {
         width: 108,
         align: 'right',
         render: (value: number) => <ValueDisplay kind="currency" value={value} />,
+      },
+      {
+        title: '分红方式',
+        dataIndex: 'payoutMode',
+        width: 108,
+        render: (mode: PortfolioDividendRecord['payoutMode'], row) =>
+          supportsDividendPayoutMode(row.kind) ? (
+            <Button type="link" size="small" className="portfolio-dividend-payout-link" onClick={() => setPayoutRecord(row)}>
+              <Tag color={mode === 'reinvest' ? 'purple' : 'default'}>{dividendPayoutModeLabel(mode)}</Tag>
+            </Button>
+          ) : (
+            <Tag>{dividendPayoutModeLabel('cash')}</Tag>
+          ),
       },
       {
         title: '状态',
@@ -332,7 +351,7 @@ export function DividendsPage(): React.JSX.Element {
               pagination={false}
               rowKey="id"
               size="small"
-              scroll={{ x: 900 }}
+              scroll={{ x: 1020 }}
             />
           ) : null}
 
@@ -391,7 +410,7 @@ export function DividendsPage(): React.JSX.Element {
                 pagination={{ pageSize: 20 }}
                 rowKey="id"
                 size="small"
-                scroll={{ x: 900 }}
+                scroll={{ x: 1020 }}
               />
             )
           ) : null}
@@ -404,6 +423,18 @@ export function DividendsPage(): React.JSX.Element {
         settings={goalSettings}
         onClose={() => setGoalModalOpen(false)}
         onSaved={setGoalSettings}
+      />
+
+      <DividendPayoutModeModal
+        open={payoutRecord !== null}
+        record={payoutRecord}
+        listAccountId={accountId}
+        year={summary?.year ?? new Date().getFullYear()}
+        onClose={() => setPayoutRecord(null)}
+        onSaved={(records) => {
+          setDividends(records);
+          void window.desktop.portfolio.getSummary(accountId, summary?.year ?? new Date().getFullYear()).then(setSummary);
+        }}
       />
     </main>
   );

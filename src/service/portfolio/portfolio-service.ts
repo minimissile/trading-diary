@@ -15,6 +15,13 @@ import type {
 import { isAllAccountsId, ALL_ACCOUNTS_ID } from '../../shared/accounts/constants';
 import type { DividendGoalSettings } from '../../shared/portfolio/dividend-goal';
 import { dividendGoalStorageKey, normalizeDividendGoalSettings } from '../../shared/portfolio/dividend-goal';
+import type { DividendPayoutMode } from '../../shared/portfolio/dividend-payout';
+import {
+  dividendPayoutModeStorageKey,
+  normalizeDividendPayoutMode,
+  resolveDividendPayoutMode,
+  supportsDividendPayoutMode,
+} from '../../shared/portfolio/dividend-payout';
 import { currentMonthPrefix, pnlCalendarWindowEnd, pnlCalendarWindowStart } from '../../shared/portfolio/pnl-calendar-window';
 import type { InstrumentKind } from '../../shared/market/types';
 import type { FeeProfileRates } from '../../shared/accounts/types';
@@ -27,6 +34,7 @@ import { quoteCurrencyForVenue } from '../../shared/market/venues';
 import { normalizeSymbol } from '../market/eastmoney/symbols';
 import { marketService } from '../market/market-service';
 import { buildProjectedDividends, matchDividendEvent } from './dividend-matcher';
+import { buildDividendReinvestPlan } from './dividend-reinvest';
 import {
   buildDividendCalendar,
   buildPortfolioSummary,
@@ -56,7 +64,10 @@ export class PortfolioService {
     if (aggregates.length === 0) return [];
 
     const quotes = await marketService.getQuotes(
-      aggregates.map((item) => ({ symbol: item.symbol, venue: item.venue })),
+      aggregates.map((item) => ({
+        symbol: item.symbol,
+        venue: item.kind === 'otc_fund' ? 'OTC' : item.venue,
+      })),
     );
     const quoteMap = new Map(
       quotes.map((quote) => [instrumentPositionKey({ venue: quote.venue, symbol: quote.symbol }), quote]),
@@ -98,7 +109,11 @@ export class PortfolioService {
 
     return aggregates.map((position) => {
       const posKey = instrumentPositionKey(position);
-      const quote = quoteMap.get(posKey);
+      const quoteKey = instrumentPositionKey({
+        symbol: position.symbol,
+        venue: position.kind === 'otc_fund' ? 'OTC' : position.venue,
+      });
+      const quote = quoteMap.get(quoteKey);
       const marketPrice = quote?.price ?? quote?.nav ?? null;
       const marketValue = marketPrice === null ? null : marketPrice * position.quantity;
       const symbolDividends = dividends.filter(
@@ -135,12 +150,16 @@ export class PortfolioService {
 
       const cachedFundProfile = fundProfileMap.get(normalizeSymbol(position.symbol));
       const fundProfile = cachedFundProfile ? buildFundProfileSummary(cachedFundProfile.profile) : null;
+      const fundProfileName =
+        typeof cachedFundProfile?.profile.SHORTNAME === 'string'
+          ? cachedFundProfile.profile.SHORTNAME
+          : null;
 
       return {
         symbol: position.symbol,
         venue: position.venue,
         quoteCurrency: quote?.quoteCurrency ?? quoteCurrencyForVenue(position.venue),
-        name: quote?.name ?? position.symbol,
+        name: quote?.name ?? fundProfileName ?? position.symbol,
         kind: position.kind,
         quantity: position.quantity,
         avgPrice: position.avgPrice,
@@ -361,10 +380,106 @@ export class PortfolioService {
     accountId?: string,
     year = new Date().getFullYear(),
   ): Promise<PortfolioDividendRecord[]> {
+    const portfolio = this.database.portfolio;
     const status = confirmed ? 'confirmed' : 'rejected';
     const cents = cashAmount === undefined ? undefined : Math.round(cashAmount * 100);
-    this.database.portfolio.setDividendStatus(id, status, cents);
+    let record = portfolio.setDividendStatus(id, status, cents);
+    if (confirmed && record.payoutMode === 'reinvest') {
+      record = await this.syncDividendReinvestLedger(record);
+    } else if (!confirmed && record.reinvestLedgerId) {
+      portfolio.deleteLedgerEntry(record.reinvestLedgerId);
+      record = portfolio.setDividendReinvestLedgerId(record.id, null);
+    }
     return this.listDividends(accountId, year);
+  }
+
+  getDividendPayoutDefault(accountId: string, symbol: string): DividendPayoutMode | null {
+    const resolvedAccountId = this.database.portfolio.resolveAccountId(accountId);
+    const key = dividendPayoutModeStorageKey(resolvedAccountId, symbol);
+    return normalizeDividendPayoutMode(this.database.portfolio.getPreference(key));
+  }
+
+  async setDividendPayoutMode(
+    id: string,
+    payoutMode: DividendPayoutMode,
+    options?: { setDefault?: boolean; accountId?: string; year?: number },
+  ): Promise<PortfolioDividendRecord[]> {
+    const portfolio = this.database.portfolio;
+    const record = portfolio.getDividendById(id);
+    if (!supportsDividendPayoutMode(record.kind)) {
+      throw new Error('该标的不支持切换分红方式');
+    }
+    if (record.payoutMode === payoutMode && !options?.setDefault) {
+      return this.listDividends(options?.accountId, options?.year ?? new Date().getFullYear());
+    }
+
+    let updated = portfolio.setDividendPayoutMode(id, payoutMode);
+    updated = await this.syncDividendReinvestLedger(updated);
+
+    if (options?.setDefault) {
+      const key = dividendPayoutModeStorageKey(updated.accountId, updated.symbol);
+      this.database.portfolio.setPreference(key, payoutMode);
+    }
+
+    return this.listDividends(options?.accountId, options?.year ?? new Date().getFullYear());
+  }
+
+  private async syncDividendReinvestLedger(record: PortfolioDividendRecord): Promise<PortfolioDividendRecord> {
+    const portfolio = this.database.portfolio;
+    const shouldReinvest = record.payoutMode === 'reinvest' && record.status === 'confirmed';
+
+    if (!shouldReinvest) {
+      if (record.reinvestLedgerId) {
+        try {
+          portfolio.deleteLedgerEntry(record.reinvestLedgerId);
+        } catch {
+          // 流水可能已被用户删除
+        }
+        return portfolio.setDividendReinvestLedgerId(record.id, null);
+      }
+      return record;
+    }
+
+    const plan = await buildDividendReinvestPlan(record);
+
+    if (record.reinvestLedgerId) {
+      await this.updateLedgerEntry(record.reinvestLedgerId, {
+        side: 'dividend_reinvest',
+        quantity: plan.quantity,
+        price: plan.price,
+        tradeAt: plan.tradeAt,
+        note: plan.note,
+      });
+      return portfolio.getDividendById(record.id);
+    }
+
+    const ledger = portfolio.addLedgerEntry({
+      accountId: record.accountId,
+      symbol: record.symbol,
+      kind: record.kind,
+      side: 'dividend_reinvest',
+      quantity: plan.quantity,
+      price: plan.price,
+      fees: 0,
+      tradeAt: plan.tradeAt,
+      note: plan.note,
+      source: 'manual',
+    });
+    return portfolio.setDividendReinvestLedgerId(record.id, ledger.id);
+  }
+
+  private async syncPendingReinvestLedgers(accountId: string): Promise<void> {
+    const records = this.database.portfolio
+      .listDividends(accountId)
+      .filter((item) => item.status === 'confirmed' && item.payoutMode === 'reinvest' && !item.reinvestLedgerId);
+
+    for (const record of records) {
+      try {
+        await this.syncDividendReinvestLedger(record);
+      } catch {
+        // 历史净值缺失时跳过，用户可在明细中手动切换触发重试
+      }
+    }
   }
 
   async refreshDividends(accountId?: string, symbol?: string): Promise<PortfolioRefreshResult> {
@@ -398,6 +513,7 @@ export class PortfolioService {
     const today = new Date().toISOString().slice(0, 10);
     const autoCutoff = shiftDate(today, -3);
     portfolio.autoConfirmPastDividends(accountId, autoCutoff);
+    const existingRows = portfolio.listDividends(accountId);
 
     let synced = 0;
     let estimated = 0;
@@ -423,7 +539,25 @@ export class PortfolioService {
           if (!match.upsert) continue;
           if (match.upsert.exDividendDate.slice(0, 4) !== String(new Date().getFullYear())) continue;
 
-          portfolio.upsertDividend(match.upsert);
+          const existing = existingRows.find(
+            (item) => item.symbol === match.upsert!.symbol && item.exDividendDate === match.upsert!.exDividendDate,
+          );
+          const payoutMode = existing
+            ? existing.payoutMode
+            : resolveDividendPayoutMode({
+                kind: match.upsert.kind,
+                event,
+                defaultMode: this.getDividendPayoutDefault(accountId, match.upsert.symbol),
+              });
+
+          const record = portfolio.upsertDividend({ ...match.upsert, payoutMode });
+          if (record.status === 'confirmed' && record.payoutMode === 'reinvest') {
+            try {
+              await this.syncDividendReinvestLedger(record);
+            } catch {
+              // 历史净值缺失时保留分红记录，稍后可手动切换重试
+            }
+          }
           synced += 1;
           if (match.upsert.status === 'estimated') estimated += 1;
         }
@@ -432,6 +566,8 @@ export class PortfolioService {
         if (result.items.length === 0) break;
       }
     }
+
+    await this.syncPendingReinvestLedgers(accountId);
 
     this.lastRefreshedAt = new Date().toISOString();
     return { synced, estimated };

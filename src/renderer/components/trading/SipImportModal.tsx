@@ -3,7 +3,6 @@ import { Alert, App, Button, Input, Modal, Segmented, Select, Space, Steps, Tabl
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FundSipPlanView } from '../../../shared/sip/types';
-import { buildSipAiImportHints, countUnmatchedReadyRows } from '../../../shared/sip/import-hints';
 import type {
   SipAiExtractedRecord,
   SipAiRecognizeResult,
@@ -407,18 +406,6 @@ export function SipImportModal({
     },
   ];
 
-  const aiImportHints = useMemo(() => {
-    if (!aiRecognize) return [];
-    const unmatchedPlanCount = preview ? countUnmatchedReadyRows(preview.rows) : 0;
-    return buildSipAiImportHints({
-      planMode: aiRecognize.planMode,
-      planModeLabel: aiRecognize.planModeLabel,
-      readyCount: preview?.readyCount ?? aiRecognize.records.length,
-      unmatchedPlanCount,
-      ledgerOnlyCount: unmatchedPlanCount,
-    });
-  }, [aiRecognize, preview]);
-
   const stepItems =
     mode === 'csv'
       ? [{ title: '选择文件' }, { title: '列映射' }, { title: '预览确认' }]
@@ -537,53 +524,12 @@ export function SipImportModal({
 
       {step === 2 && preview ? (
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          {mode === 'ai' && aiRecognize ? (
-            <>
-              <Alert
-                type={aiRecognize.planMode === 'smart' ? 'warning' : 'info'}
-                showIcon
-                title={
-                  aiRecognize.planMode === 'smart'
-                    ? `识别为${aiRecognize.planModeLabel ?? '智能定投'}，历史扣款可继续导入`
-                    : `AI 已从截图识别 ${aiRecognize.records.length} 条扣款记录`
-                }
-                description={
-                  <>
-                    模型 {aiRecognize.model} · 文件 {aiRecognize.fileName}
-                    {aiImportHints.length > 0 ? (
-                      <ul className="sip-import-ai-warnings">
-                        {aiImportHints.map((hint) => (
-                          <li key={hint}>{hint}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                    {aiEnrichments.length > 0 ? (
-                      <>
-                        <p className="sip-import-ai-subheading">自动补全</p>
-                        <ul className="sip-import-ai-warnings">
-                          {aiEnrichments.map((item) => (
-                            <li key={item}>{item}</li>
-                          ))}
-                        </ul>
-                      </>
-                    ) : null}
-                    {aiRecognize.warnings.length > 0 ? (
-                      <>
-                        <p className="sip-import-ai-subheading">识别备注</p>
-                        <ul className="sip-import-ai-warnings">
-                          {aiRecognize.warnings.map((warning) => (
-                            <li key={warning}>{warning}</li>
-                          ))}
-                        </ul>
-                      </>
-                    ) : null}
-                  </>
-                }
-              />
-              <p className="sip-import-hint">
-                识别到的字段已自动填入；若已有标的与扣款日，系统会尝试拉取历史净值。缺失项可在下表修改，补全后点击「重新预览」。
-              </p>
-            </>
+          {mode === 'ai' && aiRecognize?.planMode === 'smart' ? (
+            <Alert
+              type="warning"
+              showIcon
+              title="识别为智能定投：历史扣款可导入，本应用不支持复制智能策略"
+            />
           ) : null}
           <p>
             可导入 <strong>{preview.readyCount}</strong> 笔

@@ -177,6 +177,16 @@ const desktopApi: DesktopApi = {
     getDividendGoal: (accountId) => ipcRenderer.invoke(ipcChannels.portfolioGetDividendGoal, { accountId }),
     saveDividendGoal: (accountId, settings) =>
       ipcRenderer.invoke(ipcChannels.portfolioSaveDividendGoal, { accountId, settings }),
+    getDividendPayoutDefault: (accountId, symbol) =>
+      ipcRenderer.invoke(ipcChannels.portfolioGetDividendPayoutDefault, { accountId, symbol }),
+    setDividendPayoutMode: (id, payoutMode, setDefault, accountId, year) =>
+      ipcRenderer.invoke(ipcChannels.portfolioSetDividendPayoutMode, {
+        id,
+        payoutMode,
+        setDefault,
+        accountId,
+        year,
+      }),
   },
   license: {
     getStatus: () => ipcRenderer.invoke(ipcChannels.licenseGetStatus),

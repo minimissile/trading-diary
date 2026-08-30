@@ -6,6 +6,7 @@ export type PortfolioLedgerSide = 'buy' | 'sell' | 'dividend_reinvest';
 export type PortfolioLedgerSource = 'manual' | 'csv' | 'plan' | 'sip';
 export type DividendRecordStatus = 'estimated' | 'confirmed' | 'rejected';
 export type DividendRecordSource = 'api' | 'manual';
+export type DividendPayoutMode = 'cash' | 'reinvest';
 
 export interface CreatePortfolioLedgerInput {
   accountId?: string;
@@ -102,6 +103,8 @@ export interface PortfolioDividendRecord {
   cashAmount: number;
   status: DividendRecordStatus;
   source: DividendRecordSource;
+  payoutMode: DividendPayoutMode;
+  reinvestLedgerId: string | null;
 }
 
 export interface DividendCalendarDay {
