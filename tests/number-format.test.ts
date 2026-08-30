@@ -82,10 +82,10 @@ describe('display presets', () => {
     expect(formatWithPreset(1.002, 'priceFund')).toBe('1.002');
   });
 
-  it('formats position list price with fixed 3 decimals', () => {
-    expect(formatWithPreset(8.77, 'priceList')).toBe('8.770');
-    expect(formatWithPreset(0.6647, 'priceList')).toBe('0.665');
-    expect(formatWithPreset(1.1611, 'priceList')).toBe('1.161');
+  it('formats position list price with fixed 4 decimals', () => {
+    expect(formatWithPreset(1.3457, 'priceList')).toBe('1.3457');
+    expect(formatWithPreset(1.3513, 'priceList')).toBe('1.3513');
+    expect(formatWithPreset(0.6647, 'priceList')).toBe('0.6647');
   });
 
   it('formats quantity presets by asset type', () => {
@@ -107,7 +107,7 @@ describe('display presets', () => {
     expect(animationDecimalPlacesForPreset('pnl')).toBe(2);
     expect(animationDecimalPlacesForPreset('priceStock')).toBe(2);
     expect(animationDecimalPlacesForPreset('priceFund')).toBe(4);
-    expect(animationDecimalPlacesForPreset('priceList')).toBe(3);
+    expect(animationDecimalPlacesForPreset('priceList')).toBe(4);
     expect(animationDecimalPlacesForPreset('quantityShares')).toBe(0);
   });
 });

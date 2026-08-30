@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import dayjs from 'dayjs';
 import {
   Alert,
   App,
@@ -20,7 +21,7 @@ import type {
 } from '../../shared/api.types';
 import { ALL_ACCOUNTS_ID, isAllAccountsId } from '../../shared/accounts/constants';
 import { formatAccountSelectLabel } from '../../shared/accounts/account-display';
-import { pricePresetForKind, quantityPresetForKind } from '../../shared/format/display-presets';
+import { quantityPresetForKind } from '../../shared/format/display-presets';
 import type { DividendGoalSettings } from '../../shared/portfolio/dividend-goal';
 import { computeDividendGoalProgressList } from '../../shared/portfolio/dividend-goal';
 import { ValueDisplay } from '../lib/trading-format';
@@ -162,7 +163,7 @@ export function DividendsPage(): React.JSX.Element {
         dataIndex: 'cashPerShare',
         width: 96,
         align: 'right',
-        render: (value: number, row) => <ValueDisplay kind={pricePresetForKind(row.kind)} value={value} />,
+        render: (value: number) => <ValueDisplay kind="currency" value={value} />,
       },
       {
         title: '持有份额',
@@ -362,10 +363,19 @@ export function DividendsPage(): React.JSX.Element {
           ) : null}
 
           {tab === 'calendar' ? (
-            <div className="portfolio-calendar-wrap">
+            <div className="portfolio-calendar-wrap portfolio-dividend-calendar-wrap">
               <Calendar
                 fullscreen={false}
-                onPanelChange={(value) => {
+                mode="month"
+                value={dayjs(`${calendarMonth}-01`)}
+                headerRender={({ value }) => (
+                  <div className="portfolio-calendar-panel-head">
+                    <strong>{value.year()}年{value.month() + 1}月</strong>
+                    <span>除权日分红</span>
+                  </div>
+                )}
+                onPanelChange={(value, mode) => {
+                  if (mode !== 'month') return;
                   const month = `${value.year()}-${String(value.month() + 1).padStart(2, '0')}`;
                   setCalendarMonth(month);
                   void window.desktop.portfolio.getDividendCalendar(accountId, month).then(setCalendarDays);
@@ -375,21 +385,15 @@ export function DividendsPage(): React.JSX.Element {
                   const key = current.format('YYYY-MM-DD');
                   const items = calendarCellMap.get(key);
                   if (!items?.length) return null;
-                  const total = items.reduce((sum, item) => sum + item.cashAmount, 0);
                   return (
-                    <ul className="portfolio-calendar-cell">
+                    <ul className="portfolio-calendar-cell portfolio-dividend-calendar-cell">
                       {items.slice(0, 2).map((item, index) => (
                         <li key={`${item.accountId ?? 'all'}-${item.symbol}-${item.status}-${index}`}>
-                          {allAccountsView && item.accountId
-                            ? `${accountLabels.get(item.accountId) ?? item.accountId} · `
-                            : ''}
-                          {item.name} <ValueDisplay kind="currency" value={item.cashAmount} />
+                          {item.name}{' '}
+                          <ValueDisplay kind="currency" value={item.cashAmount} />
                         </li>
                       ))}
                       {items.length > 2 ? <li>+{items.length - 2} 条</li> : null}
-                      <li className="portfolio-calendar-total">
-                        <ValueDisplay kind="currency" value={total} />
-                      </li>
                     </ul>
                   );
                 }}

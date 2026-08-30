@@ -1057,6 +1057,37 @@
   background: var(--td-color-surface);
 }
 
+.portfolio-calendar-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 4px 12px;
+}
+
+.portfolio-calendar-panel-head strong {
+  font-size: 15px;
+}
+
+.portfolio-calendar-panel-head span {
+  color: var(--td-color-ink-tertiary);
+  font-size: 12px;
+}
+
+.portfolio-dividend-calendar-wrap .ant-picker-calendar-mode-switch {
+  display: none;
+}
+
+.portfolio-dividend-calendar-wrap .ant-picker-calendar-header .ant-select {
+  display: none;
+}
+
+.portfolio-dividend-calendar-cell li {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .portfolio-calendar-wrap .ant-picker-calendar {
   background: transparent;
 }

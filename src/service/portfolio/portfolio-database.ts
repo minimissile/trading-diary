@@ -456,6 +456,27 @@ export class PortfolioDatabase {
     return this.getDividend(id);
   }
 
+  updateDividendEligibleAmount(
+    id: string,
+    eligibleQuantity: number,
+    cashAmount: number,
+  ): PortfolioDividendRecord {
+    const now = new Date().toISOString();
+    this.db
+      .prepare(
+        `UPDATE portfolio_dividends
+         SET eligible_quantity_micros = ?, cash_amount_cents = ?, updated_at = ?
+         WHERE id = ?`,
+      )
+      .run(
+        toScaledInteger(eligibleQuantity, QUANTITY_SCALE),
+        toScaledInteger(cashAmount, MONEY_SCALE),
+        now,
+        id,
+      );
+    return this.getDividend(id);
+  }
+
   setDividendReinvestLedgerId(id: string, reinvestLedgerId: string | null): PortfolioDividendRecord {
     const now = new Date().toISOString();
     this.db

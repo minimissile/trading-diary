@@ -125,3 +125,49 @@ export function daysElapsedInYear(year: number, now = new Date()): number {
   const ms = end.getTime() - start.getTime();
   return Math.max(1, Math.floor(ms / 86_400_000) + 1);
 }
+
+/**
+ * 场外基金「持有单价」口径（对齐支付宝/天天基金）：
+ * (累计现金申购 − 已到账现金分红) ÷ 当前份额；红利再投只增份额、不增成本基数。
+ */
+export function computeOtcFundHoldMetrics(
+  entries: readonly PortfolioLedgerEntry[],
+  cashDividendsReceived: number,
+): { holdPrice: number; totalCost: number; cashInvested: number } {
+  const sorted = sortedEntries(entries);
+  let cashInvested = 0;
+  let quantity = 0;
+
+  for (const entry of sorted) {
+    if (entry.side === 'buy') {
+      cashInvested += entry.quantity * entry.price + entry.fees;
+      quantity += entry.quantity;
+      continue;
+    }
+    if (entry.side === 'dividend_reinvest') {
+      quantity += entry.quantity;
+      continue;
+    }
+    const sellQty = Math.abs(entry.quantity);
+    if (quantity <= 0) continue;
+    const consumed = Math.min(sellQty, quantity);
+    const avgInvested = cashInvested / quantity;
+    cashInvested -= avgInvested * consumed;
+    quantity -= consumed;
+    if (quantity <= 1e-8) {
+      quantity = 0;
+      cashInvested = 0;
+    }
+  }
+
+  if (quantity <= 1e-8) {
+    return { holdPrice: 0, totalCost: 0, cashInvested: 0 };
+  }
+
+  const totalCost = Math.max(0, cashInvested - cashDividendsReceived);
+  return {
+    holdPrice: totalCost / quantity,
+    totalCost,
+    cashInvested,
+  };
+}

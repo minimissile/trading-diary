@@ -66,4 +66,25 @@ describe('dividend matcher', () => {
     expect(result.upsert?.eligibleQuantity).toBe(200);
     expect(result.upsert?.status).toBe('confirmed');
   });
+
+  it('excludes otc fund same-day subscription from dividend eligibility', () => {
+    const result = matchDividendEvent({
+      accountId: 'default',
+      symbol: '004598',
+      kind: 'otc_fund',
+      ledger: [
+        entry({ symbol: '004598', kind: 'otc_fund', tradeAt: '2026-08-26T00:00:00.000Z', quantity: 684.63 }),
+        entry({ symbol: '004598', kind: 'otc_fund', tradeAt: '2026-08-27T00:00:00.000Z', quantity: 66.28 }),
+      ],
+      event: event({
+        symbol: '004598',
+        cashPerShare: 0.02,
+        recordDate: '2026-08-27',
+        exDividendDate: '2026-08-27',
+      }),
+      today: '2026-08-30',
+    });
+    expect(result.upsert?.eligibleQuantity).toBeCloseTo(684.63, 2);
+    expect(result.upsert?.cashAmount).toBeCloseTo(13.69, 2);
+  });
 });

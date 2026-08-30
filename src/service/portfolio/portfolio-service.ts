@@ -41,7 +41,8 @@ import {
   computeExpectedFromEvents,
   computeYtdReceived,
 } from './dividend-stats';
-import { aggregatePositions } from './ledger-service';
+import { aggregatePositions, computeOtcFundHoldMetrics } from './ledger-service';
+import { resolveDividendEligibleQuantity } from './dividend-matcher';
 import { computePositionDailyPnl, sumDailyPnl } from './position-daily-pnl';
 import { buildRealizedHistory } from './realized-pnl';
 import { buildPnlCalendar, indexDailyBars } from './pnl-calendar';
@@ -123,6 +124,16 @@ export class PortfolioService {
       const holdings = new Map([[position.symbol, position.quantity]]);
       const expected = computeExpectedFromEvents(holdings, allUpcoming);
       const symbolEntries = ledgerByKey.get(posKey) ?? [];
+      const cashDividendsReceived = symbolDividends
+        .filter((item) => item.status === 'confirmed' && item.payoutMode === 'cash')
+        .reduce((sum, item) => sum + item.cashAmount, 0);
+      const otcHoldMetrics =
+        position.kind === 'otc_fund'
+          ? computeOtcFundHoldMetrics(symbolEntries, cashDividendsReceived)
+          : null;
+      const displayAvgPrice = otcHoldMetrics?.holdPrice ?? position.avgPrice;
+      const displayAvgCost = otcHoldMetrics?.holdPrice ?? position.avgCost;
+      const displayTotalCost = otcHoldMetrics?.totalCost ?? position.totalCost;
       const feeProfile = this.resolveFeeProfile(accountId, symbolEntries);
       const feeMarket =
         position.venue === 'HK' ? 'HK' : position.venue === 'US' ? 'US' : inferMarketFromSymbol(position.symbol);
@@ -132,7 +143,7 @@ export class PortfolioService {
           : computeReferenceUnrealizedPnl({
               marketPrice,
               quantity: position.quantity,
-              totalCost: position.totalCost,
+              totalCost: displayTotalCost,
               kind: position.kind,
               market: feeMarket,
               feeProfile,
@@ -146,7 +157,7 @@ export class PortfolioService {
         firstBuyAt: position.firstBuyAt,
       });
       const unrealizedReturnPercent =
-        unrealizedPnl === null ? null : computeReferenceReturnPercent(unrealizedPnl, position.totalCost);
+        unrealizedPnl === null ? null : computeReferenceReturnPercent(unrealizedPnl, displayTotalCost);
 
       const cachedFundProfile = fundProfileMap.get(normalizeSymbol(position.symbol));
       const fundProfile = cachedFundProfile ? buildFundProfileSummary(cachedFundProfile.profile) : null;
@@ -162,8 +173,8 @@ export class PortfolioService {
         name: quote?.name ?? fundProfileName ?? position.symbol,
         kind: position.kind,
         quantity: position.quantity,
-        avgPrice: position.avgPrice,
-        avgCost: position.avgCost,
+        avgPrice: displayAvgPrice,
+        avgCost: displayAvgCost,
         marketPrice,
         marketValue,
         unrealizedPnl,
@@ -440,7 +451,7 @@ export class PortfolioService {
       return record;
     }
 
-    const plan = await buildDividendReinvestPlan(record);
+    const plan = await buildDividendReinvestPlan(this.refreshDividendAmounts(record));
 
     if (record.reinvestLedgerId) {
       await this.updateLedgerEntry(record.reinvestLedgerId, {
@@ -466,6 +477,26 @@ export class PortfolioService {
       source: 'manual',
     });
     return portfolio.setDividendReinvestLedgerId(record.id, ledger.id);
+  }
+
+  private refreshDividendAmounts(record: PortfolioDividendRecord): PortfolioDividendRecord {
+    const portfolio = this.database.portfolio;
+    const symbolLedger = portfolio
+      .listLedger(record.accountId)
+      .filter((entry) => entry.symbol === record.symbol);
+    const eligibleQuantity = resolveDividendEligibleQuantity(
+      symbolLedger,
+      { exDividendDate: record.exDividendDate, recordDate: record.recordDate },
+      record.kind,
+    );
+    const cashAmount = record.cashPerShare * eligibleQuantity;
+    if (
+      Math.abs(eligibleQuantity - record.eligibleQuantity) > 1e-6 ||
+      Math.abs(cashAmount - record.cashAmount) > 0.01
+    ) {
+      return portfolio.updateDividendEligibleAmount(record.id, eligibleQuantity, cashAmount);
+    }
+    return record;
   }
 
   private async syncPendingReinvestLedgers(accountId: string): Promise<void> {
@@ -643,15 +674,52 @@ export class PortfolioService {
   }
 
   private async enrichDividendNames(records: PortfolioDividendRecord[]): Promise<PortfolioDividendRecord[]> {
-    const symbols = [...new Set(records.map((record) => record.symbol))];
-    if (symbols.length === 0) return records;
+    if (records.length === 0) return records;
 
-    const quotes = await marketService.getQuotesBySymbols(symbols);
-    const nameMap = new Map(quotes.map((quote) => [normalizeSymbol(quote.symbol), quote.name]));
+    const symbols = [...new Set(records.map((record) => record.symbol))];
+    const kindBySymbol = new Map<string, InstrumentKind>();
+    for (const record of records) {
+      kindBySymbol.set(record.symbol, record.kind);
+    }
+
+    const quotes = await marketService.getQuotes(
+      symbols.map((symbol) => ({
+        symbol,
+        venue: kindBySymbol.get(symbol) === 'otc_fund' ? ('OTC' as const) : undefined,
+      })),
+    );
+    const quoteNameMap = new Map(quotes.map((quote) => [normalizeSymbol(quote.symbol), quote.name]));
+
+    const fundNameMap = new Map<string, string>();
+    for (const profile of this.database.fundProfiles.list(symbols)) {
+      const shortName = profile.profile.SHORTNAME;
+      if (typeof shortName === 'string' && shortName.trim()) {
+        fundNameMap.set(profile.symbol, shortName.trim());
+      }
+    }
+
+    const resolveNameMap = new Map<string, string>();
+    await Promise.all(
+      symbols.map(async (symbol) => {
+        if (quoteNameMap.get(symbol) || fundNameMap.get(symbol)) return;
+        try {
+          const instrument = await marketService.resolve(symbol);
+          if (instrument.name.trim() && instrument.name !== symbol) {
+            resolveNameMap.set(symbol, instrument.name.trim());
+          }
+        } catch {
+          // 忽略无法解析的标的
+        }
+      }),
+    );
 
     return records.map((record) => ({
       ...record,
-      name: nameMap.get(record.symbol) ?? record.symbol,
+      name:
+        quoteNameMap.get(record.symbol) ??
+        fundNameMap.get(record.symbol) ??
+        resolveNameMap.get(record.symbol) ??
+        record.symbol,
     }));
   }
 }

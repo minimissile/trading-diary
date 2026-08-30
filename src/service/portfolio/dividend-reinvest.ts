@@ -11,7 +11,11 @@ export interface DividendReinvestPlan {
 }
 
 function roundReinvestQuantity(quantity: number, kind: InstrumentKind): number {
-  const digits = kind === 'otc_fund' ? 4 : kind === 'stock' ? 0 : 2;
+  if (kind === 'otc_fund') {
+    // 对齐主流基金 App：红利再投份额保留 2 位小数且向下取整
+    return Math.floor(quantity * 100) / 100;
+  }
+  const digits = kind === 'stock' ? 0 : 2;
   const factor = 10 ** digits;
   return Math.round(quantity * factor) / factor;
 }
@@ -25,7 +29,9 @@ export async function buildDividendReinvestPlan(
     'symbol' | 'kind' | 'cashAmount' | 'exDividendDate' | 'payDate'
   >,
 ): Promise<DividendReinvestPlan> {
-  const priceDate = record.payDate ?? record.exDividendDate;
+  // 场外基金再投份额按除权日净值折算（与支付宝/天天基金一致）
+  const priceDate =
+    record.kind === 'otc_fund' ? record.exDividendDate : (record.payDate ?? record.exDividendDate);
   const lookup = await marketService.lookupHistoricalPriceOnDate(record.symbol, priceDate);
   if (!lookup || lookup.nav <= 0) {
     throw new Error(`无法获取 ${priceDate} 的历史净值，暂时无法计算红利再投资份额`);

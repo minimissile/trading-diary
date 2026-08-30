@@ -1,4 +1,5 @@
 import type { DividendEvent } from '../../shared/market/types';
+import type { InstrumentKind } from '../../shared/market/types';
 import type { PortfolioLedgerEntry } from '../../shared/portfolio/types';
 import type { UpsertPortfolioDividendInput } from './portfolio-database';
 import { recordDateFromExDate, snapshotQuantityAt } from './ledger-service';
@@ -41,8 +42,7 @@ export function matchDividendEvent(input: DividendMatchInput): DividendMatchResu
     return { upsert: null, skipReason: 'opened_after_ex' };
   }
 
-  const recordDate = event.recordDate ?? recordDateFromExDate(event.exDividendDate);
-  const eligibleQuantity = snapshotQuantityAt(ledger, recordDate);
+  const eligibleQuantity = resolveDividendEligibleQuantity(ledger, event, kind);
   if (eligibleQuantity <= 0) {
     return { upsert: null, skipReason: 'zero_eligible_qty' };
   }
@@ -79,6 +79,21 @@ function shiftDate(isoDate: string, days: number): string {
   const date = new Date(`${isoDate}T12:00:00`);
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
+}
+
+/**
+ * 分红权益份额：场外基金 T+1 确认，除权日当日申购不计入；场内按登记日口径。
+ */
+export function resolveDividendEligibleQuantity(
+  ledger: readonly PortfolioLedgerEntry[],
+  event: Pick<DividendEvent, 'exDividendDate' | 'recordDate'>,
+  kind: InstrumentKind,
+): number {
+  if (kind === 'otc_fund') {
+    return snapshotQuantityAt(ledger, recordDateFromExDate(event.exDividendDate));
+  }
+  const recordDate = event.recordDate ?? recordDateFromExDate(event.exDividendDate);
+  return snapshotQuantityAt(ledger, recordDate);
 }
 
 export function buildProjectedDividends(

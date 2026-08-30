@@ -83,11 +83,11 @@ export const DISPLAY_PRESETS: Readonly<Record<DisplayPresetKind, DisplayPreset>>
       trimTrailingZeros: true,
     },
   },
-  /** 持仓列表成本/现价：固定 3 位小数。 */
+  /** 持仓列表场外基金成本/现价：固定 4 位小数（对齐基金 App 净值精度）。 */
   priceList: {
     number: {
-      minimumFractionDigits: 3,
-      maximumFractionDigits: 3,
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 4,
       useGrouping: false,
       trimTrailingZeros: false,
     },
@@ -223,6 +223,11 @@ export function quantityPresetForKind(kind?: InstrumentKind): 'quantity' | 'quan
 /** 根据标的类型解析价格展示预设。 */
 export function pricePresetForKind(kind?: InstrumentKind): 'priceFund' | 'priceStock' {
   return kind === 'otc_fund' ? 'priceFund' : 'priceStock';
+}
+
+/** 持仓列表成本/现价：场外基金 4 位，场内 2 位。 */
+export function priceListPresetForKind(kind?: InstrumentKind): 'priceList' | 'priceStock' {
+  return kind === 'otc_fund' ? 'priceList' : 'priceStock';
 }
 
 /**
