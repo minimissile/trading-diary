@@ -112,4 +112,31 @@ describe('sip service integration', () => {
 
     database.close();
   });
+
+  it('deletes plan and cascades occurrences', () => {
+    const database = createTestDatabase();
+    const service = createSipService(database);
+
+    const plan = database.sip.createPlan(
+      {
+        symbol: '161725',
+        amount: 500,
+        frequency: 'monthly',
+        dayOfMonth: 1,
+        startDate: '2026-01-01',
+        thesis: '长期配置',
+        activateNow: true,
+      },
+      { name: '招商中证白酒', kind: 'otc_fund', accountId: database.portfolio.ensureDefaultAccount() },
+    );
+
+    database.sip.ensureRollingOccurrences(plan, '2026-01-01');
+    expect(database.sip.listOccurrences(plan.id).length).toBeGreaterThan(0);
+
+    service.deletePlan(plan.id);
+    expect(() => database.sip.getPlan(plan.id)).toThrow('定投计划不存在');
+    expect(database.sip.listOccurrences(plan.id)).toEqual([]);
+
+    database.close();
+  });
 });

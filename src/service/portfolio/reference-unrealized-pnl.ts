@@ -1,4 +1,4 @@
-import type { FeeProfileRates } from '../../shared/accounts/types';
+import type { FeeProfileRates, FeeMarket } from '../../shared/accounts/types';
 import type { InstrumentKind } from '../../shared/market/types';
 import { estimateTradeFees } from '../accounts/fee-calculator';
 
@@ -29,7 +29,7 @@ export function computeReferenceUnrealizedPnl(input: {
   quantity: number;
   totalCost: number;
   kind: InstrumentKind;
-  market: 'SH' | 'SZ' | null;
+  market: FeeMarket;
   feeProfile: FeeProfileRates;
 }): number {
   const marketValueCents = toCents(input.marketPrice * input.quantity);

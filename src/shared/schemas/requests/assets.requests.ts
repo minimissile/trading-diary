@@ -1,33 +1,16 @@
 import { z } from 'zod';
-import { assetHashSchema, nonNegativeNumberSchema, positiveNumberSchema, symbolSchema } from '../primitives';
-import {
-  accountCustomFeeSchema,
-  alertEventActionSchema,
-  alertStatusSchema,
-  createAccountParamsSchema,
-  createAlertParamsSchema,
-  createPlanParamsSchema,
-  createPlaybookRuleParamsSchema,
-  createReviewParamsSchema,
-  executionImportInputSchema,
-  playbookStatusSchema,
-  planStatusSchema,
-  reviewAiDraftParamsSchema,
-  updateAccountInputSchema,
-  updatePlaybookRuleParamsSchema,
-} from '../params';
-
+import { assetHashSchema } from '../primitives';
 export const assetsServiceRequests = [
   z.object({
     id: z.uuid(),
     method: z.literal('assets.stats'),
     params: z.object({}).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('assets.import'),
     params: z.object({ sourcePath: z.string().min(1) }),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('assets.resolve'),
@@ -35,5 +18,5 @@ export const assetsServiceRequests = [
       hash: assetHashSchema,
       variant: z.enum(['original', 'preview']),
     }),
-  }),,
+  }),
 ] as const;

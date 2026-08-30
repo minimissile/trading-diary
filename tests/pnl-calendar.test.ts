@@ -9,6 +9,7 @@ function entry(
   return {
     id: partial.id ?? '1',
     accountId: partial.accountId ?? 'acc-1',
+    venue: partial.venue ?? 'SH',
     kind: 'stock',
     price: 10,
     fees: 0,
@@ -23,6 +24,7 @@ function entry(
 
 function bar(symbol: string, tradeDate: string, close: number, prevClose: number): MarketDailyBar {
   return {
+    venue: 'SH',
     symbol,
     tradeDate,
     close,
@@ -108,6 +110,42 @@ describe('buildPnlCalendar', () => {
     const day = result.days.find((item) => item.date === '2026-08-05');
     expect(day?.dividendPnl).toBe(10);
     expect(day?.totalPnl).toBeGreaterThan(10);
+  });
+
+  it('returns zero position pnl for fund on weekend without nav change', () => {
+    const ledger = [
+      entry({
+        symbol: '021972',
+        venue: 'OTC',
+        kind: 'otc_fund',
+        side: 'buy',
+        quantity: 100,
+        tradeAt: '2026-08-01T00:00:00+08:00',
+      }),
+    ];
+
+    const bars = indexDailyBars([
+      {
+        venue: 'OTC',
+        symbol: '021972',
+        tradeDate: '2026-08-30',
+        close: 1.16,
+        prevClose: 1.16,
+        kind: 'otc_fund',
+        fetchedAt: '2026-08-30T00:00:00.000Z',
+      },
+    ]);
+
+    const result = buildPnlCalendar({
+      ledger,
+      dividends: [],
+      barsBySymbol: bars,
+      month: '2026-08',
+      asOf: new Date('2026-08-30T12:00:00+08:00'),
+    });
+
+    const weekend = result.days.find((day) => day.date === '2026-08-30');
+    expect(weekend?.positionPnl).toBe(0);
   });
 });
 

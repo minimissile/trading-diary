@@ -33,6 +33,33 @@ export function isTradingDay(date: string): boolean {
   return weekday >= 1 && weekday <= 5;
 }
 
+/** 规范化基金净值公布日期（PDATE / FSRQ）。 */
+export function normalizeFundNavDate(navDate: string): string {
+  const trimmed = navDate.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/u.test(trimmed)) return trimmed;
+  return tradeCalendarDate(trimmed);
+}
+
+/** 基金净值是否在指定日历日发布。 */
+export function isFundNavPublishedOnDate(navDate: string | null | undefined, date: string): boolean {
+  if (!navDate) return false;
+  return normalizeFundNavDate(navDate) === date;
+}
+
+/**
+ * 场外基金是否应在该日计入日收益。
+ * 交易日始终计入；非交易日仅当净值当日有更新（如部分货币基金周末公布净值）。
+ */
+export function shouldCountOtcFundDailyPnl(input: {
+  date: string;
+  navDate?: string | null;
+  close?: number | null;
+  prevClose?: number | null;
+}): boolean {
+  if (isTradingDay(input.date)) return true;
+  return isFundNavPublishedOnDate(input.navDate, input.date);
+}
+
 /**  inclusive 区间内的交易日数量。 */
 export function countTradingDaysInclusive(start: string, end: string): number {
   if (end < start) return 0;

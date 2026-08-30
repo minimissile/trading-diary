@@ -229,6 +229,11 @@ export class SipDatabase {
     return plan;
   }
 
+  deletePlan(id: string): void {
+    this.getPlan(id);
+    this.db.prepare('DELETE FROM fund_sip_plans WHERE id = ?').run(id);
+  }
+
   scanDue(today = new Date().toISOString().slice(0, 10)): {
     newlyDue: number;
     newlyMissed: number;

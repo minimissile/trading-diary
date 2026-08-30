@@ -56,6 +56,9 @@ export default defineConfig({
       // 沙箱化 preload 无法在运行时解析任意 npm 包，因此除 Electron 和 Node.js
       // 内置模块外，其余依赖全部打进 preload 产物。
       externalizeDeps: false,
+      watch: {
+        include: ['src/preload/**', 'src/shared/ipc-channels.ts', 'src/shared/api.types.ts'],
+      },
     },
   },
   renderer: {

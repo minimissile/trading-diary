@@ -88,6 +88,11 @@ export class SipService {
     return this.toPlanView(id);
   }
 
+  deletePlan(id: string): { deleted: true } {
+    this.sip.deletePlan(id);
+    return { deleted: true };
+  }
+
   previewSchedule(input: CreateFundSipPlanInput): FundSipOccurrencePreview[] {
     return previewSchedule(input, 6).map((scheduledDate) => ({ scheduledDate }));
   }

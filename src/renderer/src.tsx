@@ -1,4 +1,4 @@
-import { StrictMode, useState } from 'react';
+import { StrictMode, useCallback, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
@@ -22,9 +22,10 @@ if (!root) throw new Error('找不到渲染进程根节点');
 
 function AppRoot(): React.JSX.Element {
   const [splashFinished, setSplashFinished] = useState(false);
+  const handleSplashFinished = useCallback(() => setSplashFinished(true), []);
 
   return (
-    <SplashScreen onFinished={() => setSplashFinished(true)}>
+    <SplashScreen onFinished={handleSplashFinished}>
       <AccessLockGate gateActive={splashFinished}>
         <AppRouter />
       </AccessLockGate>

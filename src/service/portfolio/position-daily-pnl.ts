@@ -2,13 +2,14 @@ import type { InstrumentKind, MarketQuote } from '../../shared/market/types';
 import type { PortfolioLedgerEntry } from '../../shared/portfolio/types';
 import {
   isTradingDay,
+  shouldCountOtcFundDailyPnl,
   shouldUseReferenceDailyPnl,
   todayCalendarDate,
   tradeCalendarDate,
 } from '../../shared/trade-calendar';
 import { ledgerQuantityDelta } from './ledger-service';
 
-type QuoteDailyInput = Pick<MarketQuote, 'change' | 'changePercent' | 'price' | 'prevClose'>;
+type QuoteDailyInput = Pick<MarketQuote, 'change' | 'changePercent' | 'price' | 'prevClose' | 'navDate' | 'nav'>;
 
 export interface PositionDailyPnlInput {
   kind: InstrumentKind;
@@ -107,7 +108,7 @@ function isExchangeTradedKind(kind: InstrumentKind): boolean {
  * - 建仓当日 / 上一自然日：参考浮盈
  * - 其余存量：份额 × 当日涨跌额
  * - 当日卖出：份额 × (卖出价 − 成本价)
- * - A 股场内非交易日（周末等）：日收益为 0
+ * - 场外基金非交易日：日收益为 0，除非当日净值有更新（如部分货币基金）
  */
 export function computePositionDailyPnl(input: PositionDailyPnlInput): number | null {
   const { kind, entries, marketPrice, quote, asOf, referenceUnrealizedPnl, firstBuyAt } = input;
@@ -115,6 +116,17 @@ export function computePositionDailyPnl(input: PositionDailyPnlInput): number | 
 
   const today = todayCalendarDate(asOf ?? new Date());
   if (isExchangeTradedKind(kind) && !isTradingDay(today)) {
+    return 0;
+  }
+  if (
+    kind === 'otc_fund' &&
+    !shouldCountOtcFundDailyPnl({
+      date: today,
+      navDate: quote.navDate,
+      close: quote.nav ?? quote.price,
+      prevClose: quote.prevClose,
+    })
+  ) {
     return 0;
   }
   const firstBuyDay = firstBuyAt ? tradeCalendarDate(firstBuyAt) : resolveFirstBuyDay(entries);

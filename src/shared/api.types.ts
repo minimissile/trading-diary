@@ -557,6 +557,8 @@ export interface DesktopApi {
     create: (input: import('./sip/types').CreateFundSipPlanInput) => Promise<import('./sip/types').FundSipPlanView>;
     update: (id: string, input: import('./sip/types').UpdateFundSipPlanInput) => Promise<import('./sip/types').FundSipPlanView>;
     setStatus: (id: string, status: import('./sip/types').SipPlanStatus) => Promise<import('./sip/types').FundSipPlanView>;
+    delete: (id: string) => Promise<{ deleted: true }>;
+    deletePlan: (id: string) => Promise<{ deleted: true }>;
     previewSchedule: (input: import('./sip/types').CreateFundSipPlanInput) => Promise<import('./sip/types').FundSipOccurrencePreview[]>;
     listOccurrences: (planId?: string, from?: string, to?: string) => Promise<import('./sip/types').FundSipOccurrence[]>;
     listOccurrenceViews: (planId?: string, from?: string, to?: string) => Promise<import('./sip/types').FundSipOccurrenceView[]>;

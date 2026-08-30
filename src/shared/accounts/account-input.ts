@@ -21,15 +21,17 @@ export function normalizeCreateAccountInput(
 export function normalizeUpdateAccountInput(
   input: UpdateTradingAccountInput & { name?: string },
 ): UpdateTradingAccountInput {
-  if (input.alias === undefined && input.name === undefined) {
-    return input;
-  }
-  const alias = input.alias ?? input.name;
+  const alias =
+    input.alias !== undefined || input.name !== undefined
+      ? (input.alias ?? input.name)?.trim() ?? ''
+      : input.alias;
   return {
     broker: input.broker,
     accountKind: input.accountKind,
+    currency: input.currency,
+    marketScope: input.marketScope,
     feeProfileId: input.feeProfileId,
     customFee: input.customFee,
-    alias: alias?.trim() ?? '',
+    alias,
   };
 }

@@ -36,6 +36,8 @@ const REDUCED_MOTION_TIMING = {
 const FAILSAFE_MS = 4500;
 
 let splashRunId = 0;
+/** 启动页已完整播完（同会话内 remount 不再重播）。 */
+let splashCompletedOnce = false;
 
 function AnimatedSloganLine({
   lineIndex,
@@ -80,20 +82,29 @@ interface SplashScreenProps extends PropsWithChildren {
 }
 
 export function SplashScreen({ children, onFinished }: SplashScreenProps): React.JSX.Element {
-  const [phase, setPhase] = useState<SplashPhase>('enter');
+  const [phase, setPhase] = useState<SplashPhase>(() => (splashCompletedOnce ? 'done' : 'enter'));
   const [reducedMotion] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
   const finishedRef = useRef(false);
+  const onFinishedRef = useRef(onFinished);
+  onFinishedRef.current = onFinished;
   const showOverlay = phase !== 'done';
 
   const markFinished = (): void => {
     if (finishedRef.current) return;
     finishedRef.current = true;
-    onFinished?.();
+    splashCompletedOnce = true;
+    onFinishedRef.current?.();
   };
 
   useEffect(() => {
+    if (splashCompletedOnce || finishedRef.current) {
+      setPhase('done');
+      markFinished();
+      return;
+    }
+
     const runId = ++splashRunId;
     const timing = reducedMotion ? REDUCED_MOTION_TIMING : TIMING;
     const timers: number[] = [];
@@ -127,7 +138,7 @@ export function SplashScreen({ children, onFinished }: SplashScreenProps): React
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [onFinished, reducedMotion]);
+  }, [reducedMotion]);
 
   return (
     <>

@@ -1,8 +1,11 @@
 import type { InstrumentKind } from '../../shared/market/types';
+import type { InstrumentVenue } from '../../shared/market/venues';
+import { instrumentPositionKey } from '../../shared/market/instrument-id';
 import type { PortfolioLedgerEntry, PortfolioLedgerSide } from '../../shared/portfolio/types';
 
 export interface PositionAggregate {
   symbol: string;
+  venue: InstrumentVenue;
   kind: InstrumentKind;
   quantity: number;
   /** 不含费用的加权成交均价（对齐券商「成本价」展示）。 */
@@ -34,15 +37,16 @@ export function ledgerQuantityDelta(entry: PortfolioLedgerEntry): number {
 }
 
 export function aggregatePositions(entries: readonly PortfolioLedgerEntry[]): PositionAggregate[] {
-  const bySymbol = new Map<string, PortfolioLedgerEntry[]>();
+  const byKey = new Map<string, PortfolioLedgerEntry[]>();
   for (const entry of entries) {
-    const list = bySymbol.get(entry.symbol) ?? [];
+    const key = instrumentPositionKey(entry);
+    const list = byKey.get(key) ?? [];
     list.push(entry);
-    bySymbol.set(entry.symbol, list);
+    byKey.set(key, list);
   }
 
   const positions: PositionAggregate[] = [];
-  for (const [symbol, symbolEntries] of bySymbol) {
+  for (const [key, symbolEntries] of byKey) {
     const sorted = sortedEntries(symbolEntries);
     let quantity = 0;
     let totalCost = 0;
@@ -76,7 +80,8 @@ export function aggregatePositions(entries: readonly PortfolioLedgerEntry[]): Po
     if (quantity <= 1e-8) continue;
 
     positions.push({
-      symbol,
+      symbol: sorted[0]?.symbol ?? key.split(':')[1] ?? '',
+      venue: sorted[0]?.venue ?? 'SH',
       kind: sorted[0]?.kind ?? 'stock',
       quantity,
       avgPrice: quantity > 0 ? totalPriceAmount / quantity : 0,
@@ -86,7 +91,9 @@ export function aggregatePositions(entries: readonly PortfolioLedgerEntry[]): Po
     });
   }
 
-  return positions.sort((a, b) => a.symbol.localeCompare(b.symbol));
+  return positions.sort((a, b) =>
+    instrumentPositionKey(a).localeCompare(instrumentPositionKey(b)),
+  );
 }
 
 export function snapshotQuantityAt(entries: readonly PortfolioLedgerEntry[], asOfDate: string): number {

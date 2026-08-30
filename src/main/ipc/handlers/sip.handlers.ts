@@ -49,6 +49,13 @@ export function registerSipHandlers({ window, service, updater }: IpcHandlerCont
     return service.request('sip.setStatus', input as never);
   });
 
+  ipcMain.handle(ipcChannels.sipDeletePlan, async (event, input: { id: string }) => {
+    assertTrustedSender(event, window);
+    const result = await service.request('sip.deletePlan', input);
+    if (!window.isDestroyed()) window.webContents.send(ipcChannels.workspaceChanged);
+    return result;
+  });
+
   ipcMain.handle(ipcChannels.sipPreviewSchedule, (event, input: Record<string, unknown>) => {
     assertTrustedSender(event, window);
     return service.request('sip.previewSchedule', input as never);

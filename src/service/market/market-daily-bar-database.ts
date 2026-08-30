@@ -1,10 +1,13 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { InstrumentKind } from '../../shared/market/types';
+import type { InstrumentVenue } from '../../shared/market/venues';
+import { inferCnVenueFromSymbol } from '../../shared/market/instrument-id';
 import { normalizeSymbol as normalizeMarketSymbol } from './eastmoney/symbols';
 
 const PRICE_SCALE = 10_000;
 
 export interface MarketDailyBar {
+  venue: InstrumentVenue;
   symbol: string;
   tradeDate: string;
   close: number;
@@ -14,6 +17,7 @@ export interface MarketDailyBar {
 }
 
 export interface MarketBarSyncMeta {
+  venue: InstrumentVenue;
   symbol: string;
   kind: InstrumentKind;
   earliestDate: string;
@@ -23,6 +27,7 @@ export interface MarketBarSyncMeta {
 }
 
 interface MarketDailyBarRow {
+  venue: InstrumentVenue;
   symbol: string;
   trade_date: string;
   close_micros: number;
@@ -32,6 +37,7 @@ interface MarketDailyBarRow {
 }
 
 interface MarketBarSyncMetaRow {
+  venue: InstrumentVenue;
   symbol: string;
   kind: InstrumentKind;
   earliest_date: string;
@@ -55,8 +61,14 @@ function normalizeSymbol(symbol: string): string {
   return normalized;
 }
 
+function resolveVenue(symbol: string, kind: InstrumentKind): InstrumentVenue {
+  if (kind === 'otc_fund') return 'OTC';
+  return inferCnVenueFromSymbol(symbol) ?? 'SH';
+}
+
 function mapBarRow(row: MarketDailyBarRow): MarketDailyBar {
   return {
+    venue: row.venue ?? 'SH',
     symbol: row.symbol,
     tradeDate: row.trade_date,
     close: fromScaledInteger(row.close_micros),
@@ -68,6 +80,7 @@ function mapBarRow(row: MarketDailyBarRow): MarketDailyBar {
 
 function mapMetaRow(row: MarketBarSyncMetaRow): MarketBarSyncMeta {
   return {
+    venue: row.venue ?? 'SH',
     symbol: row.symbol,
     kind: row.kind,
     earliestDate: row.earliest_date,
@@ -80,10 +93,12 @@ function mapMetaRow(row: MarketBarSyncMetaRow): MarketBarSyncMeta {
 export class MarketDailyBarDatabase {
   constructor(private readonly db: DatabaseSync) {}
 
-  getSyncMeta(symbol: string): MarketBarSyncMeta | null {
+  getSyncMeta(symbol: string, kind: InstrumentKind = 'stock'): MarketBarSyncMeta | null {
+    const normalized = normalizeSymbol(symbol);
+    const venue = resolveVenue(normalized, kind);
     const row = this.db
-      .prepare('SELECT * FROM market_bar_sync_meta WHERE symbol = ?')
-      .get(normalizeSymbol(symbol)) as MarketBarSyncMetaRow | undefined;
+      .prepare('SELECT * FROM market_bar_sync_meta WHERE venue = ? AND symbol = ?')
+      .get(venue, normalized) as MarketBarSyncMetaRow | undefined;
     return row ? mapMetaRow(row) : null;
   }
 
@@ -101,13 +116,14 @@ export class MarketDailyBarDatabase {
     return rows.map(mapBarRow);
   }
 
-  upsertBars(symbol: string, kind: InstrumentKind, bars: readonly Omit<MarketDailyBar, 'symbol' | 'kind'>[]): void {
+  upsertBars(symbol: string, kind: InstrumentKind, bars: readonly Omit<MarketDailyBar, 'venue' | 'symbol' | 'kind'>[]): void {
     const normalized = normalizeSymbol(symbol);
+    const venue = resolveVenue(normalized, kind);
     const fetchedAt = new Date().toISOString();
     const upsert = this.db.prepare(`
-      INSERT INTO market_daily_bars (symbol, trade_date, close_micros, prev_close_micros, kind, fetched_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(symbol, trade_date) DO UPDATE SET
+      INSERT INTO market_daily_bars (venue, symbol, trade_date, close_micros, prev_close_micros, kind, fetched_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(venue, symbol, trade_date) DO UPDATE SET
         close_micros = excluded.close_micros,
         prev_close_micros = excluded.prev_close_micros,
         kind = excluded.kind,
@@ -116,6 +132,7 @@ export class MarketDailyBarDatabase {
 
     for (const bar of bars) {
       upsert.run(
+        venue,
         normalized,
         bar.tradeDate,
         toScaledInteger(bar.close),
@@ -129,9 +146,9 @@ export class MarketDailyBarDatabase {
   upsertSyncMeta(meta: MarketBarSyncMeta): void {
     this.db
       .prepare(
-        `INSERT INTO market_bar_sync_meta (symbol, kind, earliest_date, latest_date, last_synced_at, bar_count)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT(symbol) DO UPDATE SET
+        `INSERT INTO market_bar_sync_meta (venue, symbol, kind, earliest_date, latest_date, last_synced_at, bar_count)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(venue, symbol) DO UPDATE SET
            kind = excluded.kind,
            earliest_date = excluded.earliest_date,
            latest_date = excluded.latest_date,
@@ -139,6 +156,7 @@ export class MarketDailyBarDatabase {
            bar_count = excluded.bar_count`,
       )
       .run(
+        meta.venue,
         normalizeSymbol(meta.symbol),
         meta.kind,
         meta.earliestDate,
@@ -148,17 +166,21 @@ export class MarketDailyBarDatabase {
       );
   }
 
-  purgeBarsBefore(symbol: string, beforeDate: string): number {
+  purgeBarsBefore(symbol: string, beforeDate: string, kind: InstrumentKind = 'stock'): number {
+    const normalized = normalizeSymbol(symbol);
+    const venue = resolveVenue(normalized, kind);
     const result = this.db
-      .prepare('DELETE FROM market_daily_bars WHERE symbol = ? AND trade_date < ?')
-      .run(normalizeSymbol(symbol), beforeDate);
+      .prepare('DELETE FROM market_daily_bars WHERE venue = ? AND symbol = ? AND trade_date < ?')
+      .run(venue, normalized, beforeDate);
     return result.changes ?? 0;
   }
 
-  countBars(symbol: string): number {
+  countBars(symbol: string, kind: InstrumentKind = 'stock'): number {
+    const normalized = normalizeSymbol(symbol);
+    const venue = resolveVenue(normalized, kind);
     const row = this.db
-      .prepare('SELECT COUNT(*) AS count FROM market_daily_bars WHERE symbol = ?')
-      .get(normalizeSymbol(symbol)) as { count: number };
+      .prepare('SELECT COUNT(*) AS count FROM market_daily_bars WHERE venue = ? AND symbol = ?')
+      .get(venue, normalized) as { count: number };
     return row.count;
   }
 }

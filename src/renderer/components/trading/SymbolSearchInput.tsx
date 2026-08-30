@@ -4,6 +4,8 @@ import type { InputProps } from 'antd';
 import type { InstrumentInfo, MarketSearchHit } from '../../../shared/api.types';
 import { useSymbolSearch } from '../../hooks/useSymbolSearch';
 
+import { labelForVenue } from '../../../shared/market/venues';
+
 const kindLabels: Record<string, string> = {
   stock: 'A股',
   etf: 'ETF',
@@ -25,6 +27,8 @@ export interface SymbolSearchInputProps extends Omit<InputProps, 'value' | 'onCh
   resolveOnBlur?: boolean;
   /** 搜索建议条数上限。 */
   searchLimit?: number;
+  /** 账户可交易市场，控制搜索范围。 */
+  marketScopes?: readonly string[];
 }
 
 /**
@@ -38,12 +42,13 @@ export function SymbolSearchInput({
   onResolve,
   resolveOnBlur = true,
   searchLimit,
-  placeholder = '输入代码或名称，如 600941、中国移动',
+  marketScopes = ['CN_A'],
+  placeholder = '输入代码或名称，如 600941、AAPL、00700',
   maxLength = 32,
   disabled,
   ...inputProps
 }: SymbolSearchInputProps): React.JSX.Element {
-  const { options, loading, search, clear } = useSymbolSearch(searchLimit);
+  const { options, loading, search, clear } = useSymbolSearch(searchLimit, marketScopes);
   const lastResolvedSymbol = useRef<string | null>(null);
 
   useEffect(() => {
@@ -82,7 +87,9 @@ export function SymbolSearchInput({
           <div className="symbol-search-option">
             <strong>{hit.symbol}</strong>
             <span>{hit.name}</span>
-            <small>{hit.securityTypeName ?? kindLabels[hit.kind] ?? hit.kind}</small>
+            <small>
+              {labelForVenue(hit.venue)} · {hit.securityTypeName ?? kindLabels[hit.kind] ?? hit.kind}
+            </small>
           </div>
         ),
       })),
@@ -107,7 +114,6 @@ export function SymbolSearchInput({
   return (
     <AutoComplete
       className="symbol-search-input"
-      classNames={{ popup: { root: 'trading-select-dropdown' } }}
       getPopupContainer={(trigger) => trigger.ownerDocument.body}
       disabled={disabled}
       options={autoCompleteOptions}

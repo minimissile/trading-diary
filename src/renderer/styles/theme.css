@@ -18,6 +18,13 @@
   --td-color-accent: #2c8cff;
   --td-color-accent-soft: #113b68;
 
+  /* Select / AutoComplete 下拉项 — 与 theme-config Select token 对齐 */
+  --td-select-dropdown-bg: #102737;
+  --td-select-option-hover-bg: #154b79;
+  --td-select-option-hover-color: #e7f1fa;
+  --td-select-option-selected-bg: #123d65;
+  --td-select-option-selected-color: #ffffff;
+
   /* 交易方向色遵循中国市场习惯：红涨绿跌。 */
   --td-color-profit: #ff626f;
   --td-color-profit-surface: #3d1d29;
@@ -39,6 +46,11 @@
   --td-space-6: 24px;
   --td-space-8: 32px;
   --td-space-12: 48px;
+
+  --td-scrollbar-size: 2px;
+  --td-scrollbar-thumb: rgb(39 67 89 / 90%);
+  --td-scrollbar-thumb-hover: rgb(56 92 118 / 95%);
+  --td-scrollbar-track: transparent;
 }
 
 ::selection {

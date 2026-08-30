@@ -175,11 +175,15 @@ export class AppService {
       case 'market.resolve':
         return marketService.resolve(request.params.symbol);
       case 'market.search':
-        return marketService.search(request.params.query, request.params.limit);
+        return marketService.search(
+          request.params.query,
+          request.params.limit,
+          request.params.marketScopes,
+        );
       case 'market.getQuote':
         return marketService.getQuote(request.params.symbol);
       case 'market.getQuotes':
-        return marketService.getQuotes(request.params.symbols);
+        return marketService.getQuotesBySymbols(request.params.symbols);
       case 'market.getSnapshot':
         return marketService.getSnapshot(request.params.symbol);
       case 'market.listDividends':
@@ -316,6 +320,8 @@ export class AppService {
         return this.sipService.updatePlan(request.params.id, request.params.input);
       case 'sip.setStatus':
         return this.sipService.setPlanStatus(request.params.id, request.params.status);
+      case 'sip.deletePlan':
+        return this.sipService.deletePlan(request.params.id);
       case 'sip.previewSchedule':
         return this.sipService.previewSchedule(request.params);
       case 'sip.listOccurrences':

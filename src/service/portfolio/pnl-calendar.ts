@@ -7,7 +7,7 @@ import {
   pnlCalendarWindowEnd,
   pnlCalendarWindowStart,
 } from '../../shared/portfolio/pnl-calendar-window';
-import { tradeCalendarDate } from '../../shared/trade-calendar';
+import { tradeCalendarDate, shouldCountOtcFundDailyPnl } from '../../shared/trade-calendar';
 import type { MarketDailyBar } from '../market/market-daily-bar-database';
 import { computePositionDailyPnl, resolveFirstBuyDay } from './position-daily-pnl';
 
@@ -59,6 +59,18 @@ export function computeSymbolDailyPnlForDate(
 ): number | null {
   const bar = series.get(date);
   if (!bar) return null;
+
+  const kind = entries[0]?.kind ?? 'stock';
+  if (
+    kind === 'otc_fund' &&
+    !shouldCountOtcFundDailyPnl({
+      date,
+      close: bar.close,
+      prevClose: bar.prevClose,
+    })
+  ) {
+    return 0;
+  }
 
   const prevClose = bar.prevClose ?? bar.close;
   const dayChange = bar.close - prevClose;

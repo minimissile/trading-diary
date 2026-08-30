@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { App, Button, Checkbox, Form, Input, InputNumber, Modal, Radio } from 'antd';
 import type { Dayjs } from 'dayjs';
 import { useNavigate } from 'react-router';
-import type { InstrumentInfo, MarketQuote } from '../../../shared/api.types';
+import type { InstrumentInfo, MarketQuote, TradingAccountSummary } from '../../../shared/api.types';
 import type { PortfolioLedgerEntry } from '../../../shared/portfolio/types';
 import { routePaths } from '../../router/paths';
 import type { JournalReviewDraft } from '../../router/journal-state';
@@ -49,6 +49,19 @@ export function PortfolioLedgerModal({
   const [resolving, setResolving] = useState(false);
   const [quote, setQuote] = useState<MarketQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
+  const [accounts, setAccounts] = useState<TradingAccountSummary[]>([]);
+
+  const accountId = Form.useWatch('accountId', form);
+  const marketScopes = useMemo(() => {
+    const account = accounts.find((item) => item.id === accountId);
+    if (account?.marketScope?.length) return account.marketScope;
+    return ['CN_A'];
+  }, [accounts, accountId]);
+
+  const symbolPlaceholder =
+    marketScopes.includes('HK') || marketScopes.includes('US')
+      ? '如 00700、06060、AAPL（搜公司名，非券商名）'
+      : '如 600941、510300、161725';
 
   const side = Form.useWatch('side', form);
   const price = Form.useWatch('price', form);
@@ -66,6 +79,17 @@ export function PortfolioLedgerModal({
       setQuoteLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    void window.desktop.accounts.list().then((list) => {
+      if (active) setAccounts(list);
+    });
+    return () => {
+      active = false;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -271,7 +295,8 @@ export function PortfolioLedgerModal({
           extra={resolved || resolving ? undefined : '输入代码或名称，可选择搜索建议'}
         >
           <SymbolSearchInput
-            placeholder="如 600941、510300、161725"
+            placeholder={symbolPlaceholder}
+            marketScopes={marketScopes}
             disabled={Boolean(editingEntry)}
             onResolveStart={() => {
               setResolving(true);

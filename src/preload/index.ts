@@ -132,7 +132,8 @@ const desktopApi: DesktopApi = {
   },
   market: {
     resolve: (symbol) => ipcRenderer.invoke(ipcChannels.marketResolve, { symbol }),
-    search: (query, limit) => ipcRenderer.invoke(ipcChannels.marketSearch, { query, limit }),
+    search: (query, limit, marketScopes) =>
+      ipcRenderer.invoke(ipcChannels.marketSearch, { query, limit, marketScopes }),
     getQuote: (symbol) => ipcRenderer.invoke(ipcChannels.marketGetQuote, { symbol }),
     getQuotes: (symbols) => ipcRenderer.invoke(ipcChannels.marketGetQuotes, { symbols }),
     getSnapshot: (symbol) => ipcRenderer.invoke(ipcChannels.marketGetSnapshot, { symbol }),
@@ -221,6 +222,8 @@ const desktopApi: DesktopApi = {
     create: (input) => ipcRenderer.invoke(ipcChannels.sipCreatePlan, input),
     update: (id, input) => ipcRenderer.invoke(ipcChannels.sipUpdatePlan, { id, input }),
     setStatus: (id, status) => ipcRenderer.invoke(ipcChannels.sipSetStatus, { id, status }),
+    delete: (id) => ipcRenderer.invoke(ipcChannels.sipDeletePlan, { id }),
+    deletePlan: (id) => ipcRenderer.invoke(ipcChannels.sipDeletePlan, { id }),
     previewSchedule: (input) => ipcRenderer.invoke(ipcChannels.sipPreviewSchedule, input),
     listOccurrences: (planId, from, to) =>
       ipcRenderer.invoke(ipcChannels.sipListOccurrences, { planId, from, to }),

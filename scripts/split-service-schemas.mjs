@@ -107,7 +107,7 @@ import {
 } from '../params';
 
 export const ${prefix}ServiceRequests = [
-${groups.get(prefix).join(',\n')},
+${groups.get(prefix).join(',\n')}
 ] as const;
 `;
   fs.writeFileSync(path.join(requestsDir, fileName), content);

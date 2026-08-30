@@ -22,6 +22,8 @@ import type { AppDatabase } from '../database/database';
 import { createDailyBarSyncService, type DailyBarSyncService } from '../market/daily-bar-sync-service';
 import { createFundProfileSyncService, FUND_PROFILE_STALE_MS, type FundProfileSyncService } from '../market/fund-profile-sync-service';
 import { buildFundProfileSummary, shouldCacheFundProfile, type FundProfileRecord } from '../../shared/market/fund-profile';
+import { instrumentPositionKey } from '../../shared/market/instrument-id';
+import { quoteCurrencyForVenue } from '../../shared/market/venues';
 import { normalizeSymbol } from '../market/eastmoney/symbols';
 import { marketService } from '../market/market-service';
 import { buildProjectedDividends, matchDividendEvent } from './dividend-matcher';
@@ -53,11 +55,16 @@ export class PortfolioService {
     const aggregates = aggregatePositions(ledger);
     if (aggregates.length === 0) return [];
 
-    const symbols = aggregates.map((item) => item.symbol);
-    const quotes = await marketService.getQuotes(symbols);
-    const quoteMap = new Map(quotes.map((quote) => [normalizeSymbol(quote.symbol), quote]));
+    const quotes = await marketService.getQuotes(
+      aggregates.map((item) => ({ symbol: item.symbol, venue: item.venue })),
+    );
+    const quoteMap = new Map(
+      quotes.map((quote) => [instrumentPositionKey({ venue: quote.venue, symbol: quote.symbol }), quote]),
+    );
     const fundProfileMap = new Map(
-      this.database.fundProfiles.list(symbols).map((record) => [record.symbol, record]),
+      this.database.fundProfiles
+        .list(aggregates.filter((item) => item.venue === 'SH' || item.venue === 'SZ' || item.venue === 'OTC').map((item) => item.symbol))
+        .map((record) => [record.symbol, record]),
     );
     this.scheduleFundProfileMaintenance(
       aggregates.map((item) => ({ symbol: item.symbol, kind: item.kind })),
@@ -69,33 +76,41 @@ export class PortfolioService {
     const year = new Date().getFullYear();
 
     const upcomingBySymbol = await Promise.all(
-      symbols.map(async (symbol) => {
+      aggregates
+        .filter((item) => item.venue === 'SH' || item.venue === 'SZ' || item.venue === 'OTC')
+        .map(async (item) => {
         try {
-          const result = await marketService.listDividends(symbol, 1, 20);
-          return { symbol, items: result.items };
+          const result = await marketService.listDividends(item.symbol, 1, 20);
+          return { key: instrumentPositionKey(item), items: result.items };
         } catch {
-          return { symbol, items: [] };
+          return { key: instrumentPositionKey(item), items: [] };
         }
       }),
     );
     const allUpcoming = upcomingBySymbol.flatMap((item) => item.items);
-    const ledgerBySymbol = new Map<string, PortfolioLedgerEntry[]>();
+    const ledgerByKey = new Map<string, PortfolioLedgerEntry[]>();
     for (const entry of ledger) {
-      const list = ledgerBySymbol.get(entry.symbol) ?? [];
+      const key = instrumentPositionKey(entry);
+      const list = ledgerByKey.get(key) ?? [];
       list.push(entry);
-      ledgerBySymbol.set(entry.symbol, list);
+      ledgerByKey.set(key, list);
     }
 
     return aggregates.map((position) => {
-      const quote = quoteMap.get(normalizeSymbol(position.symbol));
+      const posKey = instrumentPositionKey(position);
+      const quote = quoteMap.get(posKey);
       const marketPrice = quote?.price ?? quote?.nav ?? null;
       const marketValue = marketPrice === null ? null : marketPrice * position.quantity;
-      const symbolDividends = dividends.filter((record) => record.symbol === position.symbol);
+      const symbolDividends = dividends.filter(
+        (record) => record.symbol === position.symbol,
+      );
       const ytd = computeYtdReceived(symbolDividends, year);
       const holdings = new Map([[position.symbol, position.quantity]]);
       const expected = computeExpectedFromEvents(holdings, allUpcoming);
-      const symbolEntries = ledgerBySymbol.get(position.symbol) ?? [];
+      const symbolEntries = ledgerByKey.get(posKey) ?? [];
       const feeProfile = this.resolveFeeProfile(accountId, symbolEntries);
+      const feeMarket =
+        position.venue === 'HK' ? 'HK' : position.venue === 'US' ? 'US' : inferMarketFromSymbol(position.symbol);
       const unrealizedPnl =
         marketPrice === null
           ? null
@@ -104,7 +119,7 @@ export class PortfolioService {
               quantity: position.quantity,
               totalCost: position.totalCost,
               kind: position.kind,
-              market: inferMarketFromSymbol(position.symbol),
+              market: feeMarket,
               feeProfile,
             });
       const dailyPnl = computePositionDailyPnl({
@@ -123,6 +138,8 @@ export class PortfolioService {
 
       return {
         symbol: position.symbol,
+        venue: position.venue,
+        quoteCurrency: quote?.quoteCurrency ?? quoteCurrencyForVenue(position.venue),
         name: quote?.name ?? position.symbol,
         kind: position.kind,
         quantity: position.quantity,
@@ -229,7 +246,7 @@ export class PortfolioService {
       ...history.trades.map((item) => item.symbol),
       ...history.closedPositions.map((item) => item.symbol),
     ])];
-    const quotes = symbols.length > 0 ? await marketService.getQuotes(symbols) : [];
+    const quotes = symbols.length > 0 ? await marketService.getQuotesBySymbols(symbols) : [];
     const nameMap = new Map(quotes.map((quote) => [normalizeSymbol(quote.symbol), quote.name]));
 
     return {
@@ -308,7 +325,7 @@ export class PortfolioService {
     }
 
     const results = await this.dailyBarSync.syncSymbolsNow(symbols, symbolKinds);
-    const quotes = await marketService.getQuotes(symbols);
+    const quotes = await marketService.getQuotesBySymbols(symbols);
     const nameMap = new Map(quotes.map((quote) => [normalizeSymbol(quote.symbol), quote.name]));
 
     return {
@@ -493,7 +510,7 @@ export class PortfolioService {
     const symbols = [...new Set(records.map((record) => record.symbol))];
     if (symbols.length === 0) return records;
 
-    const quotes = await marketService.getQuotes(symbols);
+    const quotes = await marketService.getQuotesBySymbols(symbols);
     const nameMap = new Map(quotes.map((quote) => [normalizeSymbol(quote.symbol), quote.name]));
 
     return records.map((record) => ({

@@ -514,4 +514,113 @@ export const migrations: readonly Migration[] = [
       ) STRICT;
     `,
   },
+  {
+    version: 19,
+    name: 'instrument_venue',
+    sql: `
+      ALTER TABLE portfolio_ledger ADD COLUMN venue TEXT NOT NULL DEFAULT 'SH';
+      ALTER TABLE portfolio_dividends ADD COLUMN venue TEXT NOT NULL DEFAULT 'SH';
+      ALTER TABLE executions ADD COLUMN venue TEXT NOT NULL DEFAULT 'SH';
+      ALTER TABLE trade_episodes ADD COLUMN venue TEXT NOT NULL DEFAULT 'SH';
+      ALTER TABLE fund_sip_plans ADD COLUMN venue TEXT NOT NULL DEFAULT 'SH';
+
+      UPDATE portfolio_ledger SET venue = CASE
+        WHEN kind = 'otc_fund' THEN 'OTC'
+        WHEN symbol GLOB '6*' OR symbol GLOB '5[1568]*' THEN 'SH'
+        WHEN symbol GLOB '0*' OR symbol GLOB '3*' OR symbol GLOB '1[56]*' THEN 'SZ'
+        ELSE 'SH'
+      END;
+
+      UPDATE portfolio_dividends SET venue = CASE
+        WHEN kind = 'otc_fund' THEN 'OTC'
+        WHEN symbol GLOB '6*' OR symbol GLOB '5[1568]*' THEN 'SH'
+        WHEN symbol GLOB '0*' OR symbol GLOB '3*' OR symbol GLOB '1[56]*' THEN 'SZ'
+        ELSE 'SH'
+      END;
+
+      UPDATE executions SET venue = CASE
+        WHEN symbol GLOB '6*' OR symbol GLOB '5[1568]*' THEN 'SH'
+        WHEN symbol GLOB '0*' OR symbol GLOB '3*' OR symbol GLOB '1[56]*' THEN 'SZ'
+        ELSE 'SH'
+      END;
+
+      UPDATE trade_episodes SET venue = CASE
+        WHEN symbol GLOB '6*' OR symbol GLOB '5[1568]*' THEN 'SH'
+        WHEN symbol GLOB '0*' OR symbol GLOB '3*' OR symbol GLOB '1[56]*' THEN 'SZ'
+        ELSE 'SH'
+      END;
+
+      UPDATE fund_sip_plans SET venue = CASE
+        WHEN kind = 'otc_fund' THEN 'OTC'
+        WHEN symbol GLOB '6*' OR symbol GLOB '5[1568]*' THEN 'SH'
+        WHEN symbol GLOB '0*' OR symbol GLOB '3*' OR symbol GLOB '1[56]*' THEN 'SZ'
+        ELSE 'SH'
+      END;
+
+      CREATE INDEX portfolio_ledger_account_venue_symbol_idx
+        ON portfolio_ledger(account_id, venue, symbol, trade_at);
+
+      CREATE TABLE market_daily_bars__v19 (
+        venue TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        trade_date TEXT NOT NULL,
+        close_micros INTEGER NOT NULL,
+        prev_close_micros INTEGER,
+        kind TEXT NOT NULL,
+        fetched_at TEXT NOT NULL,
+        PRIMARY KEY (venue, symbol, trade_date)
+      ) STRICT;
+
+      INSERT INTO market_daily_bars__v19 (venue, symbol, trade_date, close_micros, prev_close_micros, kind, fetched_at)
+      SELECT
+        CASE
+          WHEN kind = 'otc_fund' THEN 'OTC'
+          WHEN symbol GLOB '6*' OR symbol GLOB '5[1568]*' THEN 'SH'
+          WHEN symbol GLOB '0*' OR symbol GLOB '3*' OR symbol GLOB '1[56]*' THEN 'SZ'
+          ELSE 'SH'
+        END,
+        symbol, trade_date, close_micros, prev_close_micros, kind, fetched_at
+      FROM market_daily_bars;
+
+      DROP TABLE market_daily_bars;
+      ALTER TABLE market_daily_bars__v19 RENAME TO market_daily_bars;
+      CREATE INDEX market_daily_bars_date_idx ON market_daily_bars(trade_date);
+
+      CREATE TABLE market_bar_sync_meta__v19 (
+        venue TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        earliest_date TEXT NOT NULL,
+        latest_date TEXT NOT NULL,
+        last_synced_at TEXT NOT NULL,
+        bar_count INTEGER NOT NULL,
+        PRIMARY KEY (venue, symbol)
+      ) STRICT;
+
+      INSERT INTO market_bar_sync_meta__v19 (venue, symbol, kind, earliest_date, latest_date, last_synced_at, bar_count)
+      SELECT
+        CASE
+          WHEN kind = 'otc_fund' THEN 'OTC'
+          WHEN symbol GLOB '6*' OR symbol GLOB '5[1568]*' THEN 'SH'
+          WHEN symbol GLOB '0*' OR symbol GLOB '3*' OR symbol GLOB '1[56]*' THEN 'SZ'
+          ELSE 'SH'
+        END,
+        symbol, kind, earliest_date, latest_date, last_synced_at, bar_count
+      FROM market_bar_sync_meta;
+
+      DROP TABLE market_bar_sync_meta;
+      ALTER TABLE market_bar_sync_meta__v19 RENAME TO market_bar_sync_meta;
+    `,
+  },
+  {
+    version: 20,
+    name: 'fee_profile_offshore_commission',
+    sql: `
+      ALTER TABLE fee_profiles ADD COLUMN hk_commission_wan REAL;
+      ALTER TABLE fee_profiles ADD COLUMN hk_commission_min_cents INTEGER;
+      ALTER TABLE fee_profiles ADD COLUMN us_commission_wan REAL;
+      ALTER TABLE fee_profiles ADD COLUMN us_commission_min_cents INTEGER;
+      ALTER TABLE fee_profiles ADD COLUMN us_commission_per_share REAL;
+    `,
+  },
 ];

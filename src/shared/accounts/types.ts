@@ -25,6 +25,7 @@ export type AccountBroker =
   | 'xueqiu'
   | 'futu'
   | 'tiger'
+  | 'zabank'
   | 'cjsc'
   | 'zszq'
   | 'ztzq'
@@ -155,6 +156,16 @@ export interface AccountCustomFeeInput {
   etfSzCommissionWan?: number;
   etfSzCommissionMinYuan?: number;
   etfSzNoCommissionMin?: boolean;
+  /** 港股佣金（万）；未填时沿用 commissionWan。 */
+  hkCommissionWan?: number;
+  hkCommissionMinYuan?: number;
+  hkNoCommissionMin?: boolean;
+  /** 美股佣金（万）；与 usCommissionPerShare 二选一。 */
+  usCommissionWan?: number;
+  usCommissionMinYuan?: number;
+  usNoCommissionMin?: boolean;
+  /** 美股每股佣金（美元）；> 0 时按股数计费。 */
+  usCommissionPerShare?: number;
 }
 
 /** 费率配置。 */
@@ -173,6 +184,14 @@ export interface FeeProfile {
   /** 深证 ETF/LOF 佣金；null 表示沿用 etfCommissionWan。 */
   etfSzCommissionWan: number | null;
   etfSzCommissionMinCents: number | null;
+  /** 港股佣金（万）；null 表示沿用 commissionWan。 */
+  hkCommissionWan: number | null;
+  hkCommissionMinCents: number | null;
+  /** 美股佣金（万）；null 表示沿用 commissionWan。 */
+  usCommissionWan: number | null;
+  usCommissionMinCents: number | null;
+  /** 美股每股佣金；> 0 时按股数计费，单位与报价币种一致（USD）。 */
+  usCommissionPerShare: number | null;
   stampDutyRatePpm: number;
   transferFeeRatePpm: number;
   transferFeeMinCents: number;
@@ -238,14 +257,19 @@ export interface UpdateTradingAccountInput {
   name?: string;
   broker?: AccountBroker;
   accountKind?: AccountKind;
+  currency?: string;
+  marketScope?: string[];
   feeProfileId?: string;
   customFee?: AccountCustomFeeInput;
 }
 
+/** 费用试算市场（A 股交易所 + 港美股）。 */
+export type FeeMarket = 'SH' | 'SZ' | 'HK' | 'US' | null;
+
 /** 费用试算输入。 */
 export interface FeeEstimateInput {
   side: 'buy' | 'sell';
-  market: 'SH' | 'SZ' | null;
+  market: FeeMarket;
   price: number;
   quantity: number;
   instrumentKind?: TradeFeeInstrumentKind;
@@ -273,6 +297,11 @@ export interface FeeProfileRates {
   etfShCommissionMinCents: number | null;
   etfSzCommissionWan: number | null;
   etfSzCommissionMinCents: number | null;
+  hkCommissionWan: number | null;
+  hkCommissionMinCents: number | null;
+  usCommissionWan: number | null;
+  usCommissionMinCents: number | null;
+  usCommissionPerShare: number | null;
   stampDutyRatePpm: number;
   transferFeeRatePpm: number;
   transferFeeMinCents: number;

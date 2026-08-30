@@ -1,28 +1,11 @@
 import { z } from 'zod';
-import { assetHashSchema, nonNegativeNumberSchema, positiveNumberSchema, symbolSchema } from '../primitives';
-import {
-  accountCustomFeeSchema,
-  alertEventActionSchema,
-  alertStatusSchema,
-  createAccountParamsSchema,
-  createAlertParamsSchema,
-  createPlanParamsSchema,
-  createPlaybookRuleParamsSchema,
-  createReviewParamsSchema,
-  executionImportInputSchema,
-  playbookStatusSchema,
-  planStatusSchema,
-  reviewAiDraftParamsSchema,
-  updateAccountInputSchema,
-  updatePlaybookRuleParamsSchema,
-} from '../params';
-
+import { symbolSchema } from '../primitives';
 export const marketServiceRequests = [
   z.object({
     id: z.uuid(),
     method: z.literal('market.resolve'),
     params: z.object({ symbol: symbolSchema }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('market.search'),
@@ -30,24 +13,25 @@ export const marketServiceRequests = [
       .object({
         query: z.string().trim().min(1).max(32),
         limit: z.number().int().min(1).max(20).optional(),
+        marketScopes: z.array(z.enum(['CN_A', 'HK', 'US'])).optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('market.getQuote'),
     params: z.object({ symbol: symbolSchema }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('market.getQuotes'),
     params: z.object({ symbols: z.array(symbolSchema).min(1).max(20) }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('market.getSnapshot'),
     params: z.object({ symbol: symbolSchema }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('market.listDividends'),
@@ -58,7 +42,7 @@ export const marketServiceRequests = [
         pageSize: z.number().int().min(1).max(50).optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('market.listNews'),
@@ -68,7 +52,7 @@ export const marketServiceRequests = [
         pageSize: z.number().int().min(1).max(20).optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('market.listKlines'),
@@ -81,5 +65,5 @@ export const marketServiceRequests = [
         beforeTimestamp: z.number().int().positive().optional(),
       })
       .strict(),
-  }),,
+  }),
 ] as const;

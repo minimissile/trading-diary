@@ -59,7 +59,6 @@ export function AccountSelect({
   return (
     <Select
       className={className ? `account-select ${className}` : 'account-select'}
-      classNames={{ popup: { root: 'trading-select-dropdown' } }}
       getPopupContainer={(trigger) => trigger.ownerDocument.body}
       loading={loading}
       disabled={disabled}

@@ -1,23 +1,33 @@
+import type { InstrumentVenue, QuoteCurrency } from './venues';
+
 /** 标的类型：A 股、场内 ETF/LOF、场外开放式基金。 */
 export type InstrumentKind = 'stock' | 'etf' | 'lof' | 'otc_fund';
 
 export type DividendEventStatus = 'implemented' | 'announced' | 'proposed' | 'unknown';
 
+export type MarketDataSource = 'eastmoney' | 'yahoo';
+
 export interface InstrumentInfo {
   symbol: string;
   name: string;
   kind: InstrumentKind;
+  /** A 股交易所；港美股为 null。 */
   market: 'SH' | 'SZ' | null;
+  /** 上市地（多市场扩展）。 */
+  venue: InstrumentVenue;
+  quoteCurrency: QuoteCurrency;
   secid: string | null;
   f10Code: string | null;
   securityTypeName: string | null;
-  source: 'eastmoney';
+  source: MarketDataSource;
 }
 
 export interface MarketQuote {
   symbol: string;
   name: string;
   kind: InstrumentKind;
+  venue: InstrumentVenue;
+  quoteCurrency: QuoteCurrency;
   price: number | null;
   open: number | null;
   high: number | null;
@@ -34,7 +44,7 @@ export interface MarketQuote {
   navDate: string | null;
   estimatedNav: number | null;
   estimatedNavChangePercent: number | null;
-  source: 'eastmoney';
+  source: MarketDataSource;
   fetchedAt: string;
 }
 
@@ -78,7 +88,9 @@ export interface MarketSearchHit {
   name: string;
   securityTypeName: string | null;
   kind: InstrumentKind | 'unknown';
-  source: 'eastmoney';
+  venue: InstrumentVenue;
+  quoteCurrency: QuoteCurrency;
+  source: MarketDataSource;
 }
 
 /** K 线周期，与看盘软件常用粒度对齐。 */

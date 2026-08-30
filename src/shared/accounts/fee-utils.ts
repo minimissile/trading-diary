@@ -35,6 +35,36 @@ export function resolveEtfMarketFormRates(
   };
 }
 
+/** 读取费率模板中港/美佣金表单值。 */
+export function resolveOffshoreMarketFormRates(
+  profile: FeeProfile,
+  market: 'HK' | 'US',
+): {
+  wan: number;
+  minYuan: number;
+  noMin: boolean;
+  perShare: number | null;
+} {
+  if (market === 'HK') {
+    const wan = profile.hkCommissionWan ?? profile.commissionWan;
+    const minCents = profile.hkCommissionMinCents ?? profile.commissionMinCents;
+    return {
+      wan: roundCommissionWan(wan),
+      minYuan: minCents / 100,
+      noMin: minCents === 0,
+      perShare: null,
+    };
+  }
+  const wan = profile.usCommissionWan ?? profile.commissionWan;
+  const minCents = profile.usCommissionMinCents ?? profile.commissionMinCents;
+  return {
+    wan: roundCommissionWan(wan),
+    minYuan: minCents / 100,
+    noMin: minCents === 0,
+    perShare: profile.usCommissionPerShare,
+  };
+}
+
 /** 账户卡片上展示费率摘要。 */
 export function formatFeeProfileSummary(profile: FeeProfile, accountKind: AccountKind): string {
   if (accountKind === 'fund') {
@@ -60,3 +90,15 @@ export const DEFAULT_SECURITIES_COMMISSION_WAN = 2.5;
 
 /** 股票账户默认最低佣金（元）。 */
 export const DEFAULT_SECURITIES_COMMISSION_MIN_YUAN = 5;
+
+/** 港股默认佣金（万 0.3 ≈ 0.03%）。 */
+export const DEFAULT_HK_COMMISSION_WAN = 0.3;
+
+/** 港股默认最低佣金（港币）。 */
+export const DEFAULT_HK_COMMISSION_MIN = 3;
+
+/** 美股默认每股佣金（美元）。 */
+export const DEFAULT_US_COMMISSION_PER_SHARE = 0.005;
+
+/** 美股默认最低佣金（美元）。 */
+export const DEFAULT_US_COMMISSION_MIN = 1;

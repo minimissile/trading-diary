@@ -233,7 +233,7 @@ export interface ServiceContract {
     result: InstrumentInfo;
   };
   'market.search': {
-    params: { query: string; limit?: number };
+    params: { query: string; limit?: number; marketScopes?: Array<'CN_A' | 'HK' | 'US'> };
     result: MarketSearchHit[];
   };
   'market.getQuote': {
@@ -481,6 +481,10 @@ export interface ServiceContract {
   'sip.setStatus': {
     params: { id: string; status: SipPlanStatus };
     result: FundSipPlanView;
+  };
+  'sip.deletePlan': {
+    params: { id: string };
+    result: { deleted: true };
   };
   'sip.previewSchedule': {
     params: CreateFundSipPlanInput;

@@ -24,6 +24,13 @@ export const accountCustomFeeSchema = z
     etfSzCommissionWan: nonNegativeNumberSchema.optional(),
     etfSzCommissionMinYuan: nonNegativeNumberSchema.optional(),
     etfSzNoCommissionMin: z.boolean().optional(),
+    hkCommissionWan: nonNegativeNumberSchema.optional(),
+    hkCommissionMinYuan: nonNegativeNumberSchema.optional(),
+    hkNoCommissionMin: z.boolean().optional(),
+    usCommissionWan: nonNegativeNumberSchema.optional(),
+    usCommissionMinYuan: nonNegativeNumberSchema.optional(),
+    usNoCommissionMin: z.boolean().optional(),
+    usCommissionPerShare: nonNegativeNumberSchema.optional(),
   })
   .strict();
 const accountAliasSchema = z.string().trim().max(80);
@@ -330,6 +337,7 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
       .object({
         query: z.string().trim().min(1).max(32),
         limit: z.number().int().min(1).max(20).optional(),
+        marketScopes: z.array(z.enum(['CN_A', 'HK', 'US'])).optional(),
       })
       .strict(),
   }),
@@ -825,6 +833,11 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
         status: z.enum(['draft', 'active', 'paused', 'completed', 'cancelled']),
       })
       .strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.deletePlan'),
+    params: z.object({ id: z.uuid() }).strict(),
   }),
   z.object({
     id: z.uuid(),

@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import type { InstrumentKind } from '../../shared/market/types';
+import type { InstrumentVenue } from '../../shared/market/venues';
+import { isVenueAllowedByScopes } from '../../shared/market/venues';
+import { parseInstrumentInput } from '../../shared/market/instrument-id';
 import { isAllAccountsId } from '../../shared/accounts/constants';
 import type {
   CreatePortfolioLedgerInput,
@@ -38,6 +41,7 @@ interface PortfolioLedgerRow {
   id: string;
   account_id: string;
   symbol: string;
+  venue: InstrumentVenue;
   kind: InstrumentKind;
   side: PortfolioLedgerSide;
   quantity_micros: number;
@@ -198,7 +202,20 @@ export class PortfolioDatabase {
 
   addLedgerEntry(input: CreatePortfolioLedgerInput): PortfolioLedgerEntry {
     const accountId = this.resolveAccountId(input.accountId);
-    const symbol = normalizeSymbol(input.symbol);
+    const accountScopes = this.getAccountMarketScope(accountId);
+    const kind = input.kind ?? 'stock';
+    const parsed = input.venue
+      ? { venue: input.venue, symbol: normalizeSymbol(input.symbol), quoteCurrency: 'CNY' as const }
+      : parseInstrumentInput(input.symbol, { kind, defaultVenue: this.defaultVenueForAccount(accountScopes) });
+    const symbol = parsed.venue === 'HK' || parsed.venue === 'US'
+      ? parsed.symbol
+      : normalizeSymbol(parsed.symbol);
+    const venue = input.venue ?? parsed.venue;
+
+    if (!isVenueAllowedByScopes(accountScopes, venue)) {
+      throw new Error('该账户不支持此市场的标的');
+    }
+
     const quantity = Math.abs(input.quantity);
     if (quantity <= 0) throw new Error('成交数量必须大于 0');
     if (input.price <= 0) throw new Error('成交价格必须大于 0');
@@ -207,26 +224,27 @@ export class PortfolioDatabase {
       input.side === 'sell' ? -toScaledInteger(quantity, QUANTITY_SCALE) : toScaledInteger(quantity, QUANTITY_SCALE);
 
     if (input.side === 'sell') {
-      const current = this.listLedger(accountId).filter((entry) => entry.symbol === symbol);
+      const current = this.listLedger(accountId).filter(
+        (entry) => entry.symbol === symbol && entry.venue === venue,
+      );
       const held = current.reduce((sum, entry) => sum + ledgerQuantityDelta(entry), 0);
       if (quantity > held + 1e-8) throw new Error('卖出数量不能超过当前持仓');
     }
-
-    const kind = input.kind ?? 'stock';
 
     const id = randomUUID();
     const now = new Date().toISOString();
     this.db
       .prepare(
         `INSERT INTO portfolio_ledger (
-          id, account_id, symbol, kind, side, quantity_micros, price_micros, fees_cents,
+          id, account_id, symbol, venue, kind, side, quantity_micros, price_micros, fees_cents,
           trade_at, plan_id, note, source, sip_occurrence_id, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
         accountId,
         symbol,
+        venue,
         kind,
         input.side,
         quantityMicros,
@@ -257,7 +275,8 @@ export class PortfolioDatabase {
 
     if (side === 'sell') {
       const others = this.listLedger(existing.accountId).filter(
-        (entry) => entry.symbol === existing.symbol && entry.id !== id,
+        (entry) =>
+          entry.symbol === existing.symbol && entry.venue === existing.venue && entry.id !== id,
       );
       const held = others.reduce((sum, entry) => sum + ledgerQuantityDelta(entry), 0);
       if (quantity > held + 1e-8) throw new Error('卖出数量不能超过当前持仓');
@@ -466,6 +485,7 @@ export class PortfolioDatabase {
       id: row.id,
       accountId: row.account_id,
       symbol: row.symbol,
+      venue: row.venue ?? 'SH',
       kind: row.kind,
       side: row.side,
       quantity: quantityAbs,
@@ -537,5 +557,28 @@ export class PortfolioDatabase {
 
   deletePreference(key: string): void {
     this.db.prepare('DELETE FROM portfolio_preferences WHERE key = ?').run(key);
+  }
+
+  private getAccountMarketScope(accountId: string): string[] {
+    const row = this.db
+      .prepare('SELECT market_scope_json FROM portfolio_accounts WHERE id = ?')
+      .get(accountId) as { market_scope_json: string } | undefined;
+    if (!row) return ['CN_A'];
+    try {
+      const parsed = JSON.parse(row.market_scope_json) as unknown;
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === 'string');
+      }
+    } catch {
+      // ignore
+    }
+    return ['CN_A'];
+  }
+
+  private defaultVenueForAccount(scopes: readonly string[]): InstrumentVenue | undefined {
+    if (scopes.includes('CN_A')) return undefined;
+    if (scopes.includes('HK')) return 'HK';
+    if (scopes.includes('US')) return 'US';
+    return undefined;
   }
 }

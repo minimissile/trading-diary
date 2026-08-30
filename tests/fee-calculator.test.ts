@@ -12,6 +12,11 @@ describe('estimateTradeFees', () => {
     etfShCommissionMinCents: null,
     etfSzCommissionWan: null,
     etfSzCommissionMinCents: null,
+    hkCommissionWan: null,
+    hkCommissionMinCents: null,
+    usCommissionWan: null,
+    usCommissionMinCents: null,
+    usCommissionPerShare: null,
     stampDutyRatePpm: FEE_PROFILE_A_SHARE_STANDARD.stampDutyRatePpm,
     transferFeeRatePpm: FEE_PROFILE_A_SHARE_STANDARD.transferFeeRatePpm,
     transferFeeMinCents: FEE_PROFILE_A_SHARE_STANDARD.transferFeeMinCents,
@@ -123,5 +128,43 @@ describe('estimateTradeFees', () => {
 
     expect(shResult.commission).toBe(5);
     expect(szResult.commission).toBe(8);
+  });
+
+  it('uses HK-specific commission rates', () => {
+    const result = estimateTradeFees(
+      { side: 'buy', market: 'HK', price: 100, quantity: 100, instrumentKind: 'stock' },
+      {
+        ...profile,
+        commissionWan: 2.5,
+        hkCommissionWan: 0.3,
+        hkCommissionMinCents: 300,
+      },
+    );
+    expect(result.commission).toBe(3);
+  });
+
+  it('uses US per-share commission when configured', () => {
+    const result = estimateTradeFees(
+      { side: 'buy', market: 'US', price: 150, quantity: 200, instrumentKind: 'stock' },
+      {
+        ...profile,
+        commissionWan: 2.5,
+        usCommissionPerShare: 0.005,
+        usCommissionMinCents: 0,
+      },
+    );
+    expect(result.commission).toBe(1);
+  });
+
+  it('applies US per-share minimum commission', () => {
+    const result = estimateTradeFees(
+      { side: 'buy', market: 'US', price: 10, quantity: 10, instrumentKind: 'stock' },
+      {
+        ...profile,
+        usCommissionPerShare: 0.005,
+        usCommissionMinCents: 100,
+      },
+    );
+    expect(result.commission).toBe(1);
   });
 });

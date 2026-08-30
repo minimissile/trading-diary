@@ -6,6 +6,7 @@ import {
   normalizeSymbol,
   toF10Code,
   toSecid,
+  venueFromCodeTableRow,
 } from '../src/service/market/eastmoney/symbols';
 
 describe('eastmoney symbols', () => {
@@ -26,6 +27,20 @@ describe('eastmoney symbols', () => {
     expect(toSecid('601318')).toBe('1.601318');
     expect(toF10Code('601318')).toBe('SH601318');
     expect(toSecid('110022')).toBeNull();
+  });
+
+  it('builds HK/US secid for EastMoney', () => {
+    expect(toSecid('06060', 'HK')).toBe('116.06060');
+    expect(toSecid('AAPL', 'US')).toBe('105.AAPL');
+  });
+
+  it('maps codetable row to venue', () => {
+    expect(
+      venueFromCodeTableRow({ code: '06060', market: 116, securityTypeName: '港股', smallType: 3 }),
+    ).toBe('HK');
+    expect(
+      venueFromCodeTableRow({ code: 'AAPL', market: 105, securityTypeName: '美股', smallType: 3 }),
+    ).toBe('US');
   });
 
   it('classifies exchange instrument kind', () => {

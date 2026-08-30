@@ -1,6 +1,11 @@
 import type { InstrumentKind } from '../../../shared/market/types';
+import type { InstrumentVenue } from '../../../shared/market/venues';
 
 export type ExchangeMarket = 'SH' | 'SZ';
+
+/** EastMoney codetable / push API 市场编号。 */
+export const EASTMONEY_MARKET_HK = 116;
+export const EASTMONEY_MARKET_US = 105;
 
 const SH_CODE = /^(60[0-9]|68[0-9]|51[0-9]|56[0-9]|58[0-9]|90[0-9])\d{3}$/u;
 const SZ_CODE = /^(00[0-9]|30[0-9]|15[0-9]|16[0-9]|20[0-9])\d{3}$/u;
@@ -9,9 +14,16 @@ const LOF_CODE = /^16[0-9]\d{3}$/u;
 
 export function normalizeSymbol(symbol: string): string {
   let code = symbol.trim().toUpperCase();
-  code = code.replace(/\.(SH|SZ)$/u, '');
-  code = code.replace(/^(SH|SZ)(?=\d)/u, '');
+  code = code.replace(/\.(SH|SZ|HK|US)$/u, '');
+  code = code.replace(/^(SH|SZ|HK)(?=\d)/u, '');
   return code;
+}
+
+/** 港股代码补齐为 5 位（保留前导零）。 */
+export function normalizeHongKongSymbol(symbol: string): string {
+  const digits = normalizeSymbol(symbol).replace(/\D/gu, '');
+  if (digits.length === 0) return normalizeSymbol(symbol);
+  return digits.padStart(5, '0');
 }
 
 export function detectExchangeMarket(symbol: string): ExchangeMarket | null {
@@ -21,12 +33,55 @@ export function detectExchangeMarket(symbol: string): ExchangeMarket | null {
   return null;
 }
 
-export function toSecid(symbol: string): string | null {
+export function toSecidForVenue(symbol: string, venue: InstrumentVenue): string | null {
+  if (venue === 'SH') return `1.${normalizeSymbol(symbol)}`;
+  if (venue === 'SZ') return `0.${normalizeSymbol(symbol)}`;
+  if (venue === 'HK') return `${EASTMONEY_MARKET_HK}.${normalizeHongKongSymbol(symbol)}`;
+  if (venue === 'US') return `${EASTMONEY_MARKET_US}.${normalizeSymbol(symbol)}`;
+  return null;
+}
+
+export function toSecid(symbol: string, venue?: InstrumentVenue): string | null {
+  if (venue) return toSecidForVenue(symbol, venue);
   const code = normalizeSymbol(symbol);
   const market = detectExchangeMarket(code);
   if (market === 'SH') return `1.${code}`;
   if (market === 'SZ') return `0.${code}`;
   return null;
+}
+
+/** 从 EastMoney codetable 行推断上市地。 */
+export function venueFromCodeTableRow(row: {
+  code: string;
+  market?: number;
+  securityTypeName?: string;
+  smallType?: number;
+}): InstrumentVenue | null {
+  const typeName = row.securityTypeName ?? '';
+  if (typeName === '港股') {
+    return row.smallType === 3 || row.smallType == null ? 'HK' : null;
+  }
+  if (typeName === '美股') {
+    return row.smallType === 3 || row.smallType == null ? 'US' : null;
+  }
+  if (/基金/u.test(typeName)) return 'OTC';
+  const cn = detectExchangeMarket(normalizeSymbol(row.code));
+  if (cn) return cn;
+  if (row.market === EASTMONEY_MARKET_HK) return 'HK';
+  if (row.market === EASTMONEY_MARKET_US) return 'US';
+  return null;
+}
+
+const SKIP_CODE_TABLE_TYPE_NAMES = new Set(['行业', '概念', '地区', '指数']);
+
+/** codetable 命中是否可作为可交易标的展示。 */
+export function isSearchableCodeTableRow(row: { securityTypeName?: string; smallType?: number }): boolean {
+  const typeName = row.securityTypeName ?? '';
+  if (SKIP_CODE_TABLE_TYPE_NAMES.has(typeName)) return false;
+  if (typeName === '港股' || typeName === '美股') {
+    return row.smallType === 3;
+  }
+  return true;
 }
 
 export function toF10Code(symbol: string): string | null {

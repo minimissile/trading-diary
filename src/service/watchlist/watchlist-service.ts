@@ -36,7 +36,7 @@ export class WatchlistService {
 
     if (poolId === 'dividend') {
       const symbols = DIVIDEND_POOL_SEED.map((item) => item.symbol);
-      const quotes = quoteMap(await marketService.getQuotes(symbols));
+      const quotes = quoteMap(await marketService.getQuotesBySymbols(symbols));
       return {
         poolId,
         meta,
@@ -57,7 +57,7 @@ export class WatchlistService {
 
     if (poolId === 'growth') {
       const symbols = GROWTH_POOL_SEED.map((item) => item.symbol);
-      const quotes = quoteMap(await marketService.getQuotes(symbols));
+      const quotes = quoteMap(await marketService.getQuotesBySymbols(symbols));
       return {
         poolId,
         meta,
@@ -75,7 +75,7 @@ export class WatchlistService {
     }
 
     const symbols = OVERLAP_POOL_SEED.map((item) => item.symbol);
-    const quotes = quoteMap(await marketService.getQuotes(symbols));
+    const quotes = quoteMap(await marketService.getQuotesBySymbols(symbols));
     return {
       poolId: 'overlap',
       meta,

@@ -1,22 +1,5 @@
 import { z } from 'zod';
-import { assetHashSchema, nonNegativeNumberSchema, positiveNumberSchema, symbolSchema } from '../primitives';
-import {
-  accountCustomFeeSchema,
-  alertEventActionSchema,
-  alertStatusSchema,
-  createAccountParamsSchema,
-  createAlertParamsSchema,
-  createPlanParamsSchema,
-  createPlaybookRuleParamsSchema,
-  createReviewParamsSchema,
-  executionImportInputSchema,
-  playbookStatusSchema,
-  planStatusSchema,
-  reviewAiDraftParamsSchema,
-  updateAccountInputSchema,
-  updatePlaybookRuleParamsSchema,
-} from '../params';
-
+import { nonNegativeNumberSchema, symbolSchema } from '../primitives';
 export const sipServiceRequests = [
   z.object({
     id: z.uuid(),
@@ -26,12 +9,12 @@ export const sipServiceRequests = [
         statuses: z.array(z.enum(['draft', 'active', 'paused', 'completed', 'cancelled'])).optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.getPlan'),
     params: z.object({ id: z.uuid() }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.createPlan'),
@@ -49,7 +32,7 @@ export const sipServiceRequests = [
         activateNow: z.boolean().optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.updatePlan'),
@@ -68,7 +51,7 @@ export const sipServiceRequests = [
           .strict(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.setStatus'),
@@ -78,7 +61,12 @@ export const sipServiceRequests = [
         status: z.enum(['draft', 'active', 'paused', 'completed', 'cancelled']),
       })
       .strict(),
-  }),,
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.deletePlan'),
+    params: z.object({ id: z.uuid() }).strict(),
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.previewSchedule'),
@@ -96,7 +84,7 @@ export const sipServiceRequests = [
         activateNow: z.boolean().optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.listOccurrences'),
@@ -107,7 +95,7 @@ export const sipServiceRequests = [
         to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.listOccurrenceViews'),
@@ -118,7 +106,7 @@ export const sipServiceRequests = [
         to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.confirmOccurrence'),
@@ -131,52 +119,52 @@ export const sipServiceRequests = [
         tradeAt: z.string().datetime().optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.skipOccurrence'),
     params: z.object({ id: z.uuid(), reason: z.string().trim().min(1).max(500) }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.getSummary'),
     params: z.object({}).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.scanDue'),
     params: z.object({}).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.getOccurrenceCalendar'),
     params: z.object({ month: z.string().regex(/^\d{4}-\d{2}$/) }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.getPositionMeta'),
     params: z.object({ accountId: z.string().trim().min(1).max(64).optional() }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.getReviewTemplate'),
     params: z.object({ planId: z.uuid() }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.getPlanPositionLink'),
     params: z.object({ planId: z.uuid() }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.listPlansBySymbol'),
     params: z.object({ accountId: z.string().trim().min(1).max(64), symbol: z.string().trim().min(1).max(32) }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.parseImportCsv'),
     params: z.object({ sourcePath: z.string().trim().min(1).max(4096) }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.previewImport'),
@@ -197,7 +185,7 @@ export const sipServiceRequests = [
           .strict(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.commitImport'),
@@ -218,12 +206,12 @@ export const sipServiceRequests = [
           .strict(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.recognizeImportScreenshot'),
     params: z.object({ sourcePath: z.string().trim().min(1).max(4096) }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.previewAiImport'),
@@ -247,7 +235,7 @@ export const sipServiceRequests = [
         ),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('sip.commitAiImport'),
@@ -284,5 +272,5 @@ export const sipServiceRequests = [
           .optional(),
       })
       .strict(),
-  }),,
+  }),
 ] as const;

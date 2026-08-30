@@ -33,44 +33,35 @@
   color: var(--ant-color-error, #ff7875);
 }
 
-.trading-select-dropdown.ant-select-dropdown {
-  background: var(--td-color-surface);
+/* 全局 Select / AutoComplete 下拉面板 — 新增下拉框自动继承，无需单独挂 class */
+.ant-select-dropdown {
+  background: var(--td-select-dropdown-bg) !important;
   border: 1px solid var(--td-color-line);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
 }
 
-.trading-select-dropdown .ant-select-item {
+.ant-select-dropdown .ant-select-item {
   color: var(--td-color-ink);
 }
 
-.trading-select-dropdown .ant-select-item-group {
+.ant-select-dropdown .ant-select-item-group {
   color: var(--td-color-ink-tertiary);
   font-size: 12px;
 }
 
-.trading-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-selected) {
-  background: #154b79 !important;
-  color: #e7f1fa !important;
+.ant-select-dropdown .ant-select-item-option-active:not(.ant-select-item-option-selected) {
+  background: var(--td-select-option-hover-bg) !important;
+  color: var(--td-select-option-hover-color) !important;
 }
 
-.trading-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
-  background: #123d65 !important;
-  color: #ffffff !important;
+.ant-select-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: var(--td-select-option-selected-bg) !important;
+  color: var(--td-select-option-selected-color) !important;
   font-weight: 600;
 }
 
-.trading-select-dropdown .ant-select-item-option-active .broker-select-option,
-.trading-select-dropdown .ant-select-item-option-active .broker-select-option span,
-.trading-select-dropdown .ant-select-item-option-selected .broker-select-option,
-.trading-select-dropdown .ant-select-item-option-selected .broker-select-option span,
-.trading-select-dropdown .ant-select-item-option-active .account-select-option,
-.trading-select-dropdown .ant-select-item-option-active .account-select-option span,
-.trading-select-dropdown .ant-select-item-option-selected .account-select-option,
-.trading-select-dropdown .ant-select-item-option-selected .account-select-option span,
-.trading-select-dropdown .ant-select-item-option-active .symbol-search-option,
-.trading-select-dropdown .ant-select-item-option-active .symbol-search-option span,
-.trading-select-dropdown .ant-select-item-option-selected .symbol-search-option,
-.trading-select-dropdown .ant-select-item-option-selected .symbol-search-option strong {
+.ant-select-dropdown .ant-select-item-option-active *,
+.ant-select-dropdown .ant-select-item-option-selected * {
   color: inherit;
 }
 
@@ -146,6 +137,16 @@
   border: 1px solid var(--td-color-accent-soft);
   background: var(--td-color-accent-soft);
   color: var(--td-color-ink);
+}
+
+.sip-page .sip-page-toolbar {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.sip-page .sip-page-toolbar__status {
+  margin-left: auto;
 }
 
 .sip-import-hint {

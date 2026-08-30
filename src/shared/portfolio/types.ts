@@ -1,5 +1,6 @@
 import type { FundProfileSummary } from '../market/fund-profile';
 import type { InstrumentKind } from '../market/types';
+import type { InstrumentVenue, QuoteCurrency } from '../market/venues';
 
 export type PortfolioLedgerSide = 'buy' | 'sell' | 'dividend_reinvest';
 export type PortfolioLedgerSource = 'manual' | 'csv' | 'plan' | 'sip';
@@ -9,6 +10,7 @@ export type DividendRecordSource = 'api' | 'manual';
 export interface CreatePortfolioLedgerInput {
   accountId?: string;
   symbol: string;
+  venue?: InstrumentVenue;
   kind?: InstrumentKind;
   side: PortfolioLedgerSide;
   quantity: number;
@@ -32,6 +34,8 @@ export interface UpdatePortfolioLedgerInput {
 
 export interface PortfolioPositionView {
   symbol: string;
+  venue: InstrumentVenue;
+  quoteCurrency: QuoteCurrency;
   name: string;
   kind: InstrumentKind;
   quantity: number;
@@ -205,6 +209,7 @@ export interface PortfolioLedgerEntry {
   id: string;
   accountId: string;
   symbol: string;
+  venue: InstrumentVenue;
   kind: InstrumentKind;
   side: PortfolioLedgerSide;
   quantity: number;

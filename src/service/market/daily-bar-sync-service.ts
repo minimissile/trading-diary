@@ -12,6 +12,8 @@ import {
   pnlCalendarWindowStart,
 } from '../../shared/portfolio/pnl-calendar-window';
 import { shiftCalendarDate, TRADE_MARKET_TIMEZONE } from '../../shared/trade-calendar';
+import { inferCnVenueFromSymbol } from '../../shared/market/instrument-id';
+import type { InstrumentVenue } from '../../shared/market/venues';
 import type { MarketDailyBarDatabase } from './market-daily-bar-database';
 import { marketService } from './market-service';
 
@@ -125,7 +127,7 @@ export class DailyBarSyncService {
     const windowStart = pnlCalendarWindowStart();
     const windowEnd = pnlCalendarWindowEnd();
     const yesterday = shiftCalendarDate(windowEnd, -1);
-    const meta = this.bars.getSyncMeta(normalized);
+    const meta = this.bars.getSyncMeta(normalized, kindHint ?? 'stock');
     const now = Date.now();
 
     if (
@@ -170,7 +172,9 @@ export class DailyBarSyncService {
     const earliestDate = stored[0]?.tradeDate ?? mapped[0]?.tradeDate ?? windowStart;
     const latestDate = stored[stored.length - 1]?.tradeDate ?? mapped[mapped.length - 1]?.tradeDate ?? earliestDate;
 
+    const venue: InstrumentVenue = kind === 'otc_fund' ? 'OTC' : inferCnVenueFromSymbol(normalized) ?? 'SH';
     this.bars.upsertSyncMeta({
+      venue,
       symbol: normalized,
       kind,
       earliestDate,

@@ -1,38 +1,109 @@
+/* 图表页占满内容区，禁止外层滚动，K 线区域最大化 */
+.app-page-scroll:has(.symbol-chart-page) {
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+  flex-direction: column;
+}
+
 .symbol-chart-page {
   display: flex;
   box-sizing: border-box;
   width: 100%;
   max-width: none;
-  height: calc(100vh - 64px);
-  min-height: calc(100vh - 64px);
+  height: 100%;
+  min-height: 0;
+  flex: 1;
   flex-direction: column;
   margin: 0;
-  padding: 24px 28px 28px;
+  padding: 0;
+  overflow: hidden;
+  background: #061521;
 }
 
-.symbol-chart-page .page-header {
+.symbol-chart-toolbar {
+  display: flex;
   flex-shrink: 0;
-  align-items: flex-start;
-  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--td-color-line);
+  background: #071722;
 }
 
-.symbol-chart-header-actions {
+.symbol-chart-toolbar-left,
+.symbol-chart-toolbar-right {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--td-space-3);
   align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.symbol-chart-toolbar-right {
   justify-content: flex-end;
 }
 
-.symbol-chart-quote {
-  font-family: var(--td-font-numeric);
-  color: var(--td-color-ink-secondary);
-  font-size: 14px;
+.symbol-chart-back {
+  flex-shrink: 0;
+  padding-inline: 8px !important;
+  color: var(--td-color-ink-secondary) !important;
 }
 
-.symbol-chart-controls {
+.symbol-chart-title-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  min-width: 0;
+}
+
+.symbol-chart-title {
+  overflow: hidden;
+  color: #eef6fc;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.symbol-chart-code {
+  color: var(--td-color-ink-tertiary);
+  font-family: var(--td-font-numeric);
+  font-size: 12px;
+}
+
+.symbol-chart-kind-tag {
+  margin: 0;
+  padding-inline: 6px;
+  line-height: 18px;
+}
+
+.symbol-chart-quote {
   flex-shrink: 0;
-  margin-bottom: 16px;
+  font-family: var(--td-font-numeric);
+  color: var(--td-color-ink-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.symbol-chart-error {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 6px 10px;
+  border: 0;
+  border-bottom: 1px solid #6e3542;
+  border-radius: 0;
+}
+
+.symbol-chart-indicator-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 220px;
 }
 
 .symbol-chart-control-row {
@@ -43,8 +114,9 @@
 }
 
 .symbol-chart-control-label {
-  min-width: 48px;
+  min-width: 36px;
   color: var(--td-color-ink-secondary);
+  font-size: 12px;
 }
 
 .symbol-chart-stage {
@@ -53,10 +125,10 @@
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  padding: var(--td-space-3);
-  border: 1px solid var(--td-color-line);
-  border-radius: var(--td-radius-panel);
-  background: var(--td-color-surface);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: #061521;
 }
 
 /* klinecharts 要求容器有明确高度；仅 min-height 会导致内部 height:100% 解析为 0 */
@@ -64,11 +136,22 @@
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 420px;
+  min-height: 0;
   flex: 1;
 }
 
 .trading-chart-host > div {
   width: 100% !important;
   height: 100% !important;
+}
+
+@media (max-width: 960px) {
+  .symbol-chart-toolbar {
+    padding-inline: 8px;
+  }
+
+  .symbol-chart-quote {
+    width: 100%;
+    padding-left: 36px;
+  }
 }

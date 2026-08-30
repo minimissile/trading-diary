@@ -7,6 +7,7 @@ import {
   isTradingDay,
   countTradingDaysInclusive,
   shouldUseReferenceDailyPnl,
+  shouldCountOtcFundDailyPnl,
   parseTradeAt,
   todayCalendarDate,
   tradeAtToStorage,
@@ -49,5 +50,32 @@ describe('trade calendar', () => {
     expect(countTradingDaysInclusive('2026-08-28', '2026-08-30')).toBe(1);
     expect(shouldUseReferenceDailyPnl('2026-08-28', '2026-08-30', 'stock')).toBe(false);
     expect(shouldUseReferenceDailyPnl('2026-08-28', '2026-08-29', 'stock')).toBe(true);
+  });
+
+  it('counts otc fund daily pnl on trading days and weekend nav updates only', () => {
+    expect(shouldCountOtcFundDailyPnl({ date: '2026-08-28' })).toBe(true);
+    expect(
+      shouldCountOtcFundDailyPnl({
+        date: '2026-08-30',
+        navDate: '2026-08-28',
+        close: 1.1611,
+        prevClose: 1.1491,
+      }),
+    ).toBe(false);
+    expect(
+      shouldCountOtcFundDailyPnl({
+        date: '2026-08-30',
+        navDate: '2026-08-30',
+        close: 1.0002,
+        prevClose: 1,
+      }),
+    ).toBe(true);
+    expect(
+      shouldCountOtcFundDailyPnl({
+        date: '2026-08-30',
+        close: 1.1611,
+        prevClose: 1.1611,
+      }),
+    ).toBe(false);
   });
 });

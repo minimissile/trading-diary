@@ -221,8 +221,8 @@ describe('position daily pnl', () => {
         }),
       ],
       marketPrice: 1.1611,
-      quote: { change: null, changePercent: 1.05, price: 1.1611, prevClose: 1.1491 },
-      asOf: new Date('2026-08-29T12:00:00+08:00'),
+      quote: { change: null, changePercent: 1.05, price: 1.1611, prevClose: 1.1491, navDate: '2026-08-28', nav: 1.1611 },
+      asOf: new Date('2026-08-28T15:00:00+08:00'),
     });
     expect(pnl).toBeCloseTo(87.03 * (1.1611 - 1.1491), 2);
   });
@@ -241,10 +241,57 @@ describe('position daily pnl', () => {
         }),
       ],
       marketPrice: 0.6214,
-      quote: { change: null, changePercent: -0.35, price: 0.6214, prevClose: 0.6214 },
-      asOf: new Date('2026-08-29T12:00:00+08:00'),
+      quote: { change: null, changePercent: -0.35, price: 0.6214, prevClose: 0.6214, navDate: '2026-08-28', nav: 0.6214 },
+      asOf: new Date('2026-08-28T15:00:00+08:00'),
     });
     expect(pnl).toBeCloseTo(1053.1 * ((0.6214 * -0.35) / 99.65), 2);
+  });
+
+  it('returns zero daily pnl for fund on weekend when nav was not updated', () => {
+    const pnl = computePositionDailyPnl({
+      kind: 'otc_fund',
+      entries: [
+        entry({
+          symbol: '021972',
+          kind: 'otc_fund',
+          side: 'buy',
+          quantity: 87.03,
+          price: 1.149,
+          tradeAt: '2026-08-20T00:00:00.000Z',
+        }),
+      ],
+      marketPrice: 1.1611,
+      quote: { change: null, changePercent: 1.05, price: 1.1611, prevClose: 1.1491, navDate: '2026-08-28', nav: 1.1611 },
+      asOf: new Date('2026-08-30T12:00:00+08:00'),
+    });
+    expect(pnl).toBe(0);
+  });
+
+  it('counts fund daily pnl on weekend when nav is published that day', () => {
+    const pnl = computePositionDailyPnl({
+      kind: 'otc_fund',
+      entries: [
+        entry({
+          symbol: '000198',
+          kind: 'otc_fund',
+          side: 'buy',
+          quantity: 1000,
+          price: 1,
+          tradeAt: '2026-08-20T00:00:00.000Z',
+        }),
+      ],
+      marketPrice: 1.0002,
+      quote: {
+        change: null,
+        changePercent: 0.02,
+        price: 1.0002,
+        prevClose: 1,
+        navDate: '2026-08-30',
+        nav: 1.0002,
+      },
+      asOf: new Date('2026-08-30T12:00:00+08:00'),
+    });
+    expect(pnl).toBeCloseTo(1000 * 0.0002, 4);
   });
 
   it('returns null when market daily is required but quote data is insufficient', () => {

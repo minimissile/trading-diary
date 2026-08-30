@@ -27,6 +27,13 @@ export const accountCustomFeeSchema = z
     etfSzCommissionWan: nonNegativeNumberSchema.optional(),
     etfSzCommissionMinYuan: nonNegativeNumberSchema.optional(),
     etfSzNoCommissionMin: z.boolean().optional(),
+    hkCommissionWan: nonNegativeNumberSchema.optional(),
+    hkCommissionMinYuan: nonNegativeNumberSchema.optional(),
+    hkNoCommissionMin: z.boolean().optional(),
+    usCommissionWan: nonNegativeNumberSchema.optional(),
+    usCommissionMinYuan: nonNegativeNumberSchema.optional(),
+    usNoCommissionMin: z.boolean().optional(),
+    usCommissionPerShare: nonNegativeNumberSchema.optional(),
   })
   .strict();
 
@@ -36,8 +43,8 @@ export const createAccountParamsSchema = z
     name: accountAliasSchema.optional(),
     broker: accountBrokerSchema.optional(),
     accountKind: accountKindSchema.optional(),
-    currency: z.string().trim().min(3).max(8).optional(),
-    marketScope: z.array(z.string().trim().min(1).max(32)).optional(),
+    currency: z.enum(['CNY', 'HKD', 'USD']).optional(),
+    marketScope: z.array(z.enum(['CN_A', 'HK', 'US'])).optional(),
     feeProfileId: z.string().trim().min(1).max(64).optional(),
     customFee: accountCustomFeeSchema.optional(),
     isDefault: z.boolean().optional(),
@@ -50,6 +57,8 @@ export const updateAccountInputSchema = z
     name: accountAliasSchema.optional(),
     broker: accountBrokerSchema.optional(),
     accountKind: accountKindSchema.optional(),
+    currency: z.enum(['CNY', 'HKD', 'USD']).optional(),
+    marketScope: z.array(z.enum(['CN_A', 'HK', 'US'])).optional(),
     feeProfileId: z.string().trim().min(1).max(64).optional(),
     customFee: accountCustomFeeSchema.optional(),
   })

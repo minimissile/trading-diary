@@ -51,7 +51,7 @@ export function SipImportModal({
   onSaved,
 }: SipImportModalProps): React.JSX.Element {
   const { message } = App.useApp();
-  const [mode, setMode] = useState<ImportMode>('csv');
+  const [mode, setMode] = useState<ImportMode>('ai');
   const [step, setStep] = useState<ImportStep>(0);
   const [csv, setCsv] = useState<SipCsvParseResult | null>(null);
   const [mapping, setMapping] = useState<SipColumnMapping | null>(null);
@@ -82,7 +82,7 @@ export function SipImportModal({
   );
 
   const reset = (): void => {
-    setMode('csv');
+    setMode('ai');
     setStep(0);
     setCsv(null);
     setMapping(null);
@@ -438,8 +438,8 @@ export function SipImportModal({
     >
       <Segmented<ImportMode>
         options={[
-          { label: 'CSV 文件', value: 'csv' },
           { label: 'AI 截图识别', value: 'ai' },
+          { label: 'CSV 文件', value: 'csv' },
         ]}
         value={mode}
         onChange={switchMode}

@@ -7,6 +7,30 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--td-scrollbar-thumb) var(--td-scrollbar-track);
+}
+
+*::-webkit-scrollbar {
+  width: var(--td-scrollbar-size);
+  height: var(--td-scrollbar-size);
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--td-scrollbar-thumb);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--td-scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--td-scrollbar-track);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 body {

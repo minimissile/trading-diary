@@ -1,20 +1,29 @@
 import type { InstrumentInfo, InstrumentKind, MarketSearchHit } from '../../../shared/market/types';
 import { MarketNotFoundError } from '../../../shared/market/errors';
+import type { InstrumentVenue } from '../../../shared/market/venues';
+import { isVenueAllowedByScopes, marketScopeForVenue } from '../../../shared/market/venues';
 import { eastMoneyFetchJson } from './client';
 import { EASTMONEY_QUOTE_REFERER, eastMoneyPushUrl } from './endpoints';
+import { enrichEastMoneyInstrument, enrichEastMoneySearchHit } from './enrich';
 import {
   classifyExchangeCode,
   detectExchangeMarket,
+  isSearchableCodeTableRow,
   mapSecurityTypeName,
+  normalizeHongKongSymbol,
   normalizeSymbol,
   toF10Code,
   toSecid,
+  toSecidForVenue,
+  venueFromCodeTableRow,
 } from './symbols';
 
 interface CodeTableHit {
   code: string;
   shortName: string;
   securityTypeName?: string;
+  market?: number;
+  smallType?: number;
 }
 
 interface CodeTableResponse {
@@ -37,6 +46,14 @@ interface UlistResponse {
 }
 
 export async function searchInstruments(query: string, limit = 10): Promise<MarketSearchHit[]> {
+  return searchInstrumentsScoped(query, ['CN_A'], limit);
+}
+
+export async function searchInstrumentsScoped(
+  query: string,
+  scopes: readonly string[],
+  limit = 10,
+): Promise<MarketSearchHit[]> {
   const keyword = query.trim();
   if (keyword.length === 0) return [];
 
@@ -52,19 +69,40 @@ export async function searchInstruments(query: string, limit = 10): Promise<Mark
   const rows = Array.isArray(payload) ? payload : (payload.result ?? []);
 
   const hits: MarketSearchHit[] = [];
-  for (const row of rows.slice(0, limit)) {
-    const symbol = normalizeSymbol(row.code);
+  for (const row of rows) {
+    if (!isSearchableCodeTableRow(row)) continue;
+    const venue = venueFromCodeTableRow(row);
+    if (!venue || !isVenueAllowedByScopes(scopes, venue)) continue;
+
+    const symbol =
+      venue === 'HK'
+        ? normalizeHongKongSymbol(row.code)
+        : venue === 'US'
+          ? normalizeSymbol(row.code)
+          : normalizeSymbol(row.code);
     const mapped = mapSecurityTypeName(row.securityTypeName);
-    hits.push({
-      symbol,
-      name: row.shortName,
-      securityTypeName: row.securityTypeName ?? null,
-      kind: mapped === 'unknown' ? await inferKindFromQuote(symbol, row.securityTypeName) : mapped,
-      source: 'eastmoney',
-    });
+    const kind =
+      venue === 'HK' || venue === 'US'
+        ? 'stock'
+        : mapped === 'unknown'
+          ? await inferKindFromQuote(symbol, row.securityTypeName)
+          : mapped;
+    hits.push(
+      enrichEastMoneySearchHit(
+        {
+          symbol,
+          name: row.shortName,
+          securityTypeName: row.securityTypeName ?? null,
+          kind,
+          source: 'eastmoney',
+        },
+        venue,
+      ),
+    );
+    if (hits.length >= limit) return hits;
   }
 
-  if (hits.length > 0) return hits;
+  if (hits.length > 0 || !scopes.includes('CN_A')) return hits;
 
   const fundUrl = new URL('https://fundsuggest.eastmoney.com/FundSearch/api/FundSearchAPI.ashx');
   fundUrl.searchParams.set('m', '1');
@@ -75,13 +113,18 @@ export async function searchInstruments(query: string, limit = 10): Promise<Mark
     referer: 'https://fund.eastmoney.com/',
   });
 
-  return (fundPayload.Datas ?? []).slice(0, limit).map((row) => ({
-    symbol: normalizeSymbol(row.CODE),
-    name: row.NAME,
-    securityTypeName: row.CATEGORYDESC ?? '基金',
-    kind: 'otc_fund' as const,
-    source: 'eastmoney',
-  }));
+  return (fundPayload.Datas ?? []).slice(0, limit).map((row) =>
+    enrichEastMoneySearchHit(
+      {
+        symbol: normalizeSymbol(row.CODE),
+        name: row.NAME,
+        securityTypeName: row.CATEGORYDESC ?? '基金',
+        kind: 'otc_fund' as const,
+        source: 'eastmoney',
+      },
+      'OTC',
+    ),
+  );
 }
 
 export async function resolveInstrument(symbolInput: string): Promise<InstrumentInfo> {
@@ -113,7 +156,7 @@ export async function resolveInstrument(symbolInput: string): Promise<Instrument
   if (markedAsFund && fundInfo) {
     const exchangeKind = secid ? classifyExchangeCode(symbol) : null;
     const kind = exchangeKind === 'lof' || exchangeKind === 'etf' ? exchangeKind : 'otc_fund';
-    return {
+    return enrichEastMoneyInstrument({
       symbol,
       name: fundInfo.name,
       kind,
@@ -122,7 +165,7 @@ export async function resolveInstrument(symbolInput: string): Promise<Instrument
       f10Code: kind === 'otc_fund' ? null : f10Code,
       securityTypeName: securityTypeName ?? '场外基金',
       source: 'eastmoney',
-    };
+    });
   }
 
   if (secid && market) {
@@ -137,7 +180,7 @@ export async function resolveInstrument(symbolInput: string): Promise<Instrument
 
     const exchangeKind = classifyExchangeCode(symbol);
     if (fundInfo && exchangeKind === 'stock' && exactHit?.kind !== 'stock') {
-      return {
+      return enrichEastMoneyInstrument({
         symbol,
         name: fundInfo.name,
         kind: 'otc_fund',
@@ -146,10 +189,10 @@ export async function resolveInstrument(symbolInput: string): Promise<Instrument
         f10Code: null,
         securityTypeName: securityTypeName ?? '场外基金',
         source: 'eastmoney',
-      };
+      });
     }
 
-    return {
+    return enrichEastMoneyInstrument({
       symbol,
       name,
       kind: exchangeKind,
@@ -158,11 +201,11 @@ export async function resolveInstrument(symbolInput: string): Promise<Instrument
       f10Code,
       securityTypeName,
       source: 'eastmoney',
-    };
+    });
   }
 
   if (fundInfo) {
-    return {
+    return enrichEastMoneyInstrument({
       symbol,
       name: fundInfo.name,
       kind: 'otc_fund',
@@ -171,10 +214,55 @@ export async function resolveInstrument(symbolInput: string): Promise<Instrument
       f10Code: null,
       securityTypeName: securityTypeName ?? '场外基金',
       source: 'eastmoney',
-    };
+    });
   }
 
   throw new MarketNotFoundError(`未找到标的：${symbol}`);
+}
+
+/** 按上市地解析港美股标的（EastMoney）。 */
+export async function resolveEastMoneyByVenue(
+  venue: Extract<InstrumentVenue, 'HK' | 'US'>,
+  symbolInput: string,
+): Promise<InstrumentInfo> {
+  const symbol = venue === 'HK' ? normalizeHongKongSymbol(symbolInput) : normalizeSymbol(symbolInput);
+  const secid = toSecidForVenue(symbol, venue);
+  if (!secid) throw new MarketNotFoundError(`无法解析行情代码：${symbol}`);
+
+  let name = symbol;
+  let securityTypeName: string | null = venue === 'HK' ? '港股' : '美股';
+
+  try {
+    const hits = await searchInstrumentsScoped(symbol, [marketScopeForVenue(venue)], 5);
+    const exact = hits.find((hit) => hit.symbol === symbol && hit.venue === venue);
+    if (exact) {
+      name = exact.name;
+      securityTypeName = exact.securityTypeName;
+    }
+  } catch {
+    // 搜索失败时继续走行情接口
+  }
+
+  try {
+    const exchangeQuote = await fetchExchangeName(secid);
+    if (exchangeQuote) name = exchangeQuote.name;
+  } catch {
+    // 行情接口失败时仍返回可识别标的
+  }
+
+  return enrichEastMoneyInstrument(
+    {
+      symbol,
+      name,
+      kind: 'stock',
+      market: null,
+      secid,
+      f10Code: null,
+      securityTypeName,
+      source: 'eastmoney',
+    },
+    venue,
+  );
 }
 
 async function inferKindFromQuote(symbol: string, securityTypeName?: string): Promise<InstrumentKind> {

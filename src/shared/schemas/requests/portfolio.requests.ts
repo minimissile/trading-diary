@@ -1,28 +1,11 @@
 import { z } from 'zod';
-import { assetHashSchema, nonNegativeNumberSchema, positiveNumberSchema, symbolSchema } from '../primitives';
-import {
-  accountCustomFeeSchema,
-  alertEventActionSchema,
-  alertStatusSchema,
-  createAccountParamsSchema,
-  createAlertParamsSchema,
-  createPlanParamsSchema,
-  createPlaybookRuleParamsSchema,
-  createReviewParamsSchema,
-  executionImportInputSchema,
-  playbookStatusSchema,
-  planStatusSchema,
-  reviewAiDraftParamsSchema,
-  updateAccountInputSchema,
-  updatePlaybookRuleParamsSchema,
-} from '../params';
-
+import { nonNegativeNumberSchema, positiveNumberSchema, symbolSchema } from '../primitives';
 export const portfolioServiceRequests = [
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.listPositions'),
     params: z.object({ accountId: z.string().trim().min(1).max(64).optional() }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.getSummary'),
@@ -32,7 +15,7 @@ export const portfolioServiceRequests = [
         year: z.number().int().min(2000).max(2100).optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.getDividendCalendar'),
@@ -42,7 +25,7 @@ export const portfolioServiceRequests = [
         month: z.string().regex(/^\d{4}-\d{2}$/u),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.listDividends'),
@@ -53,7 +36,7 @@ export const portfolioServiceRequests = [
         statuses: z.array(z.enum(['estimated', 'confirmed', 'rejected'])).optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.addLedgerEntry'),
@@ -73,7 +56,7 @@ export const portfolioServiceRequests = [
         sipOccurrenceId: z.uuid().nullable().optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.listLedgerEntries'),
@@ -83,7 +66,7 @@ export const portfolioServiceRequests = [
         symbol: symbolSchema.optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.getRealizedHistory'),
@@ -93,7 +76,7 @@ export const portfolioServiceRequests = [
         year: z.number().int().min(2000).max(2100).optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.getPnlCalendar'),
@@ -103,7 +86,7 @@ export const portfolioServiceRequests = [
         month: z.string().regex(/^\d{4}-\d{2}$/u).optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.updateLedgerEntry'),
@@ -122,12 +105,12 @@ export const portfolioServiceRequests = [
           .strict(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.deleteLedgerEntry'),
     params: z.object({ id: z.uuid() }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.deletePosition'),
@@ -137,7 +120,7 @@ export const portfolioServiceRequests = [
         symbol: symbolSchema,
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.confirmDividend'),
@@ -150,7 +133,7 @@ export const portfolioServiceRequests = [
         year: z.number().int().min(2000).max(2100).optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.refreshDividends'),
@@ -160,17 +143,17 @@ export const portfolioServiceRequests = [
         symbol: symbolSchema.optional(),
       })
       .strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.syncMarketQuotes'),
     params: z.object({ accountId: z.string().trim().min(1).max(64).optional() }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.getDividendGoal'),
     params: z.object({ accountId: z.string().trim().min(1).max(64).optional() }).strict(),
-  }),,
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.saveDividendGoal'),
@@ -186,5 +169,5 @@ export const portfolioServiceRequests = [
           .nullable(),
       })
       .strict(),
-  }),,
+  }),
 ] as const;

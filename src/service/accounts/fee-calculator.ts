@@ -1,6 +1,6 @@
 import type { FeeEstimateInput, FeeEstimateResult, FeeProfileRates } from '../../shared/accounts/types';
 import { NO_MIN_COMMISSION_SELL_REGULATORY_CENTS } from '../../shared/accounts/fee-presets';
-import { chargesStampDuty, resolveCommissionWan, usesEtfCommissionTier } from '../../shared/accounts/fee-rates';
+import { chargesStampDuty, resolveCommissionRates, usesEtfCommissionTier } from '../../shared/accounts/fee-rates';
 
 const MONEY_SCALE = 100;
 const RATE_SCALE = 1_000_000;
@@ -44,19 +44,35 @@ export function estimateTradeFees(
 ): FeeEstimateResult {
   const grossAmount = roundMoney(input.price * input.quantity);
   const amountCents = toCents(grossAmount);
-  const { commissionWan, minCents } = resolveCommissionWan(profile, input.instrumentKind, input.market);
-  const commissionCents = Math.max(
-    Math.round((amountCents * commissionWan) / COMMISSION_WAN_DENOMINATOR),
-    minCents,
+  const { commissionWan, minCents, perShare } = resolveCommissionRates(
+    profile,
+    input.instrumentKind,
+    input.market,
   );
+  const commissionCents =
+    input.market === 'US' && perShare != null
+      ? Math.max(Math.round(perShare * input.quantity * MONEY_SCALE), minCents)
+      : Math.max(
+          Math.round((amountCents * commissionWan) / COMMISSION_WAN_DENOMINATOR),
+          minCents,
+        );
   const regulatoryCents = sellRegulatorySurchargeCents(input.side, minCents, input.instrumentKind);
   const commission = fromCents(commissionCents);
-  const stampDuty = chargesStampDuty(input.side, input.instrumentKind)
-    ? fromCents(applyRateCents(amountCents, profile.stampDutyRatePpm))
-    : 0;
+  const isHk = input.market === 'HK';
+  const isUs = input.market === 'US';
+  const stampDuty =
+    isHk && input.side === 'sell'
+      ? fromCents(applyRateCents(amountCents, profile.stampDutyRatePpm > 0 ? profile.stampDutyRatePpm : 1300))
+      : !isHk && !isUs && chargesStampDuty(input.side, input.instrumentKind)
+        ? fromCents(applyRateCents(amountCents, profile.stampDutyRatePpm))
+        : 0;
   const transferFee =
     input.market === 'SH' ? fromCents(applyRateCents(amountCents, profile.transferFeeRatePpm)) : 0;
-  const otherFee = roundMoney(profile.otherFeeCents / MONEY_SCALE + fromCents(regulatoryCents));
+  const usRegulatory =
+    isUs && input.side === 'sell' ? fromCents(Math.max(Math.round(amountCents * 0.000008), 1)) : 0;
+  const otherFee = roundMoney(
+    profile.otherFeeCents / MONEY_SCALE + fromCents(regulatoryCents) + usRegulatory,
+  );
   const totalFees = roundMoney(commission + stampDuty + transferFee + otherFee);
 
   return {

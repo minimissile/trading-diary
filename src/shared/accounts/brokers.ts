@@ -40,6 +40,7 @@ export const BROKER_REGISTRY: readonly BrokerMeta[] = [
   { id: 'xueqiu', label: '雪球', domain: 'xueqiu.com', group: 'internet', keywords: ['雪球', 'xueqiu', '蛋卷', '蛋卷基金', '雪球基金'] },
   { id: 'futu', label: '富途证券', domain: 'futunn.com', group: 'internet', keywords: ['富途', 'futu', 'moomoo', '牛牛', '富途基金'] },
   { id: 'tiger', label: '老虎证券', domain: 'itiger.com', group: 'internet', keywords: ['老虎', 'tiger', 'itiger'] },
+  { id: 'zabank', label: '众安银行', domain: 'bank.za.group', group: 'internet', keywords: ['众安', '众安银行', 'zabank', 'za bank', 'za.group'] },
 
   { id: 'ttfund', label: '天天基金', domain: 'fund.eastmoney.com', group: 'fund', keywords: ['天天', 'ttjj', '东财基金', 'fund.eastmoney', '天天基金网'] },
   { id: 'antfortune', label: '蚂蚁财富', domain: 'fund.antfortune.com', group: 'fund', iconUrls: ['https://zos.alipayobjects.com/rmsportal/uAkGrrhlPyyCHzPzssfS.ico', 'https://i.alipayobjects.com/common/favicon/favicon.ico'], keywords: ['蚂蚁', '支付宝', 'alipay', 'antfortune', '蚂蚁基金', '余额宝'] },

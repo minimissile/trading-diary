@@ -38,7 +38,6 @@ export function BrokerSelect({ value, onChange, className, accountKind = 'securi
     <Select<AccountBroker>
       className={className ? `broker-select ${className}` : 'broker-select'}
       showSearch
-      classNames={{ popup: { root: 'trading-select-dropdown' } }}
       getPopupContainer={(trigger) => trigger.ownerDocument.body}
       filterOption={(input, option) => {
         const meta = registry.find((item) => item.id === option?.value);

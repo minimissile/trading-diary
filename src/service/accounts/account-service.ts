@@ -83,11 +83,14 @@ export class AccountService {
     quantity: number;
   }): Promise<FeeEstimateResult> {
     const profile = this.resolveFeeProfile(input);
-    let market: 'SH' | 'SZ' | null;
+    let market: FeeEstimateInput['market'];
     let instrumentKind: FeeEstimateInput['instrumentKind'];
     try {
       const resolved = await marketService.resolve(input.symbol);
-      market = resolved.market;
+      market =
+        resolved.venue === 'HK' || resolved.venue === 'US'
+          ? resolved.venue
+          : resolved.market;
       instrumentKind = resolved.kind;
     } catch {
       market = input.symbol.startsWith('6') ? 'SH' : 'SZ';

@@ -100,6 +100,7 @@ export const ipcChannels = {
   sipCreatePlan: 'desktop:sip:create-plan',
   sipUpdatePlan: 'desktop:sip:update-plan',
   sipSetStatus: 'desktop:sip:set-status',
+  sipDeletePlan: 'desktop:sip:delete-plan',
   sipPreviewSchedule: 'desktop:sip:preview-schedule',
   sipListOccurrences: 'desktop:sip:list-occurrences',
   sipListOccurrenceViews: 'desktop:sip:list-occurrence-views',

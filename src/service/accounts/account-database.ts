@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { resolveAccountName } from '../../shared/accounts/account-display';
+import { resolveAccountMarketSettings } from '../../shared/accounts/market-defaults';
+import { normalizeMarketScope } from '../../shared/market/venues';
 import {
   DEFAULT_FEE_PROFILE_ID,
   FEE_PROFILE_FUND_DEFAULT,
@@ -63,6 +65,11 @@ interface FeeProfileRow {
   etf_sz_commission_rate_ppm: number | null;
   etf_sz_commission_wan: number | null;
   etf_sz_commission_min_cents: number | null;
+  hk_commission_wan: number | null;
+  hk_commission_min_cents: number | null;
+  us_commission_wan: number | null;
+  us_commission_min_cents: number | null;
+  us_commission_per_share: number | null;
   stamp_duty_rate_ppm: number;
   transfer_fee_rate_ppm: number;
   transfer_fee_min_cents: number;
@@ -143,6 +150,12 @@ export class AccountDatabase {
     const now = new Date().toISOString();
     const broker = input.broker ?? 'custom';
     const accountKind = input.accountKind ?? 'securities';
+    const marketSettings = resolveAccountMarketSettings({
+      broker,
+      accountKind,
+      marketScope: input.marketScope,
+      currency: input.currency,
+    });
     const storedName = resolveAccountName(broker, input.alias ?? input.name);
     const feeProfileId = this.resolveFeeProfileIdForCreate(input, accountKind, storedName);
     this.assertFeeProfileExists(feeProfileId);
@@ -161,11 +174,11 @@ export class AccountDatabase {
       .run(
         id,
         storedName,
-        input.currency ?? 'CNY',
+        marketSettings.currency,
         input.isDefault ? 1 : 0,
         broker,
         accountKind,
-        JSON.stringify(input.marketScope ?? ['CN_A']),
+        JSON.stringify(marketSettings.marketScope),
         feeProfileId,
         0,
         now,
@@ -184,6 +197,12 @@ export class AccountDatabase {
     const now = new Date().toISOString();
     const broker = input.broker ?? current.broker;
     const accountKind = input.accountKind ?? current.accountKind;
+    const marketSettings = resolveAccountMarketSettings({
+      broker,
+      accountKind,
+      marketScope: input.marketScope ?? current.marketScope,
+      currency: input.currency ?? current.currency,
+    });
     const storedName =
       input.alias !== undefined || input.name !== undefined
         ? resolveAccountName(broker, input.alias ?? input.name)
@@ -199,11 +218,20 @@ export class AccountDatabase {
     this.db
       .prepare(
         `UPDATE portfolio_accounts SET
-          name = ?, broker = ?, account_kind = ?, fee_profile_id = ?,
-          updated_at = ?
+          name = ?, broker = ?, account_kind = ?, currency = ?, market_scope_json = ?,
+          fee_profile_id = ?, updated_at = ?
          WHERE id = ?`,
       )
-      .run(storedName, broker, accountKind, feeProfileId, now, id);
+      .run(
+        storedName,
+        broker,
+        accountKind,
+        marketSettings.currency,
+        JSON.stringify(marketSettings.marketScope),
+        feeProfileId,
+        now,
+        id,
+      );
 
     return this.getAccount(id);
   }
@@ -297,9 +325,11 @@ export class AccountDatabase {
           etf_commission_rate_ppm, etf_commission_wan, etf_commission_min_cents,
           etf_sh_commission_rate_ppm, etf_sh_commission_wan, etf_sh_commission_min_cents,
           etf_sz_commission_rate_ppm, etf_sz_commission_wan, etf_sz_commission_min_cents,
+          hk_commission_wan, hk_commission_min_cents,
+          us_commission_wan, us_commission_min_cents, us_commission_per_share,
           stamp_duty_rate_ppm, transfer_fee_rate_ppm, transfer_fee_min_cents, other_fee_cents, slippage_bps,
           is_builtin, created_at, updated_at
-        ) VALUES (?, ?, 0, ?, ?, 0, ?, ?, 0, ?, ?, 0, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)`,
+        ) VALUES (?, ?, 0, ?, ?, 0, ?, ?, 0, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)`,
       )
       .run(
         id,
@@ -312,6 +342,11 @@ export class AccountDatabase {
         rates.etfShCommissionMinCents,
         rates.etfSzCommissionWan,
         rates.etfSzCommissionMinCents,
+        rates.hkCommissionWan,
+        rates.hkCommissionMinCents,
+        rates.usCommissionWan,
+        rates.usCommissionMinCents,
+        rates.usCommissionPerShare,
         rates.stampDutyRatePpm,
         rates.transferFeeRatePpm,
         rates.transferFeeMinCents,
@@ -340,6 +375,8 @@ export class AccountDatabase {
           etf_commission_rate_ppm = 0, etf_commission_wan = ?, etf_commission_min_cents = ?,
           etf_sh_commission_rate_ppm = 0, etf_sh_commission_wan = ?, etf_sh_commission_min_cents = ?,
           etf_sz_commission_rate_ppm = 0, etf_sz_commission_wan = ?, etf_sz_commission_min_cents = ?,
+          hk_commission_wan = ?, hk_commission_min_cents = ?,
+          us_commission_wan = ?, us_commission_min_cents = ?, us_commission_per_share = ?,
           stamp_duty_rate_ppm = ?, transfer_fee_rate_ppm = ?, transfer_fee_min_cents = ?,
           other_fee_cents = ?, updated_at = ?
          WHERE id = ?`,
@@ -354,6 +391,11 @@ export class AccountDatabase {
         rates.etfShCommissionMinCents,
         rates.etfSzCommissionWan,
         rates.etfSzCommissionMinCents,
+        rates.hkCommissionWan,
+        rates.hkCommissionMinCents,
+        rates.usCommissionWan,
+        rates.usCommissionMinCents,
+        rates.usCommissionPerShare,
         rates.stampDutyRatePpm,
         rates.transferFeeRatePpm,
         rates.transferFeeMinCents,
@@ -420,7 +462,7 @@ export class AccountDatabase {
     let marketScope: string[] = ['CN_A'];
     try {
       const parsed = JSON.parse(row.market_scope_json) as unknown;
-      if (Array.isArray(parsed)) marketScope = parsed.filter((item): item is string => typeof item === 'string');
+      if (Array.isArray(parsed)) marketScope = normalizeMarketScope(parsed.filter((item): item is string => typeof item === 'string'));
     } catch {
       // 保留默认市场范围
     }
@@ -472,6 +514,13 @@ export class AccountDatabase {
           ? this.readCommissionWan(row.etf_sz_commission_wan, row.etf_sz_commission_rate_ppm)
           : null,
       etfSzCommissionMinCents: row.etf_sz_commission_min_cents ?? null,
+      hkCommissionWan:
+        row.hk_commission_wan != null ? roundCommissionWan(row.hk_commission_wan) : null,
+      hkCommissionMinCents: row.hk_commission_min_cents ?? null,
+      usCommissionWan:
+        row.us_commission_wan != null ? roundCommissionWan(row.us_commission_wan) : null,
+      usCommissionMinCents: row.us_commission_min_cents ?? null,
+      usCommissionPerShare: row.us_commission_per_share ?? null,
       stampDutyRatePpm: row.stamp_duty_rate_ppm,
       transferFeeRatePpm: row.transfer_fee_rate_ppm,
       transferFeeMinCents: row.transfer_fee_min_cents,
@@ -493,6 +542,11 @@ export class AccountDatabase {
       etfShCommissionMinCents: profile.etfShCommissionMinCents,
       etfSzCommissionWan: profile.etfSzCommissionWan,
       etfSzCommissionMinCents: profile.etfSzCommissionMinCents,
+      hkCommissionWan: profile.hkCommissionWan,
+      hkCommissionMinCents: profile.hkCommissionMinCents,
+      usCommissionWan: profile.usCommissionWan,
+      usCommissionMinCents: profile.usCommissionMinCents,
+      usCommissionPerShare: profile.usCommissionPerShare,
       stampDutyRatePpm: profile.stampDutyRatePpm,
       transferFeeRatePpm: profile.transferFeeRatePpm,
       transferFeeMinCents: profile.transferFeeMinCents,
@@ -544,20 +598,84 @@ export class AccountDatabase {
         etfShCommissionMinCents: null,
         etfSzCommissionWan: null,
         etfSzCommissionMinCents: null,
+        hkCommissionWan: null,
+        hkCommissionMinCents: null,
+        usCommissionWan: null,
+        usCommissionMinCents: null,
+        usCommissionPerShare: null,
         stampDutyRatePpm: 0,
         transferFeeRatePpm: 0,
         transferFeeMinCents: 0,
         otherFeeCents: 0,
       };
     }
+    const offshoreRates = this.resolveOffshoreProfileRates(input);
     return {
       commissionWan,
       commissionMinCents,
       ...etfRates,
+      ...offshoreRates,
       stampDutyRatePpm: STAMP_DUTY_RATE_PPM,
       transferFeeRatePpm: TRANSFER_FEE_RATE_PPM,
       transferFeeMinCents: 0,
       otherFeeCents: 0,
+    };
+  }
+
+  private resolveOffshoreProfileRates(input: AccountCustomFeeInput): Pick<
+    FeeProfileRates,
+    | 'hkCommissionWan'
+    | 'hkCommissionMinCents'
+    | 'usCommissionWan'
+    | 'usCommissionMinCents'
+    | 'usCommissionPerShare'
+  > {
+    const empty = {
+      hkCommissionWan: null,
+      hkCommissionMinCents: null,
+      usCommissionWan: null,
+      usCommissionMinCents: null,
+      usCommissionPerShare: null,
+    } as const;
+
+    if (
+      input.hkCommissionWan == null &&
+      input.hkCommissionMinYuan == null &&
+      input.usCommissionWan == null &&
+      input.usCommissionMinYuan == null &&
+      input.usCommissionPerShare == null
+    ) {
+      return { ...empty };
+    }
+
+    const hk = this.etfMarketRatesFromInput(
+      input.hkCommissionWan,
+      input.hkCommissionMinYuan,
+      input.hkNoCommissionMin,
+      input.commissionWan,
+    );
+    const us = this.etfMarketRatesFromInput(
+      input.usCommissionWan,
+      input.usCommissionMinYuan,
+      input.usNoCommissionMin,
+      input.commissionWan,
+    );
+    const perShare =
+      input.usCommissionPerShare != null && input.usCommissionPerShare > 0
+        ? input.usCommissionPerShare
+        : null;
+
+    return {
+      hkCommissionWan: input.hkCommissionWan != null ? hk.commissionWan : null,
+      hkCommissionMinCents: input.hkCommissionWan != null || input.hkCommissionMinYuan != null
+        ? hk.minCents
+        : null,
+      usCommissionWan: perShare == null && input.usCommissionWan != null ? us.commissionWan : null,
+      usCommissionMinCents:
+        input.usCommissionWan != null || input.usCommissionMinYuan != null || perShare != null
+          ? us.minCents
+          : null,
+      usCommissionPerShare: perShare,
     };
   }
 

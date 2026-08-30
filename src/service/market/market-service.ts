@@ -8,12 +8,17 @@ import type {
   MarketSearchHit,
   MarketSnapshot,
 } from '../../shared/market/types';
+import type { InstrumentVenue } from '../../shared/market/venues';
 import { computeOtcFundDividendYield, listDividends, listUpcomingDividends } from './eastmoney/dividend-service';
 import { lookupHistoricalPriceOnDate as fetchHistoricalPriceOnDate } from './eastmoney/historical-price-service';
 import { listKlines as fetchKlines } from './eastmoney/kline-service';
 import { listNews } from './eastmoney/news-service';
-import { getQuote as fetchQuote, getQuotes as fetchQuotes } from './eastmoney/quote-service';
-import { resolveInstrument, searchInstruments } from './eastmoney/search-service';
+import {
+  getQuoteMulti,
+  getQuotesMulti,
+  resolveInstrumentMulti,
+  searchInstrumentsMulti,
+} from './market-router';
 
 export interface MarketSnapshotExtended extends MarketSnapshot {
   upcomingDividends: Awaited<ReturnType<typeof listUpcomingDividends>>;
@@ -21,32 +26,42 @@ export interface MarketSnapshotExtended extends MarketSnapshot {
 
 export class MarketService {
   resolve(symbol: string) {
-    return resolveInstrument(symbol);
+    return resolveInstrumentMulti(symbol);
   }
 
-  search(query: string, limit?: number): Promise<MarketSearchHit[]> {
-    return searchInstruments(query, limit);
+  search(query: string, limit?: number, marketScopes?: readonly string[]): Promise<MarketSearchHit[]> {
+    return searchInstrumentsMulti(query, marketScopes ?? ['CN_A'], limit);
   }
 
   async getQuote(symbol: string): Promise<MarketQuote> {
-    const quote = await fetchQuote(symbol);
+    const quote = await getQuoteMulti(symbol);
     if (!quote.dividendYieldTtm || quote.dividendYieldTtm <= 0) {
-      const computed = await computeOtcFundDividendYield(quote.symbol, quote.price ?? quote.nav);
-      if (computed !== null) {
-        quote.dividendYieldTtm = computed;
+      if (quote.venue === 'SH' || quote.venue === 'SZ' || quote.venue === 'OTC') {
+        const computed = await computeOtcFundDividendYield(quote.symbol, quote.price ?? quote.nav);
+        if (computed !== null) {
+          quote.dividendYieldTtm = computed;
+        }
       }
     }
     return quote;
   }
 
-  getQuotes(symbols: string[]): Promise<MarketQuote[]> {
-    return fetchQuotes(symbols);
+  getQuotes(items: Array<{ symbol: string; venue?: InstrumentVenue }>): Promise<MarketQuote[]> {
+    return getQuotesMulti(items);
+  }
+
+  /** @deprecated 请使用 getQuotes([{ symbol, venue }]) */
+  getQuotesBySymbols(symbols: string[]): Promise<MarketQuote[]> {
+    return getQuotesMulti(symbols.map((symbol) => ({ symbol })));
   }
 
   async getSnapshot(symbol: string): Promise<MarketSnapshotExtended> {
-    const instrument = await resolveInstrument(symbol);
+    const instrument = await resolveInstrumentMulti(symbol);
     const quote = await this.getQuote(symbol);
-    const upcomingDividends = await listUpcomingDividends(symbol, 5).catch(() => []);
+    const upcomingDividends =
+      instrument.venue === 'HK' || instrument.venue === 'US'
+        ? []
+        : await listUpcomingDividends(symbol, 5).catch(() => []);
     return { instrument, quote, upcomingDividends };
   }
 

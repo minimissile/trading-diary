@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveCommissionWan } from '../src/shared/accounts/fee-rates';
+import { resolveCommissionRates, resolveCommissionWan } from '../src/shared/accounts/fee-rates';
 
 const baseProfile = {
   commissionWan: 2.5,
@@ -10,6 +10,11 @@ const baseProfile = {
   etfShCommissionMinCents: 0,
   etfSzCommissionWan: 0.8,
   etfSzCommissionMinCents: 500,
+  hkCommissionWan: 0.3,
+  hkCommissionMinCents: 300,
+  usCommissionWan: null,
+  usCommissionMinCents: 100,
+  usCommissionPerShare: 0.005,
   stampDutyRatePpm: 500,
   transferFeeRatePpm: 10,
   transferFeeMinCents: 0,
@@ -41,5 +46,17 @@ describe('resolveCommissionWan', () => {
       'SH',
     );
     expect(rates.commissionWan).toBe(1);
+  });
+
+  it('uses HK-specific rates on HK market', () => {
+    const rates = resolveCommissionWan(baseProfile, 'stock', 'HK');
+    expect(rates.commissionWan).toBe(0.3);
+    expect(rates.minCents).toBe(300);
+  });
+
+  it('uses US per-share rates on US market', () => {
+    const rates = resolveCommissionRates(baseProfile, 'stock', 'US');
+    expect(rates.perShare).toBe(0.005);
+    expect(rates.minCents).toBe(100);
   });
 });

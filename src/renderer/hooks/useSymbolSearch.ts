@@ -20,7 +20,10 @@ export interface UseSymbolSearchResult {
  * 标的搜索建议 Hook：输入防抖 300ms，请求节流 400ms。
  * @param limit 返回建议条数上限
  */
-export function useSymbolSearch(limit = DEFAULT_LIMIT): UseSymbolSearchResult {
+export function useSymbolSearch(
+  limit = DEFAULT_LIMIT,
+  marketScopes: readonly string[] = ['CN_A'],
+): UseSymbolSearchResult {
   const [options, setOptions] = useState<MarketSearchHit[]>([]);
   const [loading, setLoading] = useState(false);
   const requestSeq = useRef(0);
@@ -31,7 +34,7 @@ export function useSymbolSearch(limit = DEFAULT_LIMIT): UseSymbolSearchResult {
         const seq = ++requestSeq.current;
         setLoading(true);
         void window.desktop.market
-          .search(query, limit)
+          .search(query, limit, [...marketScopes])
           .then((hits) => {
             if (seq !== requestSeq.current) return;
             setOptions(hits);
@@ -44,7 +47,7 @@ export function useSymbolSearch(limit = DEFAULT_LIMIT): UseSymbolSearchResult {
             if (seq === requestSeq.current) setLoading(false);
           });
       }, SEARCH_THROTTLE_MS),
-    [limit],
+    [limit, marketScopes],
   );
 
   const debouncedFetch = useMemo(() => debounce(fetchHits, SEARCH_DEBOUNCE_MS), [fetchHits]);

@@ -1,9 +1,10 @@
-import { PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import { CheckOutlined, DeleteOutlined, MoreOutlined, PauseOutlined, PlayCircleOutlined, PlusOutlined, StopOutlined, UploadOutlined } from '@ant-design/icons';
 import {
   App,
   Button,
   Calendar,
   Drawer,
+  Dropdown,
   Empty,
   Modal,
   Segmented,
@@ -12,6 +13,7 @@ import {
   Tag,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import type { MenuProps } from 'antd';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import type {
@@ -62,8 +64,8 @@ export function SipPage(): React.JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
   const [accountId] = useTradingAccountId();
-  const [tab, setTab] = useState<SipTab>('due');
-  const [filter, setFilter] = useState<'all' | SipPlanStatus>('all');
+  const [tab, setTab] = useState<SipTab>('plans');
+  const [filter, setFilter] = useState<'all' | SipPlanStatus>('active');
   const [plans, setPlans] = useState<FundSipPlanView[]>([]);
   const [dueOccurrences, setDueOccurrences] = useState<FundSipOccurrenceView[]>([]);
   const [historyOccurrences, setHistoryOccurrences] = useState<FundSipOccurrenceView[]>([]);
@@ -137,6 +139,8 @@ export function SipPage(): React.JSX.Element {
     return scoped.filter((plan) => plan.symbol === highlightSymbol);
   }, [filter, highlightSymbol, plans]);
 
+  const activePlanCount = useMemo(() => plans.filter((plan) => plan.status === 'active').length, [plans]);
+
   const calendarCellMap = useMemo(() => {
     type CalendarItem = SipOccurrenceCalendarDay['items'][number];
     const map = new Map<string, CalendarItem[]>();
@@ -150,6 +154,31 @@ export function SipPage(): React.JSX.Element {
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '计划详情读取失败');
     }
+  };
+
+  const deletePlan = (plan: FundSipPlanView): void => {
+    Modal.confirm({
+      title: '删除定投计划',
+      content:
+        plan.status === 'active'
+          ? '计划仍在执行中。删除后将移除全部期次记录；已写入持仓的流水不会删除。'
+          : plan.completedCount > 0
+            ? `将删除计划及 ${plan.completedCount} 条期次记录；已确认扣款流水仍保留在持仓中。`
+            : '删除后无法恢复，确定删除该计划？',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await window.desktop.sip.delete(plan.id);
+          if (detailPlan?.id === plan.id) setDetailPlan(null);
+          window.dispatchEvent(new Event('workspace-changed'));
+          await load();
+          void message.success('计划已删除');
+        } catch (reason) {
+          void message.error(reason instanceof Error ? reason.message : '删除失败');
+        }
+      },
+    });
   };
 
   const setStatus = async (plan: FundSipPlanView, status: SipPlanStatus): Promise<void> => {
@@ -176,6 +205,76 @@ export function SipPage(): React.JSX.Element {
         void message.success('本期已标记为跳过');
       },
     });
+  };
+
+  const buildOccurrenceActionItems = (occurrence: FundSipOccurrenceView): MenuProps['items'] => [
+    {
+      key: 'confirm',
+      label: '确认扣款',
+      icon: <CheckOutlined />,
+      onClick: () => setConfirmTarget(occurrence),
+    },
+    {
+      key: 'skip',
+      label: '跳过',
+      icon: <StopOutlined />,
+      onClick: () => skipOccurrence(occurrence),
+    },
+  ];
+
+  const buildPlanActionItems = (plan: FundSipPlanView): MenuProps['items'] => {
+    const items: MenuProps['items'] = [];
+
+    if (plan.status === 'draft') {
+      items.push({
+        key: 'activate',
+        label: '启用',
+        icon: <PlayCircleOutlined />,
+        onClick: () => void setStatus(plan, 'active'),
+      });
+    }
+    if (plan.status === 'active') {
+      items.push({
+        key: 'pause',
+        label: '暂停',
+        icon: <PauseOutlined />,
+        onClick: () => void setStatus(plan, 'paused'),
+      });
+    }
+    if (plan.status === 'paused') {
+      items.push({
+        key: 'resume',
+        label: '恢复',
+        icon: <PlayCircleOutlined />,
+        onClick: () => void setStatus(plan, 'active'),
+      });
+    }
+    if (plan.status === 'active' || plan.status === 'paused') {
+      items.push({
+        key: 'cancel',
+        label: '终止',
+        icon: <StopOutlined />,
+        onClick: () => void setStatus(plan, 'cancelled'),
+      });
+    }
+    items.push({
+      key: 'delete',
+      label: '删除',
+      icon: <DeleteOutlined />,
+      danger: true,
+      onClick: () => deletePlan(plan),
+    });
+
+    return items;
+  };
+
+  const renderActionMenu = (items: MenuProps['items']): React.JSX.Element | null => {
+    if (!items?.length) return null;
+    return (
+      <Dropdown trigger={['click']} menu={{ items }}>
+        <Button type="text" size="small" icon={<MoreOutlined />} aria-label="操作菜单" />
+      </Dropdown>
+    );
   };
 
   const dueColumns = useMemo<ColumnsType<FundSipOccurrenceView>>(
@@ -208,17 +307,10 @@ export function SipPage(): React.JSX.Element {
       {
         title: '操作',
         key: 'actions',
-        width: 180,
-        render: (_, row) => (
-          <div className="table-actions">
-            <Button size="small" type="link" onClick={() => setConfirmTarget(row)}>
-              确认扣款
-            </Button>
-            <Button size="small" type="link" onClick={() => skipOccurrence(row)}>
-              跳过
-            </Button>
-          </div>
-        ),
+        width: 64,
+        fixed: 'right',
+        align: 'center',
+        render: (_, row) => renderActionMenu(buildOccurrenceActionItems(row)),
       },
     ],
     [],
@@ -277,31 +369,10 @@ export function SipPage(): React.JSX.Element {
       {
         title: '操作',
         key: 'actions',
-        width: 220,
-        render: (_, row) => (
-          <div className="table-actions">
-            {row.status === 'draft' ? (
-              <Button size="small" type="link" onClick={() => void setStatus(row, 'active')}>
-                启用
-              </Button>
-            ) : null}
-            {row.status === 'active' ? (
-              <Button size="small" type="link" onClick={() => void setStatus(row, 'paused')}>
-                暂停
-              </Button>
-            ) : null}
-            {row.status === 'paused' ? (
-              <Button size="small" type="link" onClick={() => void setStatus(row, 'active')}>
-                恢复
-              </Button>
-            ) : null}
-            {row.status === 'active' || row.status === 'paused' ? (
-              <Button size="small" type="link" onClick={() => void setStatus(row, 'cancelled')}>
-                终止
-              </Button>
-            ) : null}
-          </div>
-        ),
+        width: 64,
+        fixed: 'right',
+        align: 'center',
+        render: (_, row) => renderActionMenu(buildPlanActionItems(row)),
       },
     ],
     [],
@@ -351,13 +422,20 @@ export function SipPage(): React.JSX.Element {
       {
         title: '操作',
         key: 'actions',
-        width: 120,
+        width: 64,
+        fixed: 'right',
+        align: 'center',
         render: (_, row) =>
-          row.status === 'due' || row.status === 'scheduled' ? (
-            <Button size="small" type="link" onClick={() => setConfirmTarget(row)}>
-              确认扣款
-            </Button>
-          ) : null,
+          row.status === 'due' || row.status === 'scheduled'
+            ? renderActionMenu([
+                {
+                  key: 'confirm',
+                  label: '确认扣款',
+                  icon: <CheckOutlined />,
+                  onClick: () => setConfirmTarget(row),
+                },
+              ])
+            : null,
       },
     ],
     [],
@@ -387,14 +465,14 @@ export function SipPage(): React.JSX.Element {
         <>
           <section className="portfolio-metrics sip-metrics">
             <article className="portfolio-metric-card portfolio-metric-card--primary">
-              <small>待确认扣款</small>
-              <strong>{summary?.dueOccurrenceCount ?? 0}</strong>
-              <span>到期需手动确认</span>
-            </article>
-            <article className="portfolio-metric-card">
               <small>执行中计划</small>
               <strong>{summary?.activePlanCount ?? 0}</strong>
               <span>活跃定投计划</span>
+            </article>
+            <article className="portfolio-metric-card">
+              <small>待确认扣款</small>
+              <strong>{summary?.dueOccurrenceCount ?? 0}</strong>
+              <span>到期需手动确认</span>
             </article>
             <article className="portfolio-metric-card">
               <small>本月已完成</small>
@@ -436,11 +514,11 @@ export function SipPage(): React.JSX.Element {
             </div>
           ) : null}
 
-          <div className="page-toolbar portfolio-filters">
+          <div className="page-toolbar portfolio-filters sip-page-toolbar">
             <Segmented<SipTab>
               options={[
-                { label: `待执行 ${dueOccurrences.length}`, value: 'due' },
                 { label: `计划 ${plans.length}`, value: 'plans' },
+                { label: `待扣款 ${dueOccurrences.length}`, value: 'due' },
                 { label: '扣款日历', value: 'calendar' },
                 { label: '期次明细', value: 'history' },
               ]}
@@ -449,9 +527,10 @@ export function SipPage(): React.JSX.Element {
             />
             {tab === 'plans' ? (
               <Segmented
+                className="sip-page-toolbar__status"
                 options={[
+                  { label: `执行中 ${activePlanCount}`, value: 'active' },
                   { label: `全部 ${plans.length}`, value: 'all' },
-                  { label: '执行中', value: 'active' },
                   { label: '草稿', value: 'draft' },
                   { label: '已暂停', value: 'paused' },
                 ]}
@@ -585,6 +664,9 @@ export function SipPage(): React.JSX.Element {
                 }
               >
                 查看持仓
+              </Button>
+              <Button size="small" danger onClick={() => deletePlan(detailPlan)}>
+                删除计划
               </Button>
             </div>
             <Table
