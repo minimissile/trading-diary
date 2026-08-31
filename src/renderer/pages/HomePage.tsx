@@ -16,11 +16,15 @@ import { App, Button, Progress, Skeleton } from 'antd';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import type { OverlapPoolItemLive, TradeAlert, WorkspaceSnapshot } from '../../shared/api.types';
+import type { LofArbitrageSnapshot } from '../../shared/lof-arbitrage/types';
+import { summarizeActionHint } from '../../shared/lof-arbitrage/action-hint';
+import { isExecutableArbitrage } from '../../shared/lof-arbitrage/executable';
 import { CommandPanel } from '../components/home/CommandPanel';
 import { previewActionItems, ruleRows, stageColumns, timelineSteps } from '../components/home/home-preview-data';
 import type { ActionItem, QueueCategory } from '../components/home/types';
 import { PlanCreateModal } from '../components/trading/PlanCreateModal';
 import { formatAlertCondition, formatCurrency, formatPrice, ValueDisplay } from '../lib/trading-format';
+import { priceListPresetForKind } from '../../shared/format/display-presets';
 import { routePaths } from '../router/paths';
 
 export function HomePage(): React.JSX.Element {
@@ -34,6 +38,7 @@ export function HomePage(): React.JSX.Element {
   const [queueFilter, setQueueFilter] = useState<QueueCategory>('all');
   const [overlapPreview, setOverlapPreview] = useState<OverlapPoolItemLive[]>([]);
   const [overlapLoading, setOverlapLoading] = useState(true);
+  const [lofPreview, setLofPreview] = useState<LofArbitrageSnapshot[]>([]);
 
   const load = useCallback(async (): Promise<void> => {
     setError(null);
@@ -76,6 +81,22 @@ export function HomePage(): React.JSX.Element {
       })
       .finally(() => {
         if (active) setOverlapLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void window.desktop.lofArbitrage
+      .scanMarket(120)
+      .then((result) => {
+        if (!active) return;
+        setLofPreview(result.snapshots.filter((row) => isExecutableArbitrage(row)).slice(0, 3));
+      })
+      .catch(() => {
+        if (active) setLofPreview([]);
       });
     return () => {
       active = false;
@@ -531,6 +552,30 @@ export function HomePage(): React.JSX.Element {
         </CommandPanel>
 
         <CommandPanel className="watch-panel" number="7." title="观察清单">
+          {lofPreview.length > 0 ? (
+            <div className="lof-home-preview">
+              <div className="lof-home-preview__head">
+                <strong>LOF 套利机会</strong>
+                <button type="button" onClick={() => void navigate(routePaths.lofArbitrage)}>
+                  打开监控 <RightOutlined />
+                </button>
+              </div>
+              {lofPreview.map((row) => (
+                <div className="watch-row" key={`lof-${row.symbol}`}>
+                  <span>
+                    <b>{row.symbol}</b> {row.name}
+                  </span>
+                  <span>
+                    <ValueDisplay kind={priceListPresetForKind('lof')} value={row.marketPrice} />
+                  </span>
+                  <span>
+                    <ValueDisplay kind="percent" value={row.premiumRate} />
+                  </span>
+                  <span>{summarizeActionHint(row.premiumRate, row.feasiblePaths, row.recommendedPath)}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
           <div className="watch-table">
             <div className="watch-head">
               <span>标的</span>

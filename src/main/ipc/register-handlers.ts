@@ -4,16 +4,18 @@ import { ipcChannels } from '../../shared/ipc-channels';
 import type { ServiceHost } from '../service-host';
 import type { UpdateManager } from '../updater/update-manager';
 import { registerAccountsHandlers } from './handlers/accounts.handlers';
+import { registerLofArbitrageHandlers } from './handlers/lof-arbitrage.handlers';
 import { registerMarketHandlers } from './handlers/market.handlers';
 import { registerPortfolioHandlers } from './handlers/portfolio.handlers';
 import { registerSettingsHandlers } from './handlers/settings.handlers';
 import { registerSipHandlers } from './handlers/sip.handlers';
 import { registerUpdaterHandlers } from './handlers/updater.handlers';
 import { registerWorkspaceHandlers } from './handlers/workspace.handlers';
-import { notifyDueSipOccurrences, notifyTriggeredAlerts } from './notifications';
+import { notifyDueSipOccurrences, notifyLofArbitrageAlerts, notifyTriggeredAlerts } from './notifications';
 import { activeStreamCancels, IPC_PUSH_CHANNELS } from './shared';
 
 const ALERT_POLL_INTERVAL_MS = 60_000;
+const LOF_POLL_INTERVAL_MS = 180_000;
 
 export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost, updater: UpdateManager): () => void {
   const context = { window, service, updater };
@@ -24,6 +26,7 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
   registerPortfolioHandlers(context);
   registerAccountsHandlers(context);
   registerSipHandlers(context);
+  registerLofArbitrageHandlers(context);
   registerUpdaterHandlers(context);
 
   const pollBackgroundTasks = (): void => {
@@ -36,9 +39,20 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
       .request('sip.scanDue', {})
       .then((result) => notifyDueSipOccurrences(window, result.newlyDueOccurrences))
       .catch(() => undefined);
+    void service
+      .request('lofArbitrage.pollActive', {})
+      .then((result) => notifyLofArbitrageAlerts(window, result.newlyTriggered))
+      .catch(() => undefined);
   };
 
   const alertPollTimer = setInterval(pollBackgroundTasks, ALERT_POLL_INTERVAL_MS);
+  const lofPollTimer = setInterval(() => {
+    if (window.isDestroyed()) return;
+    void service
+      .request('lofArbitrage.pollActive', {})
+      .then((result) => notifyLofArbitrageAlerts(window, result.newlyTriggered))
+      .catch(() => undefined);
+  }, LOF_POLL_INTERVAL_MS);
   pollBackgroundTasks();
 
   const unsubscribeUpdater = updater.subscribe((state) => {
@@ -47,6 +61,7 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
 
   return () => {
     clearInterval(alertPollTimer);
+    clearInterval(lofPollTimer);
     unsubscribeUpdater();
     for (const streamId of [...activeStreamCancels.keys()]) {
       activeStreamCancels.get(streamId)?.();

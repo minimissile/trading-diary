@@ -666,4 +666,61 @@ export const migrations: readonly Migration[] = [
         ) <= 0.15;
     `,
   },
+  {
+    version: 24,
+    name: 'lof_arbitrage',
+    sql: `
+      CREATE TABLE lof_watchlist (
+        id TEXT PRIMARY KEY,
+        symbol TEXT NOT NULL UNIQUE,
+        notes TEXT,
+        created_at TEXT NOT NULL
+      ) STRICT;
+
+      CREATE TABLE lof_arbitrage_snapshots (
+        id TEXT PRIMARY KEY,
+        symbol TEXT NOT NULL,
+        market_price_micros INTEGER,
+        reference_nav_micros INTEGER,
+        premium_rate_micros INTEGER,
+        subscription_status TEXT NOT NULL,
+        amount_cents INTEGER,
+        fetched_at TEXT NOT NULL
+      ) STRICT;
+
+      CREATE INDEX lof_arbitrage_snapshots_symbol_time_idx
+        ON lof_arbitrage_snapshots(symbol, fetched_at DESC);
+
+      CREATE TABLE lof_arbitrage_rules (
+        id TEXT PRIMARY KEY,
+        symbol TEXT,
+        direction TEXT NOT NULL CHECK (direction IN ('premium','discount','both')),
+        threshold_rate_micros INTEGER NOT NULL,
+        min_amount_cents INTEGER,
+        require_subscription_open INTEGER NOT NULL DEFAULT 1,
+        min_net_spread_micros INTEGER,
+        status TEXT NOT NULL CHECK (status IN ('active','paused','triggered')),
+        last_triggered_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      ) STRICT;
+
+      CREATE INDEX lof_arbitrage_rules_status_idx ON lof_arbitrage_rules(status, updated_at DESC);
+
+      CREATE TABLE lof_arbitrage_events (
+        id TEXT PRIMARY KEY,
+        rule_id TEXT NOT NULL,
+        symbol TEXT NOT NULL,
+        title TEXT NOT NULL,
+        premium_rate_micros INTEGER NOT NULL,
+        net_spread_micros INTEGER,
+        recommended_path_label TEXT,
+        triggered_at TEXT NOT NULL,
+        user_action TEXT CHECK (user_action IN ('acknowledged','dismissed')),
+        FOREIGN KEY (rule_id) REFERENCES lof_arbitrage_rules(id) ON DELETE CASCADE
+      ) STRICT;
+
+      CREATE INDEX lof_arbitrage_events_triggered_idx ON lof_arbitrage_events(triggered_at DESC);
+    `,
+  },
 ];

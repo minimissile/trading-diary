@@ -146,6 +146,8 @@ export interface WorkspaceSnapshot {
   dueSipOccurrences: import('./sip/types').FundSipOccurrenceView[];
   activeSipPlanCount: number;
   dueSipOccurrenceCount: number;
+  lofArbitrageOpportunities: import('./lof-arbitrage/types').LofArbitrageSnapshot[];
+  lofArbitrageTriggeredCount: number;
 }
 
 export type UpdatePhase =
@@ -606,5 +608,19 @@ export interface DesktopApi {
     recognizeImportScreenshot: (sourcePath: string) => Promise<import('./sip/import-types').SipAiRecognizeResult>;
     previewAiImport: (input: import('./sip/import-types').SipAiImportInput) => Promise<import('./sip/import-types').SipAiImportPreviewResult>;
     commitAiImport: (input: import('./sip/import-types').SipAiImportInput) => Promise<import('./sip/import-types').SipImportCommitResult>;
+  };
+  lofArbitrage: {
+    listWatchItems: () => Promise<import('./lof-arbitrage/types').LofWatchItem[]>;
+    addWatchItem: (symbol: string, notes?: string | null) => Promise<import('./lof-arbitrage/types').LofWatchItem>;
+    removeWatchItem: (id: string) => Promise<{ deleted: true }>;
+    listRules: () => Promise<import('./lof-arbitrage/types').LofArbitrageRule[]>;
+    createRule: (input: import('./lof-arbitrage/types').CreateLofArbitrageRuleInput) => Promise<import('./lof-arbitrage/types').LofArbitrageRule>;
+    setRuleStatus: (id: string, status: import('./lof-arbitrage/types').LofArbitrageRuleStatus) => Promise<import('./lof-arbitrage/types').LofArbitrageRule>;
+    deleteRule: (id: string) => Promise<{ deleted: true }>;
+    getSnapshot: (symbol: string) => Promise<import('./lof-arbitrage/types').LofArbitrageSnapshot>;
+    refreshMonitor: () => Promise<import('./lof-arbitrage/types').LofArbitrageMonitorResult>;
+    scanMarket: (limit?: number) => Promise<import('./lof-arbitrage/types').LofArbitrageScanResult>;
+    listEvents: (limit?: number) => Promise<import('./lof-arbitrage/types').LofArbitrageAlertEvent[]>;
+    setEventAction: (id: string, action: 'acknowledged' | 'dismissed') => Promise<import('./lof-arbitrage/types').LofArbitrageAlertEvent>;
   };
 }

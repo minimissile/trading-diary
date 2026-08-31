@@ -5,6 +5,7 @@ import { assetsServiceRequests } from './requests/assets.requests';
 import { backupServiceRequests } from './requests/backup.requests';
 import { episodesServiceRequests } from './requests/episodes.requests';
 import { importServiceRequests } from './requests/import.requests';
+import { lofArbitrageServiceRequests } from './requests/lof-arbitrage.requests';
 import { licenseServiceRequests } from './requests/license.requests';
 import { llmServiceRequests } from './requests/llm.requests';
 import { marketServiceRequests } from './requests/market.requests';
@@ -26,6 +27,7 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
   ...episodesServiceRequests,
   ...importServiceRequests,
   ...licenseServiceRequests,
+  ...lofArbitrageServiceRequests,
   ...llmServiceRequests,
   ...marketServiceRequests,
   ...plansServiceRequests,

@@ -1,4 +1,5 @@
 import {
+  SwapOutlined,
   BankOutlined,
   BarChartOutlined,
   BellOutlined,
@@ -25,6 +26,7 @@ const navItems = [
   { key: 'positions', label: '持仓中心', icon: WalletOutlined },
   { key: 'dividends', label: '股息与分红', icon: MoneyCollectOutlined },
   { key: 'sip', label: '基金定投', icon: FundOutlined },
+  { key: 'lofArbitrage', label: 'LOF 套利', icon: SwapOutlined },
   { key: 'accounts', label: '账户管理', icon: BankOutlined },
   { key: 'alerts', label: '提醒中心', icon: BellOutlined },
   { key: 'import', label: '成交导入', icon: ImportOutlined },

@@ -11,6 +11,7 @@ export const routePaths = {
   portfolio: '/portfolio',
   accounts: '/accounts',
   sip: '/sip',
+  lofArbitrage: '/lof-arbitrage',
   alerts: '/alerts',
   journal: '/journal',
   import: '/import',

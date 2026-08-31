@@ -15,6 +15,7 @@ import { WatchlistPage } from '../pages/WatchlistPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { PlansPage } from '../pages/PlansPage';
 import { SipPage } from '../pages/SipPage';
+import { LofArbitragePage } from '../pages/LofArbitragePage';
 import { SettingsPage } from '../pages/SettingsPage';
 import { AboutPage } from '../pages/AboutPage';
 import { LlmDebugPage } from '../pages/LlmDebugPage';
@@ -36,6 +37,7 @@ export function AppRouter(): React.JSX.Element {
           <Route path={routePaths.dividends} element={<DividendsPage />} />
           <Route path={routePaths.accounts} element={<AccountsPage />} />
           <Route path={routePaths.sip} element={<SipPage />} />
+          <Route path={routePaths.lofArbitrage} element={<LofArbitragePage />} />
           <Route path={routePaths.portfolio} element={<Navigate to={routePaths.positions} replace />} />
           <Route path={routePaths.alerts} element={<AlertsPage />} />
           <Route path={routePaths.import} element={<ImportPage />} />

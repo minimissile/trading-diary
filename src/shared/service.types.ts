@@ -600,6 +600,58 @@ export interface ServiceContract {
     params: SipAiImportInput;
     result: SipImportCommitResult;
   };
+  'lofArbitrage.listWatchItems': {
+    params: Record<string, never>;
+    result: import('./lof-arbitrage/types').LofWatchItem[];
+  };
+  'lofArbitrage.addWatchItem': {
+    params: { symbol: string; notes?: string | null };
+    result: import('./lof-arbitrage/types').LofWatchItem;
+  };
+  'lofArbitrage.removeWatchItem': {
+    params: { id: string };
+    result: { deleted: true };
+  };
+  'lofArbitrage.listRules': {
+    params: Record<string, never>;
+    result: import('./lof-arbitrage/types').LofArbitrageRule[];
+  };
+  'lofArbitrage.createRule': {
+    params: import('./lof-arbitrage/types').CreateLofArbitrageRuleInput;
+    result: import('./lof-arbitrage/types').LofArbitrageRule;
+  };
+  'lofArbitrage.setRuleStatus': {
+    params: { id: string; status: import('./lof-arbitrage/types').LofArbitrageRuleStatus };
+    result: import('./lof-arbitrage/types').LofArbitrageRule;
+  };
+  'lofArbitrage.deleteRule': {
+    params: { id: string };
+    result: { deleted: true };
+  };
+  'lofArbitrage.getSnapshot': {
+    params: { symbol: string };
+    result: import('./lof-arbitrage/types').LofArbitrageSnapshot;
+  };
+  'lofArbitrage.refreshMonitor': {
+    params: Record<string, never>;
+    result: import('./lof-arbitrage/types').LofArbitrageMonitorResult;
+  };
+  'lofArbitrage.scanMarket': {
+    params: { limit?: number };
+    result: import('./lof-arbitrage/types').LofArbitrageScanResult;
+  };
+  'lofArbitrage.listEvents': {
+    params: { limit?: number };
+    result: import('./lof-arbitrage/types').LofArbitrageAlertEvent[];
+  };
+  'lofArbitrage.setEventAction': {
+    params: { id: string; action: 'acknowledged' | 'dismissed' };
+    result: import('./lof-arbitrage/types').LofArbitrageAlertEvent;
+  };
+  'lofArbitrage.pollActive': {
+    params: Record<string, never>;
+    result: import('./lof-arbitrage/types').LofArbitragePollResult;
+  };
 }
 
 export type ServiceStreamMethod = 'reviews.generateAiDraftStream' | 'llm.debugRunStream';

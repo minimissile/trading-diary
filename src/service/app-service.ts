@@ -17,6 +17,8 @@ import { LicenseError } from '../shared/license/errors';
 import { BackupService } from './backup/backup-service';
 import { ExecutionImportService } from './import/execution-import-service';
 import { pollActiveAlerts } from './alerts/alert-poll-service';
+import { createLofArbitrageService, type LofArbitrageService } from './lof-arbitrage/lof-arbitrage-service';
+import { pollLofArbitrage } from './lof-arbitrage/lof-poll-service';
 import { createSipService, type SipService } from './sip/sip-service';
 import { createSipImportService, type SipImportService } from './sip/sip-import-service';
 import { createSipAiImportService, type SipAiImportService } from './sip/sip-ai-import-service';
@@ -70,6 +72,7 @@ export class AppService {
   private readonly sipImportService: SipImportService;
   private readonly sipAiImportService: SipAiImportService;
   private readonly ledgerAiImportService: LedgerAiImportService;
+  private readonly lofArbitrageService: LofArbitrageService;
   private readonly accessLockStore: AccessLockStore;
 
   constructor(dataDir: string, appVersion: string) {
@@ -91,6 +94,7 @@ export class AppService {
       this.sipImportService,
       this.llmRunner,
     );
+    this.lofArbitrageService = createLofArbitrageService(this.database);
     this.accessLockStore = new AccessLockStore(dataDir);
   }
 
@@ -118,7 +122,9 @@ export class AppService {
         };
       case 'workspace.snapshot': {
         this.sipService.scanDue();
-        return this.sipService.extendWorkspaceSnapshot(this.database.workspaceSnapshot());
+        const base = this.database.workspaceSnapshot();
+        const withSip = this.sipService.extendWorkspaceSnapshot(base);
+        return this.lofArbitrageService.extendWorkspaceSnapshot(withSip, []);
       }
       case 'plans.list':
         return this.database.listTradingPlans();
@@ -408,6 +414,34 @@ export class AppService {
         this.licenseService.assertFeature('ai_review');
         return this.sipAiImportService.commit(request.params);
       }
+      case 'lofArbitrage.listWatchItems':
+        return this.lofArbitrageService.listWatchItems();
+      case 'lofArbitrage.addWatchItem':
+        return this.lofArbitrageService.addWatchItem(request.params.symbol, request.params.notes);
+      case 'lofArbitrage.removeWatchItem':
+        this.lofArbitrageService.removeWatchItem(request.params.id);
+        return { deleted: true as const };
+      case 'lofArbitrage.listRules':
+        return this.lofArbitrageService.listRules();
+      case 'lofArbitrage.createRule':
+        return this.lofArbitrageService.createRule(request.params);
+      case 'lofArbitrage.setRuleStatus':
+        return this.lofArbitrageService.setRuleStatus(request.params.id, request.params.status);
+      case 'lofArbitrage.deleteRule':
+        this.lofArbitrageService.deleteRule(request.params.id);
+        return { deleted: true as const };
+      case 'lofArbitrage.getSnapshot':
+        return this.lofArbitrageService.getSnapshot(request.params.symbol);
+      case 'lofArbitrage.refreshMonitor':
+        return this.lofArbitrageService.refreshMonitor();
+      case 'lofArbitrage.scanMarket':
+        return this.lofArbitrageService.scanMarket(request.params.limit);
+      case 'lofArbitrage.listEvents':
+        return this.lofArbitrageService.listEvents(request.params.limit);
+      case 'lofArbitrage.setEventAction':
+        return this.lofArbitrageService.setEventAction(request.params.id, request.params.action);
+      case 'lofArbitrage.pollActive':
+        return pollLofArbitrage(this.database);
     }
   }
 

@@ -272,6 +272,20 @@ const desktopApi: DesktopApi = {
     previewAiImport: (input) => ipcRenderer.invoke(ipcChannels.sipPreviewAiImport, input),
     commitAiImport: (input) => ipcRenderer.invoke(ipcChannels.sipCommitAiImport, input),
   },
+  lofArbitrage: {
+    listWatchItems: () => ipcRenderer.invoke(ipcChannels.lofArbitrageListWatchItems),
+    addWatchItem: (symbol, notes) => ipcRenderer.invoke(ipcChannels.lofArbitrageAddWatchItem, { symbol, notes }),
+    removeWatchItem: (id) => ipcRenderer.invoke(ipcChannels.lofArbitrageRemoveWatchItem, { id }),
+    listRules: () => ipcRenderer.invoke(ipcChannels.lofArbitrageListRules),
+    createRule: (input) => ipcRenderer.invoke(ipcChannels.lofArbitrageCreateRule, input),
+    setRuleStatus: (id, status) => ipcRenderer.invoke(ipcChannels.lofArbitrageSetRuleStatus, { id, status }),
+    deleteRule: (id) => ipcRenderer.invoke(ipcChannels.lofArbitrageDeleteRule, { id }),
+    getSnapshot: (symbol) => ipcRenderer.invoke(ipcChannels.lofArbitrageGetSnapshot, { symbol }),
+    refreshMonitor: () => ipcRenderer.invoke(ipcChannels.lofArbitrageRefreshMonitor),
+    scanMarket: (limit) => ipcRenderer.invoke(ipcChannels.lofArbitrageScanMarket, { limit }),
+    listEvents: (limit) => ipcRenderer.invoke(ipcChannels.lofArbitrageListEvents, { limit }),
+    setEventAction: (id, action) => ipcRenderer.invoke(ipcChannels.lofArbitrageSetEventAction, { id, action }),
+  },
 };
 
 contextBridge.exposeInMainWorld('desktop', desktopApi);

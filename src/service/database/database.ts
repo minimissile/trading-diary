@@ -27,6 +27,7 @@ import { EpisodeDatabase } from '../episodes/episode-database';
 import { PlaybookDatabase } from '../playbook/playbook-database';
 import { AlertEventDatabase } from '../alerts/alert-event-database';
 import { SipDatabase } from '../sip/sip-database';
+import { LofArbitrageDatabase } from '../lof-arbitrage/lof-arbitrage-database';
 
 const PRICE_SCALE = 10_000;
 const QUANTITY_SCALE = 10_000;
@@ -140,6 +141,7 @@ export class AppDatabase {
   readonly playbook: PlaybookDatabase;
   readonly alertEvents: AlertEventDatabase;
   readonly sip: SipDatabase;
+  readonly lofArbitrage: LofArbitrageDatabase;
   private readonly db: DatabaseSync;
 
   constructor(filePath: string) {
@@ -173,6 +175,7 @@ export class AppDatabase {
     this.playbook = new PlaybookDatabase(this.db);
     this.alertEvents = new AlertEventDatabase(this.db);
     this.sip = new SipDatabase(this.db);
+    this.lofArbitrage = new LofArbitrageDatabase(this.db);
     if (this.schemaVersion() >= 3) {
       this.portfolio.ensureDefaultAccount();
     }
@@ -596,6 +599,8 @@ export class AppDatabase {
       dueSipOccurrences: [],
       activeSipPlanCount: 0,
       dueSipOccurrenceCount: 0,
+      lofArbitrageOpportunities: [],
+      lofArbitrageTriggeredCount: 0,
     };
   }
 

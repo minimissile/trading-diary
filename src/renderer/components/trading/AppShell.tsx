@@ -12,6 +12,7 @@ const routeByNavigationKey: Readonly<Record<string, string>> = {
   positions: routePaths.positions,
   dividends: routePaths.dividends,
   sip: routePaths.sip,
+  lofArbitrage: routePaths.lofArbitrage,
   accounts: routePaths.accounts,
   alerts: routePaths.alerts,
   journal: routePaths.journal,
