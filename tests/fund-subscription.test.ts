@@ -30,7 +30,7 @@ describe('otc fund-app alignment', () => {
   });
 
   it('computes hold metrics and pnl like Ant Fortune for 161226', () => {
-    function buy(tradeAt: string, quantity: number, price: number): PortfolioLedgerEntry {
+    function buy(tradeAt: string, quantity: number, price: number, cashOutflow: number): PortfolioLedgerEntry {
       return {
         id: tradeAt,
         accountId: 'default',
@@ -40,7 +40,8 @@ describe('otc fund-app alignment', () => {
         side: 'buy',
         quantity,
         price,
-        fees: 0,
+        fees: 0.1,
+        cashOutflow,
         planId: null,
         note: '',
         source: 'ai_import',
@@ -51,14 +52,14 @@ describe('otc fund-app alignment', () => {
     }
 
     const entries = [
-      buy('2026-01-19T14:39:54+08:00', 38.83, 2.5751),
-      buy('2026-01-20T10:49:48+08:00', 38.87, 2.5727),
-      buy('2026-01-21T10:43:04+08:00', 38.8, 2.5773),
+      buy('2026-01-19T14:39:54+08:00', 39.77, 2.512, 100),
+      buy('2026-01-20T10:49:48+08:00', 38.28, 2.6059, 100),
+      buy('2026-01-21T10:43:04+08:00', 38.45, 2.598, 100),
     ];
     const hold = computeOtcFundHoldMetrics(entries, 0);
     const nav = 1.9029;
 
-    expect(hold.holdPrice).toBeCloseTo(2.5751, 3);
+    expect(hold.holdPrice).toBeCloseTo(2.5751, 4);
     expect(entries.reduce((sum, entry) => sum + entry.quantity, 0)).toBeCloseTo(116.5, 2);
 
     const pnl = computeReferenceUnrealizedPnl({

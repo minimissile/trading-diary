@@ -2,6 +2,7 @@ import type { InstrumentKind } from '../../shared/market/types';
 import type { InstrumentVenue } from '../../shared/market/venues';
 import { instrumentPositionKey } from '../../shared/market/instrument-id';
 import type { PortfolioLedgerEntry, PortfolioLedgerSide } from '../../shared/portfolio/types';
+import { resolveOtcBuyCashOutflow } from './otc-fund-cash-outflow';
 
 export interface PositionAggregate {
   symbol: string;
@@ -162,7 +163,7 @@ export function computeOtcFundHoldMetrics(
 
   for (const entry of sorted) {
     if (entry.side === 'buy') {
-      cashInvested += entry.quantity * entry.price + entry.fees;
+      cashInvested += resolveOtcBuyCashOutflow(entry);
       quantity += entry.quantity;
       continue;
     }

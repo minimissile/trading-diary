@@ -22,6 +22,8 @@ export interface CreatePortfolioLedgerInput {
   note?: string;
   source?: PortfolioLedgerSource;
   sipOccurrenceId?: string | null;
+  /** 场外基金申购/定投扣款总额（含手续费），用于对齐蚂蚁持仓成本。 */
+  cashOutflow?: number | null;
 }
 
 export interface UpdatePortfolioLedgerInput {
@@ -225,5 +227,7 @@ export interface PortfolioLedgerEntry {
   note: string;
   source: PortfolioLedgerSource;
   sipOccurrenceId: string | null;
+  /** 场外申购/定投扣款总额；null 表示按净成本或就近整数档推断。 */
+  cashOutflow: number | null;
   createdAt: string;
 }

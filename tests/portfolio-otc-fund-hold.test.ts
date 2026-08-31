@@ -19,6 +19,7 @@ function buy(tradeAt: string, quantity: number, price: number): PortfolioLedgerE
     note: '',
     source: 'sip',
     sipOccurrenceId: null,
+    cashOutflow: null,
     createdAt: tradeAt,
     tradeAt,
   };

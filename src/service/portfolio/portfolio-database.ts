@@ -53,6 +53,7 @@ interface PortfolioLedgerRow {
   note: string;
   source: PortfolioLedgerSource;
   sip_occurrence_id: string | null;
+  cash_outflow_cents: number | null;
   created_at: string;
 }
 
@@ -264,8 +265,8 @@ export class PortfolioDatabase {
       .prepare(
         `INSERT INTO portfolio_ledger (
           id, account_id, symbol, venue, kind, side, quantity_micros, price_micros, fees_cents,
-          trade_at, plan_id, note, source, sip_occurrence_id, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          trade_at, plan_id, note, source, sip_occurrence_id, cash_outflow_cents, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -282,6 +283,9 @@ export class PortfolioDatabase {
         (input.note ?? '').trim(),
         input.source ?? 'manual',
         input.sipOccurrenceId ?? null,
+        input.cashOutflow !== null && input.cashOutflow !== undefined
+          ? toScaledInteger(input.cashOutflow, MONEY_SCALE)
+          : null,
         now,
       );
 
@@ -569,6 +573,10 @@ export class PortfolioDatabase {
       note: row.note,
       source: row.source,
       sipOccurrenceId: row.sip_occurrence_id ?? null,
+      cashOutflow:
+        row.cash_outflow_cents === null || row.cash_outflow_cents === undefined
+          ? null
+          : fromScaledInteger(row.cash_outflow_cents, MONEY_SCALE),
       createdAt: row.created_at,
     };
   }

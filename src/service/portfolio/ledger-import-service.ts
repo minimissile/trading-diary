@@ -97,6 +97,7 @@ export class LedgerImportService {
           quantity: row.quantity,
           price: row.price,
           fees: row.fees,
+          cashOutflow: resolved.kind === 'otc_fund' ? row.cashOutflow : null,
           tradeAt: row.tradeAt,
           source: 'ai_import',
           note: channel === 'otc' ? 'AI识图导入（场外）' : 'AI识图导入（场内）',

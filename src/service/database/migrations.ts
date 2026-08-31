@@ -639,4 +639,31 @@ export const migrations: readonly Migration[] = [
       ALTER TABLE fund_sip_plans ADD COLUMN pause_from_date TEXT;
     `,
   },
+  {
+    version: 23,
+    name: 'portfolio_ledger_cash_outflow',
+    sql: `
+      ALTER TABLE portfolio_ledger ADD COLUMN cash_outflow_cents INTEGER;
+
+      UPDATE portfolio_ledger
+      SET cash_outflow_cents = (
+        SELECT o.amount_cents
+        FROM fund_sip_occurrences o
+        WHERE o.ledger_entry_id = portfolio_ledger.id
+      )
+      WHERE sip_occurrence_id IS NOT NULL;
+
+      UPDATE portfolio_ledger
+      SET cash_outflow_cents = CAST(ROUND(
+        (ABS(quantity_micros) / 10000.0) * (price_micros / 10000.0) + (fees_cents / 100.0)
+      ) AS INTEGER) * 100
+      WHERE kind = 'otc_fund'
+        AND side = 'buy'
+        AND cash_outflow_cents IS NULL
+        AND ABS(
+          (ABS(quantity_micros) / 10000.0) * (price_micros / 10000.0) + (fees_cents / 100.0)
+          - ROUND((ABS(quantity_micros) / 10000.0) * (price_micros / 10000.0) + (fees_cents / 100.0))
+        ) <= 0.15;
+    `,
+  },
 ];

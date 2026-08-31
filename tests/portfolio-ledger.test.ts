@@ -14,6 +14,7 @@ function entry(partial: Partial<PortfolioLedgerEntry> & Pick<PortfolioLedgerEntr
     note: '',
     source: 'manual',
     sipOccurrenceId: null,
+    cashOutflow: null,
     createdAt: partial.tradeAt,
     ...partial,
   };

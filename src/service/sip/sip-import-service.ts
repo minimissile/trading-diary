@@ -351,6 +351,7 @@ export class SipImportService {
           quantity: value.quantity,
           price: value.nav,
           fees: value.fees,
+          cashOutflow: instrument.kind === 'otc_fund' ? value.amount : null,
           tradeAt: value.tradeAt,
           note,
           source: 'sip',

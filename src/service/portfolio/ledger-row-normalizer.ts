@@ -1,5 +1,6 @@
 import type { PortfolioLedgerSide } from '../../shared/portfolio/types';
 import type { LedgerAiExtractedRecord } from '../../shared/portfolio/ledger-import-types';
+import { inferOtcTradeCashOutflow } from './otc-fund-cash-outflow';
 
 export interface NormalizedLedgerTradeRow {
   symbol: string;
@@ -8,6 +9,7 @@ export interface NormalizedLedgerTradeRow {
   price: number;
   quantity: number;
   fees: number;
+  cashOutflow: number | null;
 }
 
 function parseNumber(raw: string): number | null {
@@ -98,6 +100,13 @@ export function normalizeLedgerTradeRecord(
       price,
       quantity,
       fees,
+      cashOutflow: inferOtcTradeCashOutflow({
+        amount: record.amount,
+        amountIsNetConfirmed: record.amountIsNetConfirmed,
+        quantity,
+        price,
+        fees,
+      }),
     },
   };
 }

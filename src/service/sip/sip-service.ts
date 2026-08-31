@@ -202,6 +202,7 @@ export class SipService {
       quantity,
       price: input.nav,
       fees,
+      cashOutflow: plan.kind === 'otc_fund' ? amount : null,
       tradeAt,
       note: `定投 · ${plan.name}`,
       source: 'sip',

@@ -102,6 +102,7 @@ export const portfolioServiceRequests = [
         note: z.string().trim().max(500).optional(),
         source: z.enum(['manual', 'csv', 'plan', 'sip', 'ai_import']).optional(),
         sipOccurrenceId: z.uuid().nullable().optional(),
+        cashOutflow: nonNegativeNumberSchema.nullable().optional(),
       })
       .strict(),
   }),

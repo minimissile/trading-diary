@@ -362,7 +362,7 @@ export function PositionsPage(): React.JSX.Element {
   );
 
   return (
-    <main className="workspace-page portfolio-page">
+    <main className="workspace-page portfolio-page positions-page">
       <header className="page-header">
         <div>
           <p className="page-kicker">POSITIONS</p>
