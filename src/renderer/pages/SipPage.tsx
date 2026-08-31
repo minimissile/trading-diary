@@ -27,6 +27,7 @@ import type {
 import { SipConfirmModal } from '../components/trading/SipConfirmModal';
 import { SipCreateModal } from '../components/trading/SipCreateModal';
 import { SipImportModal } from '../components/trading/SipImportModal';
+import { SipPauseModal } from '../components/trading/SipPauseModal';
 import { SipReviewModal } from '../components/trading/SipReviewModal';
 import { useTradingAccountId } from '../hooks/useTradingAccountId';
 import { routePaths } from '../router/paths';
@@ -78,6 +79,7 @@ export function SipPage(): React.JSX.Element {
   const [reviewPlanId, setReviewPlanId] = useState<string | null>(null);
   const [highlightSymbol, setHighlightSymbol] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<FundSipOccurrenceView | null>(null);
+  const [pauseTarget, setPauseTarget] = useState<FundSipPlanView | null>(null);
   const [detailPlan, setDetailPlan] = useState<FundSipPlanDetailView | null>(null);
 
   const load = useCallback(async (): Promise<void> => {
@@ -181,6 +183,18 @@ export function SipPage(): React.JSX.Element {
     });
   };
 
+  const cancelScheduledPause = async (plan: FundSipPlanView): Promise<void> => {
+    try {
+      await window.desktop.sip.cancelScheduledPause(plan.id);
+      window.dispatchEvent(new Event('workspace-changed'));
+      await load();
+      if (detailPlan?.id === plan.id) await openPlanDetail(plan.id);
+      void message.success('已取消预约暂停');
+    } catch (reason) {
+      void message.error(reason instanceof Error ? reason.message : '取消预约失败');
+    }
+  };
+
   const setStatus = async (plan: FundSipPlanView, status: SipPlanStatus): Promise<void> => {
     try {
       await window.desktop.sip.setStatus(plan.id, status);
@@ -224,6 +238,9 @@ export function SipPage(): React.JSX.Element {
 
   const buildPlanActionItems = (plan: FundSipPlanView): MenuProps['items'] => {
     const items: MenuProps['items'] = [];
+    const today = new Date().toISOString().slice(0, 10);
+    const hasScheduledPause =
+      plan.status === 'active' && plan.pauseFromDate !== null && plan.pauseFromDate > today;
 
     if (plan.status === 'draft') {
       items.push({
@@ -233,13 +250,25 @@ export function SipPage(): React.JSX.Element {
         onClick: () => void setStatus(plan, 'active'),
       });
     }
-    if (plan.status === 'active') {
+    if (plan.status === 'active' || plan.status === 'paused') {
       items.push({
         key: 'pause',
-        label: '暂停',
+        label:
+          plan.status === 'paused'
+            ? '调整暂停日'
+            : hasScheduledPause
+              ? '修改暂停日期'
+              : '暂停',
         icon: <PauseOutlined />,
-        onClick: () => void setStatus(plan, 'paused'),
+        onClick: () => setPauseTarget(plan),
       });
+      if (hasScheduledPause) {
+        items.push({
+          key: 'cancel-pause',
+          label: '取消预约暂停',
+          onClick: () => void cancelScheduledPause(plan),
+        });
+      }
     }
     if (plan.status === 'paused') {
       items.push({
@@ -340,10 +369,18 @@ export function SipPage(): React.JSX.Element {
       {
         title: '状态',
         dataIndex: 'status',
-        width: 96,
-        render: (status: SipPlanStatus) => (
-          <Tag color={sipPlanStatusColors[status]}>{sipPlanStatusLabels[status]}</Tag>
-        ),
+        width: 132,
+        render: (_, row) => {
+          const today = new Date().toISOString().slice(0, 10);
+          const scheduledPause =
+            row.status === 'active' && row.pauseFromDate !== null && row.pauseFromDate > today;
+          return (
+            <span className="sip-plan-status-tags">
+              <Tag color={sipPlanStatusColors[row.status]}>{sipPlanStatusLabels[row.status]}</Tag>
+              {scheduledPause ? <Tag color="orange">{row.pauseFromDate} 起暂停</Tag> : null}
+            </span>
+          );
+        },
       },
       {
         title: '连续完成',
@@ -639,8 +676,14 @@ export function SipPage(): React.JSX.Element {
           <div className="sip-plan-detail">
             <p>
               <Tag color={sipPlanStatusColors[detailPlan.status]}>{sipPlanStatusLabels[detailPlan.status]}</Tag>
+              {detailPlan.status === 'active' &&
+              detailPlan.pauseFromDate &&
+              detailPlan.pauseFromDate > new Date().toISOString().slice(0, 10) ? (
+                <Tag color="orange">{detailPlan.pauseFromDate} 起暂停</Tag>
+              ) : null}
               <span>
-                {detailPlan.symbol} · {formatSipSchedule(detailPlan)} · 每期 <ValueDisplay kind="currency" value={detailPlan.amount} />
+                {detailPlan.symbol} · {formatSipSchedule(detailPlan)} · 每期{' '}
+                <ValueDisplay kind="currency" value={detailPlan.amount} />
               </span>
             </p>
             <p className="sip-plan-thesis">{detailPlan.thesis}</p>
@@ -717,6 +760,16 @@ export function SipPage(): React.JSX.Element {
         onSaved={() => {
           window.dispatchEvent(new Event('workspace-changed'));
           void load();
+        }}
+      />
+      <SipPauseModal
+        open={pauseTarget !== null}
+        plan={pauseTarget}
+        onClose={() => setPauseTarget(null)}
+        onSaved={() => {
+          window.dispatchEvent(new Event('workspace-changed'));
+          void load();
+          if (pauseTarget && detailPlan?.id === pauseTarget.id) void openPlanDetail(pauseTarget.id);
         }}
       />
       <SipConfirmModal

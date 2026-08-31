@@ -10,4 +10,13 @@ describe('getQuotesMulti OTC funds', () => {
     expect(quotes[0]?.name).toContain('联接');
     expect(quotes[0]?.nav ?? quotes[0]?.price).not.toBeNull();
   }, 30_000);
+
+  it('fetches otc nav for LOF codes held off-exchange (161226)', async () => {
+    const quotes = await getQuotesMulti([{ symbol: '161226', venue: 'OTC' }]);
+    expect(quotes).toHaveLength(1);
+    expect(quotes[0]?.venue).toBe('OTC');
+    expect(quotes[0]?.kind).toBe('otc_fund');
+    expect(quotes[0]?.name).toContain('白银');
+    expect(quotes[0]?.nav ?? quotes[0]?.price).not.toBeNull();
+  }, 30_000);
 });

@@ -632,4 +632,11 @@ export const migrations: readonly Migration[] = [
       ALTER TABLE portfolio_dividends ADD COLUMN reinvest_ledger_id TEXT;
     `,
   },
+  {
+    version: 22,
+    name: 'fund_sip_pause_from_date',
+    sql: `
+      ALTER TABLE fund_sip_plans ADD COLUMN pause_from_date TEXT;
+    `,
+  },
 ];

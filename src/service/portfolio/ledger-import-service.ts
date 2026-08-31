@@ -7,8 +7,12 @@ import type {
 } from '../../shared/portfolio/ledger-import-types';
 import type { SipAiExtractedRecord } from '../../shared/sip/import-types';
 import type { AppDatabase } from '../database/database';
-import { marketService } from '../market/market-service';
 import { hasPartialLedgerRecord } from './ledger-ai-import-parser';
+import {
+  resolveEffectiveTradeChannel,
+  resolveImportInstrument,
+  resolveImportTradeChannel,
+} from './ledger-import-instrument';
 import { normalizeLedgerTradeRecord, type NormalizedLedgerTradeRow } from './ledger-row-normalizer';
 import type { PortfolioService } from './portfolio-service';
 
@@ -27,17 +31,25 @@ export class LedgerImportService {
 
   async previewRecordsAsync(input: LedgerAiImportInput): Promise<LedgerImportPreviewResult> {
     const accountId = this.database.portfolio.resolveAccountId(input.accountId);
-    const rows = await Promise.all(input.records.map((record) => this.buildPreviewRowAsync(accountId, record)));
+    const defaultTradeChannel = resolveImportTradeChannel(input);
+    const rows = await Promise.all(
+      input.records.map((record) => this.buildPreviewRowAsync(accountId, record, defaultTradeChannel)),
+    );
     return summarizePreview(rows);
   }
 
   async commitTradeRecords(input: LedgerAiImportInput): Promise<LedgerImportCommitResult> {
     const accountId = this.database.portfolio.resolveAccountId(input.accountId);
+    const defaultTradeChannel = resolveImportTradeChannel(input);
     const tradeRecords = input.records.filter((record) => record.recordKind === 'trade');
 
     let preFailed = 0;
     const preErrors: Array<{ rowIndex: number; message: string }> = [];
-    const normalizedRows: Array<{ index: number; value: NormalizedLedgerTradeRow }> = [];
+    const normalizedRows: Array<{
+      index: number;
+      record: LedgerAiExtractedRecord;
+      value: NormalizedLedgerTradeRow;
+    }> = [];
 
     for (const record of tradeRecords) {
       const normalized = normalizeLedgerTradeRecord(record);
@@ -46,7 +58,7 @@ export class LedgerImportService {
         preErrors.push({ rowIndex: record.rowIndex, message: normalized.message });
         continue;
       }
-      normalizedRows.push({ index: record.rowIndex, value: normalized.value });
+      normalizedRows.push({ index: record.rowIndex, record, value: normalized.value });
     }
 
     normalizedRows.sort((left, right) =>
@@ -58,7 +70,7 @@ export class LedgerImportService {
     let failed = preFailed;
     const errors = [...preErrors];
 
-    for (const { index, value: row } of normalizedRows) {
+    for (const { index, record, value: row } of normalizedRows) {
       if (
         this.database.portfolio.hasSimilarLedgerImport(
           accountId,
@@ -74,18 +86,20 @@ export class LedgerImportService {
       }
 
       try {
-        const instrument = await marketService.resolve(row.symbol);
+        const channel = resolveEffectiveTradeChannel(record, defaultTradeChannel);
+        const resolved = await resolveImportInstrument(row.symbol, channel);
         await this.portfolioService.addLedgerEntry({
           accountId,
-          symbol: instrument.symbol,
-          kind: instrument.kind,
+          symbol: resolved.symbol,
+          kind: resolved.kind,
+          venue: resolved.venue,
           side: row.side,
           quantity: row.quantity,
           price: row.price,
           fees: row.fees,
           tradeAt: row.tradeAt,
           source: 'ai_import',
-          note: 'AI识图导入',
+          note: channel === 'otc' ? 'AI识图导入（场外）' : 'AI识图导入（场内）',
         });
         imported += 1;
       } catch (error) {
@@ -158,12 +172,14 @@ export class LedgerImportService {
   private async buildPreviewRowAsync(
     accountId: string,
     record: LedgerAiExtractedRecord,
+    defaultTradeChannel = 'exchange',
   ): Promise<LedgerImportPreviewRow> {
     const row = this.buildPreviewRow(accountId, record);
     if (row.status !== 'ready' || !row.symbol) return row;
 
     try {
-      await marketService.resolve(row.symbol);
+      const channel = resolveEffectiveTradeChannel(record, defaultTradeChannel);
+      await resolveImportInstrument(row.symbol, channel);
     } catch (error) {
       const detail = error instanceof Error ? error.message : '标的解析失败';
       return { ...row, status: 'error', message: `标的代码无法解析：${detail}` };

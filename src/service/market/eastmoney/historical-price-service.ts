@@ -152,6 +152,27 @@ export async function lookupExchangeCloseOnDate(
 
 const FUND_CODE_PATTERN = /^\d{6}$/u;
 
+/** 按导入交易渠道查询历史价格/净值。 */
+export async function lookupImportPriceOnDate(
+  symbolInput: string,
+  dateKey: string,
+  channel: import('../../shared/portfolio/ledger-import-types').LedgerAiTradeChannel,
+): Promise<HistoricalPriceLookup | null> {
+  if (channel === 'otc') {
+    const instrument = await resolveInstrument(symbolInput);
+    const fundNav = await queryFundNavHistoryOnDate(instrument.symbol, dateKey);
+    if (fundNav) {
+      return { ...fundNav, kind: instrument.kind };
+    }
+    if (instrument.kind === 'otc_fund') {
+      return null;
+    }
+    return lookupExchangeCloseOnDate(instrument.symbol, dateKey);
+  }
+
+  return lookupExchangeCloseOnDate(symbolInput, dateKey);
+}
+
 /** 按标的类型查询历史价格/净值。定投确认优先使用基金净值接口。 */
 export async function lookupHistoricalPriceOnDate(
   symbolInput: string,

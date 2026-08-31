@@ -115,7 +115,8 @@ export class PortfolioService {
         venue: position.kind === 'otc_fund' ? 'OTC' : position.venue,
       });
       const quote = quoteMap.get(quoteKey);
-      const marketPrice = quote?.price ?? quote?.nav ?? null;
+      const marketPrice =
+        position.kind === 'otc_fund' ? (quote?.nav ?? quote?.price ?? null) : (quote?.price ?? quote?.nav ?? null);
       const marketValue = marketPrice === null ? null : marketPrice * position.quantity;
       const symbolDividends = dividends.filter(
         (record) => record.symbol === position.symbol,
@@ -256,11 +257,29 @@ export class PortfolioService {
   }
 
   async addLedgerEntry(input: CreatePortfolioLedgerInput): Promise<PortfolioPositionView[]> {
-    let payload = input;
+    let payload = { ...input };
+    const portfolio = this.database.portfolio;
+    const accountId = portfolio.resolveAccountId(payload.accountId);
+    const normalizedSymbol = normalizeSymbol(payload.symbol);
+
+    if (!payload.kind && !payload.venue) {
+      const sibling = portfolio
+        .listLedger(accountId)
+        .find((entry) => entry.symbol === normalizedSymbol);
+      if (sibling) {
+        payload = { ...payload, kind: sibling.kind, venue: sibling.venue };
+      }
+    }
+
     if (!payload.kind) {
       const instrument = await marketService.resolve(payload.symbol);
       payload = { ...payload, kind: instrument.kind, symbol: instrument.symbol };
     }
+
+    if (payload.kind === 'otc_fund') {
+      payload = { ...payload, venue: 'OTC' };
+    }
+
     this.database.portfolio.addLedgerEntry(payload);
     this.dailyBarSync.scheduleSymbols([payload.symbol], new Map([[payload.symbol, payload.kind!]]));
     if (payload.kind && shouldCacheFundProfile(payload.kind)) {

@@ -6,6 +6,7 @@ function entry(partial: Partial<PortfolioLedgerEntry> & Pick<PortfolioLedgerEntr
   return {
     id: partial.id ?? '1',
     accountId: 'default',
+    venue: 'SH',
     kind: 'stock',
     price: 10,
     fees: 0,
@@ -64,5 +65,33 @@ describe('portfolio ledger', () => {
     ];
     expect(snapshotQuantityAt(ledger, '2026-06-04')).toBe(200);
     expect(snapshotQuantityAt(ledger, '2026-08-26')).toBe(100);
+  });
+
+  it('keeps otc and exchange holdings separate for the same symbol', () => {
+    const positions = aggregatePositions([
+      entry({
+        id: '1',
+        symbol: '161226',
+        venue: 'OTC',
+        kind: 'otc_fund',
+        side: 'buy',
+        quantity: 39.77,
+        price: 2.5145,
+        tradeAt: '2026-01-19T00:00:00.000Z',
+      }),
+      entry({
+        id: '2',
+        symbol: '161226',
+        venue: 'SZ',
+        kind: 'lof',
+        side: 'buy',
+        quantity: 77,
+        price: 2.6,
+        tradeAt: '2026-08-28T00:00:00.000Z',
+      }),
+    ]);
+    expect(positions).toHaveLength(2);
+    expect(positions.find((item) => item.kind === 'otc_fund')?.quantity).toBe(39.77);
+    expect(positions.find((item) => item.kind === 'lof')?.quantity).toBe(77);
   });
 });

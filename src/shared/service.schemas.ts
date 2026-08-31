@@ -649,6 +649,8 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
     params: z
       .object({
         sourcePaths: z.array(z.string().trim().min(1).max(4096)).min(1).max(20),
+        importAssetKind: z.enum(['stock', 'fund']).optional(),
+        defaultTradeChannel: z.enum(['exchange', 'otc']).optional(),
       })
       .strict(),
   }),
@@ -673,11 +675,16 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
               note: z.string().trim().max(500).nullable(),
               rawType: z.string().trim().max(64).nullable(),
               recordKind: z.enum(['trade', 'sip_deduction', 'dividend', 'skip']),
+              tradeChannel: z.enum(['exchange', 'otc']).nullable().optional(),
+              confirmAt: z.string().trim().max(64).nullable().optional(),
+              amountIsNetConfirmed: z.boolean().optional(),
               sourceImageIndex: z.number().int().nonnegative(),
               sourceFileName: z.string().trim().max(256).nullable(),
             })
             .strict(),
         ),
+        importAssetKind: z.enum(['stock', 'fund']).optional(),
+        defaultTradeChannel: z.enum(['exchange', 'otc']).optional(),
         importSipDeductions: z.boolean().optional(),
         sipPlanMode: z.enum(['fixed', 'smart', 'unknown']).optional(),
         sipPlanModeLabel: z.string().trim().max(64).nullable().optional(),
@@ -718,11 +725,16 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
               note: z.string().trim().max(500).nullable(),
               rawType: z.string().trim().max(64).nullable(),
               recordKind: z.enum(['trade', 'sip_deduction', 'dividend', 'skip']),
+              tradeChannel: z.enum(['exchange', 'otc']).nullable().optional(),
+              confirmAt: z.string().trim().max(64).nullable().optional(),
+              amountIsNetConfirmed: z.boolean().optional(),
               sourceImageIndex: z.number().int().nonnegative(),
               sourceFileName: z.string().trim().max(256).nullable(),
             })
             .strict(),
         ),
+        importAssetKind: z.enum(['stock', 'fund']).optional(),
+        defaultTradeChannel: z.enum(['exchange', 'otc']).optional(),
         importSipDeductions: z.boolean().optional(),
         sipPlanMode: z.enum(['fixed', 'smart', 'unknown']).optional(),
         sipPlanModeLabel: z.string().trim().max(64).nullable().optional(),
@@ -987,6 +999,16 @@ export const serviceRequestSchema = z.discriminatedUnion('method', [
   z.object({
     id: z.uuid(),
     method: z.literal('sip.deletePlan'),
+    params: z.object({ id: z.uuid() }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.schedulePause'),
+    params: z.object({ id: z.uuid(), fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.cancelScheduledPause'),
     params: z.object({ id: z.uuid() }).strict(),
   }),
   z.object({

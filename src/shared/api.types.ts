@@ -523,6 +523,7 @@ export interface DesktopApi {
     readLedgerImportImagePreviews: (sourcePaths: string[]) => Promise<string[]>;
     recognizeLedgerImportScreenshots: (
       sourcePaths: string[],
+      importAssetKind?: import('./portfolio/ledger-import-types').LedgerAiImportAssetKind,
     ) => Promise<import('./portfolio/ledger-import-types').LedgerAiRecognizeResult>;
     previewLedgerAiImport: (
       input: import('./portfolio/ledger-import-types').LedgerAiImportInput,
@@ -584,6 +585,8 @@ export interface DesktopApi {
     setStatus: (id: string, status: import('./sip/types').SipPlanStatus) => Promise<import('./sip/types').FundSipPlanView>;
     delete: (id: string) => Promise<{ deleted: true }>;
     deletePlan: (id: string) => Promise<{ deleted: true }>;
+    schedulePause: (id: string, fromDate: string) => Promise<import('./sip/types').SipSchedulePauseResult>;
+    cancelScheduledPause: (id: string) => Promise<import('./sip/types').FundSipPlanView>;
     previewSchedule: (input: import('./sip/types').CreateFundSipPlanInput) => Promise<import('./sip/types').FundSipOccurrencePreview[]>;
     listOccurrences: (planId?: string, from?: string, to?: string) => Promise<import('./sip/types').FundSipOccurrence[]>;
     listOccurrenceViews: (planId?: string, from?: string, to?: string) => Promise<import('./sip/types').FundSipOccurrenceView[]>;

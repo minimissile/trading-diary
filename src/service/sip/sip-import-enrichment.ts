@@ -1,7 +1,11 @@
 import type { SipAiExtractedRecord } from '../../shared/sip/import-types';
 import { marketService } from '../market/market-service';
-import { searchInstruments } from '../market/eastmoney/search-service';
+import { resolveInstrument, searchInstruments } from '../market/eastmoney/search-service';
 import { toTradeDateKey } from './sip-row-normalizer';
+import {
+  isFundLikeKind,
+  resolveFundConfirmationNavDate,
+} from '../portfolio/fund-subscription';
 
 export interface SipImportEnrichmentResult {
   records: SipAiExtractedRecord[];
@@ -36,19 +40,29 @@ async function enrichRecord(
     return next;
   }
 
+  let navDateKey = dateKey;
   try {
-    const lookup = await marketService.lookupHistoricalPriceOnDate(next.symbol, dateKey);
+    const instrument = await resolveInstrument(next.symbol);
+    if (isFundLikeKind(instrument.kind)) {
+      navDateKey = resolveFundConfirmationNavDate(next.tradeAt ?? dateKey);
+    }
+  } catch {
+    // 保持原日期
+  }
+
+  try {
+    const lookup = await marketService.lookupHistoricalPriceOnDate(next.symbol, navDateKey);
     if (!lookup) {
-      enrichments.push(`第 ${next.rowIndex} 行：未找到 ${next.symbol} 在 ${dateKey} 附近的历史净值`);
+      enrichments.push(`第 ${next.rowIndex} 行：未找到 ${next.symbol} 在 ${navDateKey} 附近的历史净值`);
       return next;
     }
 
     next = { ...next, nav: lookup.nav };
     if (lookup.exact) {
-      enrichments.push(`第 ${next.rowIndex} 行：已自动填充 ${dateKey} 净值 ${lookup.nav}`);
+      enrichments.push(`第 ${next.rowIndex} 行：已自动填充 ${navDateKey} 确认净值 ${lookup.nav}`);
     } else {
       enrichments.push(
-        `第 ${next.rowIndex} 行：未找到 ${dateKey} 当日净值，已使用 ${lookup.navDate} 净值 ${lookup.nav}`,
+        `第 ${next.rowIndex} 行：未找到 ${navDateKey} 当日净值，已使用 ${lookup.navDate} 净值 ${lookup.nav}`,
       );
     }
   } catch (error) {

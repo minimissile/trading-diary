@@ -19,6 +19,8 @@ export interface FundSipPlan {
   endDate: string | null;
   thesis: string;
   status: SipPlanStatus;
+  /** 自该扣款日（含）起暂停；执行中计划可预约未来暂停。 */
+  pauseFromDate: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -47,8 +49,15 @@ export interface FundSipPlanView extends FundSipPlan {
   missedCount: number;
   dueCount: number;
   nextScheduledDate: string | null;
+  lastCompletedDate: string | null;
   currentStreak: number;
   disciplineRate: number | null;
+}
+
+export interface SipSchedulePauseResult {
+  plan: FundSipPlanView;
+  removedOccurrences: number;
+  removedLedgerEntries: number;
 }
 
 /** 计划详情：含近期期次。 */

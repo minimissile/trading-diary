@@ -1263,6 +1263,20 @@
   font-weight: 600;
 }
 
+.ledger-ai-import-hint--compact {
+  margin-top: -4px;
+  font-size: 12px;
+}
+
+.ledger-ai-import-channel-row {
+  align-items: center;
+}
+
+.ledger-ai-import-channel-row__hint {
+  color: var(--td-color-ink-secondary);
+  font-size: 12px;
+}
+
 .ledger-ai-import-upload {
   display: grid;
   justify-items: center;

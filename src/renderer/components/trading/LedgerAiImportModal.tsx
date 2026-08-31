@@ -4,17 +4,20 @@ import {
   EditOutlined,
   PictureOutlined,
 } from '@ant-design/icons';
-import { App, Button, Checkbox, Input, Modal, Spin, Table, Tag } from 'antd';
+import { App, Button, Checkbox, Input, Modal, Segmented, Spin, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type {
-  LedgerAiExtractedRecord,
-  LedgerAiRecognizeResult,
-  LedgerImportCommitResult,
-  LedgerImportPreviewRow,
-  LedgerImportPreviewResult,
+import {
+  LEDGER_IMPORT_ASSET_KIND_LABELS,
+  type LedgerAiExtractedRecord,
+  type LedgerAiImportAssetKind,
+  type LedgerAiRecognizeResult,
+  type LedgerImportCommitResult,
+  type LedgerImportPreviewRow,
+  type LedgerImportPreviewResult,
 } from '../../../shared/portfolio/ledger-import-types';
 import { AccountSelect } from './AccountSelect';
+import { EditableDecimalInput } from './EditableDecimalInput';
 import { ValueDisplay } from '../../lib/trading-format';
 
 type ImportStep = 0 | 1;
@@ -123,7 +126,9 @@ export function LedgerAiImportModal({
   const [enrichments, setEnrichments] = useState<string[]>([]);
   const [accountId, setAccountId] = useState<string | undefined>(defaultAccountId);
   const [importSipDeductions, setImportSipDeductions] = useState(true);
+  const [importAssetKind, setImportAssetKind] = useState<LedgerAiImportAssetKind>('stock');
   const [busy, setBusy] = useState(false);
+  const sourceRecordsRef = useRef<LedgerAiExtractedRecord[]>([]);
   const wasOpenRef = useRef(false);
 
   useEffect(() => {
@@ -148,6 +153,8 @@ export function LedgerAiImportModal({
     setPreview(null);
     setEnrichments([]);
     setImportSipDeductions(true);
+    setImportAssetKind('stock');
+    sourceRecordsRef.current = [];
   };
 
   const appendScreenshotEntries = useCallback((entries: ScreenshotEntry[]): void => {
@@ -247,6 +254,26 @@ export function LedgerAiImportModal({
     }
   };
 
+  const runPreview = useCallback(
+    async (
+      assetKind: LedgerAiImportAssetKind,
+      baseRecords: LedgerAiExtractedRecord[],
+    ): Promise<LedgerImportPreviewResult | null> => {
+      if (!accountId || baseRecords.length === 0) return null;
+      const aiPreview = await window.desktop.portfolio.previewLedgerAiImport({
+        accountId,
+        records: baseRecords,
+        importAssetKind: assetKind,
+        importSipDeductions,
+      });
+      setPreview(aiPreview.preview);
+      setRecords(aiPreview.records);
+      setEnrichments(aiPreview.enrichments);
+      return aiPreview.preview;
+    },
+    [accountId, importSipDeductions],
+  );
+
   const recognize = async (): Promise<void> => {
     if (screenshots.length === 0) {
       void message.warning('请先选择截图');
@@ -260,20 +287,15 @@ export function LedgerAiImportModal({
     try {
       const result = await window.desktop.portfolio.recognizeLedgerImportScreenshots(
         screenshots.map((entry) => entry.sourcePath),
+        importAssetKind,
       );
       setRecognized(result);
-      const aiPreview = await window.desktop.portfolio.previewLedgerAiImport({
-        accountId,
-        records: result.records,
-        importSipDeductions,
-      });
-      setPreview(aiPreview.preview);
-      setRecords(aiPreview.records);
-      setEnrichments([...result.enrichments, ...aiPreview.enrichments]);
-      if (aiPreview.preview.sipReadyCount > 0) setImportSipDeductions(true);
+      sourceRecordsRef.current = result.records;
+      const aiPreview = await runPreview(result.importAssetKind, result.records);
+      if (aiPreview && aiPreview.sipReadyCount > 0) setImportSipDeductions(true);
       setStep(1);
       void message.success(
-        `已识别 ${result.records.length} 条记录（${aiPreview.preview.tradeReadyCount} 条买卖可导入）`,
+        `已识别 ${result.records.length} 条记录（${aiPreview?.tradeReadyCount ?? 0} 条买卖可导入）`,
       );
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : 'AI 识别失败');
@@ -283,37 +305,26 @@ export function LedgerAiImportModal({
   };
 
   const updateRecord = (rowIndex: number, patch: Partial<LedgerAiExtractedRecord>): void => {
-    setRecords((items) => items.map((record) => (record.rowIndex === rowIndex ? { ...record, ...patch } : record)));
+    const updater = (items: LedgerAiExtractedRecord[]) =>
+      items.map((record) => (record.rowIndex === rowIndex ? { ...record, ...patch } : record));
+    sourceRecordsRef.current = updater(sourceRecordsRef.current);
+    setRecords(updater(sourceRecordsRef.current));
   };
 
   const refreshPreview = async (): Promise<void> => {
-    if (!accountId || records.length === 0) {
+    if (!accountId || sourceRecordsRef.current.length === 0) {
       void message.warning('没有可预览的记录');
       return;
     }
     setBusy(true);
     try {
-      const aiPreview = await window.desktop.portfolio.previewLedgerAiImport({
-        accountId,
-        records,
-        importSipDeductions,
-      });
-      setPreview(aiPreview.preview);
-      setRecords(aiPreview.records);
-      setEnrichments(aiPreview.enrichments);
+      await runPreview(importAssetKind, sourceRecordsRef.current);
       void message.success('已更新预览');
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '预览失败');
     } finally {
       setBusy(false);
     }
-  };
-
-  const parseOptionalNumber = (raw: string): number | null => {
-    const cleaned = raw.replace(/[,，\s￥¥元]/gu, '').trim();
-    if (!cleaned) return null;
-    const value = Number(cleaned);
-    return Number.isFinite(value) ? value : null;
   };
 
   const formatCommitSummary = (result: LedgerImportCommitResult): string => {
@@ -341,7 +352,8 @@ export function LedgerAiImportModal({
     try {
       const aiPreview = await window.desktop.portfolio.previewLedgerAiImport({
         accountId,
-        records,
+        records: sourceRecordsRef.current,
+        importAssetKind: recognized?.importAssetKind ?? importAssetKind,
         importSipDeductions,
       });
       setPreview(aiPreview.preview);
@@ -366,6 +378,7 @@ export function LedgerAiImportModal({
       const result = await window.desktop.portfolio.commitLedgerAiImport({
         accountId,
         records: recordsToCommit,
+        importAssetKind: recognized?.importAssetKind ?? importAssetKind,
         importSipDeductions,
         sipPlanHints: recognized?.sipPlanHints ?? null,
         sipPlanMode: recognized?.sipPlanMode,
@@ -492,13 +505,13 @@ export function LedgerAiImportModal({
             return value === null ? '—' : <ValueDisplay kind="price" value={value} />;
           }
           return (
-            <Input
+            <EditableDecimalInput
               size="small"
               variant="borderless"
               className="ledger-ai-import-cell-input ledger-ai-import-cell-input--numeric"
               placeholder="价格"
-              value={record?.price === null || record?.price === undefined ? '' : String(record.price)}
-              onChange={(event) => updateRecord(row.rowIndex, { price: parseOptionalNumber(event.target.value) })}
+              value={record?.price}
+              onValueChange={(price) => updateRecord(row.rowIndex, { price })}
             />
           );
         },
@@ -514,13 +527,13 @@ export function LedgerAiImportModal({
             return value === null ? '—' : <ValueDisplay kind="quantity" value={value} />;
           }
           return (
-            <Input
+            <EditableDecimalInput
               size="small"
               variant="borderless"
               className="ledger-ai-import-cell-input ledger-ai-import-cell-input--numeric"
               placeholder="数量"
-              value={record?.quantity === null || record?.quantity === undefined ? '' : String(record.quantity)}
-              onChange={(event) => updateRecord(row.rowIndex, { quantity: parseOptionalNumber(event.target.value) })}
+              value={record?.quantity}
+              onValueChange={(quantity) => updateRecord(row.rowIndex, { quantity })}
             />
           );
         },
@@ -537,13 +550,13 @@ export function LedgerAiImportModal({
             return <ValueDisplay kind="currency" value={value} />;
           }
           return (
-            <Input
+            <EditableDecimalInput
               size="small"
               variant="borderless"
               className="ledger-ai-import-cell-input ledger-ai-import-cell-input--numeric"
               placeholder="0"
-              value={record?.fees === null || record?.fees === undefined ? '' : String(record.fees)}
-              onChange={(event) => updateRecord(row.rowIndex, { fees: parseOptionalNumber(event.target.value) })}
+              value={record?.fees}
+              onValueChange={(fees) => updateRecord(row.rowIndex, { fees })}
             />
           );
         },
@@ -631,9 +644,26 @@ export function LedgerAiImportModal({
 
       {step === 0 ? (
         <section className="import-panel ledger-ai-import-panel">
+          <label className="import-form-row">
+            <span>导入类型</span>
+            <Segmented
+              value={importAssetKind}
+              onChange={(value) => setImportAssetKind(value as LedgerAiImportAssetKind)}
+              options={[
+                { label: LEDGER_IMPORT_ASSET_KIND_LABELS.stock, value: 'stock' },
+                { label: LEDGER_IMPORT_ASSET_KIND_LABELS.fund, value: 'fund' },
+              ]}
+            />
+          </label>
+          <p className="ledger-ai-import-hint ledger-ai-import-hint--compact">
+            {importAssetKind === 'fund'
+              ? '场外基金必须能识别「确认金额 / 确认净值 / 确认份额」——请一并上传买入的「记录详情」截图，否则只能待补全、不会用估算净值填数。'
+              : '股票/场内基金：按场内成交价与整数数量导入（含 LOF、ETF）。'}
+          </p>
+
           <p className="ledger-ai-import-hint">
-            支持同花顺、东方财富、券商 App、蚂蚁财富等平台的<strong>成交记录 / 交易明细</strong>
-            截图。请截取包含成交时间、价格或净值、数量或份额的列表页，不要只截持仓汇总。
+            支持券商、基金销售平台等 App 的<strong>成交记录 / 交易明细</strong>
+            截图。请截取包含成交时间、价格或净值、数量或份额的页面，不要只截持仓汇总。
           </p>
 
           <label className="import-form-row">
@@ -717,6 +747,7 @@ export function LedgerAiImportModal({
           )}
 
           <div className="import-summary-tags">
+            <Tag>{LEDGER_IMPORT_ASSET_KIND_LABELS[recognized?.importAssetKind ?? importAssetKind]}</Tag>
             <Tag color="success">可导入 {preview.readyCount}</Tag>
             {preview.sipReadyCount > 0 ? <Tag color="blue">定投 {preview.sipReadyCount}</Tag> : null}
             {preview.duplicateCount > 0 ? <Tag color="gold">重复 {preview.duplicateCount}</Tag> : null}

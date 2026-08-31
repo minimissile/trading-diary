@@ -143,10 +143,16 @@ export async function getQuotesMulti(
     Promise.all(
       otcSymbols.map(async (symbol) => {
         try {
-          const { getQuote } = await import('./eastmoney/quote-service');
-          return await getQuote(symbol);
+          const { getOtcFundQuote } = await import('./eastmoney/quote-service');
+          return await getOtcFundQuote(symbol);
         } catch {
-          return null;
+          try {
+            const { getQuote } = await import('./eastmoney/quote-service');
+            const quote = await getQuote(symbol);
+            return enrichEastMoneyQuote(quote, 'OTC');
+          } catch {
+            return null;
+          }
         }
       }),
     ).then((quotes) => quotes.filter((item): item is MarketQuote => item !== null)),

@@ -54,11 +54,13 @@ export function summarizePlanOccurrences(occurrences: Pick<FundSipOccurrence, 's
   missedCount: number;
   dueCount: number;
   nextScheduledDate: string | null;
+  lastCompletedDate: string | null;
   currentStreak: number;
   disciplineRate: number | null;
 } {
   const today = new Date().toISOString().slice(0, 10);
-  const completedCount = occurrences.filter((item) => item.status === 'completed').length;
+  const completed = occurrences.filter((item) => item.status === 'completed');
+  const completedCount = completed.length;
   const skippedCount = occurrences.filter((item) => item.status === 'skipped').length;
   const missedCount = occurrences.filter((item) => item.status === 'missed').length;
   const dueCount = occurrences.filter((item) => item.status === 'due').length;
@@ -67,6 +69,11 @@ export function summarizePlanOccurrences(occurrences: Pick<FundSipOccurrence, 's
       .filter((item) => item.status === 'scheduled' && item.scheduledDate >= today)
       .map((item) => item.scheduledDate)
       .sort()[0] ?? null;
+  const lastCompletedDate =
+    completed
+      .map((item) => item.scheduledDate)
+      .sort()
+      .at(-1) ?? null;
 
   return {
     completedCount,
@@ -74,6 +81,7 @@ export function summarizePlanOccurrences(occurrences: Pick<FundSipOccurrence, 's
     missedCount,
     dueCount,
     nextScheduledDate,
+    lastCompletedDate,
     currentStreak: computeCurrentStreak(occurrences),
     disciplineRate: computeDisciplineRate(occurrences),
   };

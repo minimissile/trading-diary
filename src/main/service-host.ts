@@ -16,10 +16,18 @@ import type {
 const START_TIMEOUT_MS = 15_000;
 const REQUEST_TIMEOUT_MS = 30_000;
 const BACKUP_REQUEST_TIMEOUT_MS = 120_000;
+/** 单次 AI 识图（LLM vision 默认 60s + 解析缓冲）。 */
+const AI_VISION_REQUEST_TIMEOUT_MS = 120_000;
+/** 持仓多图识图：按序调用 vision，最多 20 张。 */
+const LEDGER_AI_RECOGNIZE_TIMEOUT_MS = 600_000;
 
 const REQUEST_TIMEOUT_BY_METHOD: Partial<Record<ServiceMethod, number>> = {
   'backup.export': BACKUP_REQUEST_TIMEOUT_MS,
   'backup.import': BACKUP_REQUEST_TIMEOUT_MS,
+  'portfolio.recognizeLedgerImportScreenshots': LEDGER_AI_RECOGNIZE_TIMEOUT_MS,
+  'portfolio.previewLedgerAiImport': AI_VISION_REQUEST_TIMEOUT_MS,
+  'portfolio.commitLedgerAiImport': AI_VISION_REQUEST_TIMEOUT_MS,
+  'sip.recognizeImportScreenshot': AI_VISION_REQUEST_TIMEOUT_MS,
 };
 
 interface PendingRequest {

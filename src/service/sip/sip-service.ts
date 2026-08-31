@@ -13,6 +13,7 @@ import type {
   SipPositionMeta,
   SipReviewTemplate,
   SipScanResult,
+  SipSchedulePauseResult,
   SipSummaryView,
   UpdateFundSipPlanInput,
 } from '../../shared/sip/types';
@@ -85,6 +86,20 @@ export class SipService {
 
   setPlanStatus(id: string, status: SipPlanStatus): FundSipPlanView {
     this.sip.setPlanStatus(id, status);
+    return this.toPlanView(id);
+  }
+
+  schedulePlanPause(id: string, fromDate: string): SipSchedulePauseResult {
+    const result = this.sip.schedulePlanPause(id, fromDate);
+    return {
+      plan: this.toPlanView(result.plan.id),
+      removedOccurrences: result.removedOccurrences,
+      removedLedgerEntries: result.removedLedgerEntries,
+    };
+  }
+
+  cancelScheduledPause(id: string): FundSipPlanView {
+    this.sip.cancelScheduledPause(id);
     return this.toPlanView(id);
   }
 

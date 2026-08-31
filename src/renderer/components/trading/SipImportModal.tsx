@@ -15,6 +15,7 @@ import type {
   SipCsvParseResult,
 } from '../../../shared/sip/import-types';
 import { AccountSelect } from './AccountSelect';
+import { EditableDecimalInput } from './EditableDecimalInput';
 import { formatDateTime, ValueDisplay } from '../../lib/trading-format';
 
 const FIELD_LABELS: Record<SipCsvField, string> = {
@@ -299,13 +300,6 @@ export function SipImportModal({
     }
   };
 
-  const parseOptionalNumber = (raw: string): number | null => {
-    const cleaned = raw.replace(/[,，\s￥¥元]/gu, '').trim();
-    if (!cleaned) return null;
-    const value = Number(cleaned);
-    return Number.isFinite(value) ? value : null;
-  };
-
   const previewColumns: ColumnsType<SipImportPreviewRow> = [
     { title: '行', dataIndex: 'rowIndex', width: 56 },
     {
@@ -372,11 +366,11 @@ export function SipImportModal({
         if (mode !== 'ai') return value === null ? '—' : <ValueDisplay kind="price" value={value} />;
         const record = aiRecords.find((item) => item.rowIndex === row.rowIndex);
         return (
-          <Input
+          <EditableDecimalInput
             size="small"
             placeholder="净值"
-            value={record?.nav === null || record?.nav === undefined ? '' : String(record.nav)}
-            onChange={(event) => updateAiRecord(row.rowIndex, { nav: parseOptionalNumber(event.target.value) })}
+            value={record?.nav}
+            onValueChange={(nav) => updateAiRecord(row.rowIndex, { nav })}
           />
         );
       },
@@ -390,11 +384,11 @@ export function SipImportModal({
         if (mode !== 'ai') return value === null ? '—' : <ValueDisplay kind="currency" value={value} />;
         const record = aiRecords.find((item) => item.rowIndex === row.rowIndex);
         return (
-          <Input
+          <EditableDecimalInput
             size="small"
             placeholder="金额"
-            value={record?.amount === null || record?.amount === undefined ? '' : String(record.amount)}
-            onChange={(event) => updateAiRecord(row.rowIndex, { amount: parseOptionalNumber(event.target.value) })}
+            value={record?.amount}
+            onValueChange={(amount) => updateAiRecord(row.rowIndex, { amount })}
           />
         );
       },

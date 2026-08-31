@@ -67,7 +67,17 @@ function buildReviewRenderVars(database: AppDatabase, input: ReviewAiDraftInput)
   const pnl = (input.exitPrice - input.entryPrice) * input.quantity * (input.direction === 'short' ? -1 : 1) - input.fees;
 
   const variables = reviewSummarizeVariablesSchema.parse({
-    ...input,
+    symbol: input.symbol,
+    title: input.title,
+    direction: input.direction,
+    planned: input.planned,
+    entryPrice: input.entryPrice,
+    exitPrice: input.exitPrice,
+    quantity: input.quantity,
+    fees: input.fees,
+    executionScore: input.executionScore,
+    partialSummary: input.partialSummary,
+    partialLesson: input.partialLesson,
     pnl,
     planThesis: plan?.thesis,
     planEntryPrice: plan?.entryPrice,

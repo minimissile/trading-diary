@@ -139,4 +139,118 @@ describe('sip service integration', () => {
 
     database.close();
   });
+
+  it('purges occurrences and ledger entries on or after backdated pause', () => {
+    const database = createTestDatabase();
+    const service = createSipService(database);
+
+    const plan = database.sip.createPlan(
+      {
+        symbol: '161725',
+        amount: 500,
+        frequency: 'daily',
+        startDate: '2026-06-01',
+        thesis: '短期试投',
+        activateNow: true,
+      },
+      { name: '招商中证白酒', kind: 'otc_fund', accountId: database.portfolio.ensureDefaultAccount() },
+    );
+
+    database.sip.ensureRollingOccurrences(plan, '2026-06-01');
+    const early = database.sip
+      .listOccurrences(plan.id)
+      .filter((item) => item.scheduledDate <= '2026-06-02' && ['scheduled', 'due'].includes(item.status));
+    for (const [index, occurrence] of early.entries()) {
+      const ledger = database.portfolio.addLedgerEntry({
+        accountId: plan.accountId,
+        symbol: plan.symbol,
+        kind: plan.kind,
+        side: 'buy',
+        quantity: 100 + index,
+        price: 5,
+        fees: 0,
+        tradeAt: `${occurrence.scheduledDate}T08:00:00.000Z`,
+        note: 'test',
+        source: 'sip',
+        sipOccurrenceId: occurrence.id,
+      });
+      database.sip.markOccurrenceCompleted(occurrence.id, {
+        amount: 500,
+        quantity: 100 + index,
+        nav: 5,
+        fees: 0,
+        ledgerEntryId: ledger.id,
+        confirmedAt: `${occurrence.scheduledDate}T08:00:00.000Z`,
+      });
+    }
+
+    const result = service.schedulePlanPause(plan.id, '2026-06-03');
+    expect(result.plan.status).toBe('paused');
+    expect(result.plan.pauseFromDate).toBe('2026-06-03');
+    expect(result.removedOccurrences).toBeGreaterThan(0);
+
+    const remaining = database.sip.listOccurrences(plan.id);
+    expect(remaining.every((item) => item.scheduledDate < '2026-06-03')).toBe(true);
+    expect(remaining.filter((item) => item.status === 'completed')).toHaveLength(early.length);
+    expect(database.portfolio.listLedger(plan.accountId)).toHaveLength(early.length);
+
+    database.close();
+  });
+
+  it('schedules future pause without pausing plan immediately', () => {
+    const database = createTestDatabase();
+    const service = createSipService(database);
+
+    const plan = database.sip.createPlan(
+      {
+        symbol: '161725',
+        amount: 500,
+        frequency: 'monthly',
+        dayOfMonth: 15,
+        startDate: '2026-01-01',
+        thesis: '长期配置',
+        activateNow: true,
+      },
+      { name: '招商中证白酒', kind: 'otc_fund', accountId: database.portfolio.ensureDefaultAccount() },
+    );
+
+    database.sip.ensureRollingOccurrences(plan, '2026-01-10');
+    service.schedulePlanPause(plan.id, '2099-03-15');
+
+    const updated = database.sip.getPlan(plan.id);
+    expect(updated.status).toBe('active');
+    expect(updated.pauseFromDate).toBe('2099-03-15');
+
+    database.sip.applyScheduledPauses('2099-03-15');
+    expect(database.sip.getPlan(plan.id).status).toBe('paused');
+
+    database.close();
+  });
+
+  it('cancels a scheduled future pause', () => {
+    const database = createTestDatabase();
+    const service = createSipService(database);
+
+    const plan = database.sip.createPlan(
+      {
+        symbol: '510300',
+        amount: 300,
+        frequency: 'monthly',
+        dayOfMonth: 15,
+        startDate: '2026-01-01',
+        thesis: '宽基定投',
+        activateNow: true,
+      },
+      { name: '沪深300ETF', kind: 'etf', accountId: database.portfolio.ensureDefaultAccount() },
+    );
+
+    service.schedulePlanPause(plan.id, '2099-06-15');
+    service.cancelScheduledPause(plan.id);
+
+    const updated = database.sip.getPlan(plan.id);
+    expect(updated.status).toBe('active');
+    expect(updated.pauseFromDate).toBeNull();
+
+    database.close();
+  });
 });

@@ -286,7 +286,10 @@ export class AppService {
         return readLedgerImportImagePreviews(request.params.sourcePaths);
       case 'portfolio.recognizeLedgerImportScreenshots': {
         this.licenseService.assertFeature('ai_review');
-        return this.ledgerAiImportService.recognizeScreenshots(request.params.sourcePaths);
+        return this.ledgerAiImportService.recognizeScreenshots(
+          request.params.sourcePaths,
+          request.params.importAssetKind ?? 'stock',
+        );
       }
       case 'portfolio.previewLedgerAiImport':
         return this.ledgerAiImportService.preview(request.params);
@@ -362,6 +365,10 @@ export class AppService {
         return this.sipService.setPlanStatus(request.params.id, request.params.status);
       case 'sip.deletePlan':
         return this.sipService.deletePlan(request.params.id);
+      case 'sip.schedulePause':
+        return this.sipService.schedulePlanPause(request.params.id, request.params.fromDate);
+      case 'sip.cancelScheduledPause':
+        return this.sipService.cancelScheduledPause(request.params.id);
       case 'sip.previewSchedule':
         return this.sipService.previewSchedule(request.params);
       case 'sip.listOccurrences':

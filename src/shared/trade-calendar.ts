@@ -92,6 +92,15 @@ export function previousTradingDay(date: string): string {
   return current;
 }
 
+/** 下一交易日（场外/LOF 申购 T+1 确认用）。 */
+export function nextTradingDay(date: string): string {
+  let current = shiftCalendarDate(date, 1);
+  while (!isTradingDay(current)) {
+    current = shiftCalendarDate(current, 1);
+  }
+  return current;
+}
+
 /**
  * 同花顺「当日参考盈亏」：建仓当日或上一自然日，日收益等于参考浮盈。
  * 非交易日由 computePositionDailyPnl 直接返回 0，不在此判定。

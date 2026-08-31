@@ -69,6 +69,16 @@ export const sipServiceRequests = [
   }),
   z.object({
     id: z.uuid(),
+    method: z.literal('sip.schedulePause'),
+    params: z.object({ id: z.uuid(), fromDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('sip.cancelScheduledPause'),
+    params: z.object({ id: z.uuid() }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
     method: z.literal('sip.previewSchedule'),
     params: z
       .object({

@@ -192,8 +192,11 @@ const desktopApi: DesktopApi = {
       ipcRenderer.invoke(ipcChannels.portfolioSaveLedgerImportPasteImages, { images }),
     readLedgerImportImagePreviews: (sourcePaths) =>
       ipcRenderer.invoke(ipcChannels.portfolioReadLedgerImportImagePreviews, { sourcePaths }),
-    recognizeLedgerImportScreenshots: (sourcePaths) =>
-      ipcRenderer.invoke(ipcChannels.portfolioRecognizeLedgerImportScreenshots, { sourcePaths }),
+    recognizeLedgerImportScreenshots: (sourcePaths, importAssetKind) =>
+      ipcRenderer.invoke(ipcChannels.portfolioRecognizeLedgerImportScreenshots, {
+        sourcePaths,
+        importAssetKind,
+      }),
     previewLedgerAiImport: (input) => ipcRenderer.invoke(ipcChannels.portfolioPreviewLedgerAiImport, input),
     commitLedgerAiImport: (input) => ipcRenderer.invoke(ipcChannels.portfolioCommitLedgerAiImport, input),
   },
@@ -243,6 +246,8 @@ const desktopApi: DesktopApi = {
     setStatus: (id, status) => ipcRenderer.invoke(ipcChannels.sipSetStatus, { id, status }),
     delete: (id) => ipcRenderer.invoke(ipcChannels.sipDeletePlan, { id }),
     deletePlan: (id) => ipcRenderer.invoke(ipcChannels.sipDeletePlan, { id }),
+    schedulePause: (id, fromDate) => ipcRenderer.invoke(ipcChannels.sipSchedulePause, { id, fromDate }),
+    cancelScheduledPause: (id) => ipcRenderer.invoke(ipcChannels.sipCancelScheduledPause, { id }),
     previewSchedule: (input) => ipcRenderer.invoke(ipcChannels.sipPreviewSchedule, input),
     listOccurrences: (planId, from, to) =>
       ipcRenderer.invoke(ipcChannels.sipListOccurrences, { planId, from, to }),

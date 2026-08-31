@@ -57,6 +57,20 @@ export function registerSipHandlers({ window, service, updater }: IpcHandlerCont
     return result;
   });
 
+  ipcMain.handle(ipcChannels.sipSchedulePause, async (event, input: { id: string; fromDate: string }) => {
+    assertTrustedSender(event, window);
+    const result = await service.request('sip.schedulePause', input);
+    if (!window.isDestroyed()) window.webContents.send(ipcChannels.workspaceChanged);
+    return result;
+  });
+
+  ipcMain.handle(ipcChannels.sipCancelScheduledPause, async (event, input: { id: string }) => {
+    assertTrustedSender(event, window);
+    const result = await service.request('sip.cancelScheduledPause', input);
+    if (!window.isDestroyed()) window.webContents.send(ipcChannels.workspaceChanged);
+    return result;
+  });
+
   ipcMain.handle(ipcChannels.sipPreviewSchedule, (event, input: Record<string, unknown>) => {
     assertTrustedSender(event, window);
     return service.request('sip.previewSchedule', input as never);

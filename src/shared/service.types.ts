@@ -366,7 +366,7 @@ export interface ServiceContract {
     result: string[];
   };
   'portfolio.recognizeLedgerImportScreenshots': {
-    params: { sourcePaths: string[] };
+    params: { sourcePaths: string[]; importAssetKind?: import('./portfolio/ledger-import-types').LedgerAiImportAssetKind };
     result: import('./portfolio/ledger-import-types').LedgerAiRecognizeResult;
   };
   'portfolio.previewLedgerAiImport': {
@@ -519,6 +519,14 @@ export interface ServiceContract {
   'sip.deletePlan': {
     params: { id: string };
     result: { deleted: true };
+  };
+  'sip.schedulePause': {
+    params: { id: string; fromDate: string };
+    result: import('../sip/types').SipSchedulePauseResult;
+  };
+  'sip.cancelScheduledPause': {
+    params: { id: string };
+    result: FundSipPlanView;
   };
   'sip.previewSchedule': {
     params: CreateFundSipPlanInput;

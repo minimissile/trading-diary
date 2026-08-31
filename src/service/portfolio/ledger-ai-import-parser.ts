@@ -3,15 +3,20 @@ import type { SipRecognizedPlanMode } from '../../shared/sip/import-hints';
 import type { SipAiPlanHints } from '../../shared/sip/import-types';
 import type {
   LedgerAiExtractedRecord,
-  LedgerAiRecordKind,
-  LedgerAiTradeSide,
+  LedgerAiTradeChannel,
 } from '../../shared/portfolio/ledger-import-types';
 import { hasPlanHints, parsePlanHints } from '../sip/sip-ai-import-parser';
+import {
+  inferTradeChannelFromText,
+  mergeRecognizedTradeChannel,
+  parseTradeChannel,
+} from './ledger-import-instrument';
 
 const planModeSchema = z.enum(['fixed', 'smart', 'unknown']);
 const screenshotTypeSchema = z.enum(['trade_history', 'sip_history', 'position_summary', 'mixed', 'unknown']);
 const recordKindSchema = z.enum(['trade', 'sip_deduction', 'dividend', 'skip']);
 const sideSchema = z.enum(['buy', 'sell']);
+const tradeChannelSchema = z.enum(['exchange', 'otc', 'fund', 'off_exchange', 'on_exchange', 'broker']);
 
 const rawRecordSchema = z
   .object({
@@ -26,7 +31,9 @@ const rawRecordSchema = z
     tradeDate: z.union([z.string(), z.null()]).optional(),
     trade_date: z.union([z.string(), z.null()]).optional(),
     date: z.union([z.string(), z.null()]).optional(),
-    confirmDate: z.union([z.string(), z.null()]).optional(),
+    purchaseTime: z.union([z.string(), z.null()]).optional(),
+    tradeTime: z.union([z.string(), z.null()]).optional(),
+    serviceFee: z.union([z.number(), z.string(), z.null()]).optional(),
     price: z.union([z.number(), z.string(), z.null()]).optional(),
     nav: z.union([z.number(), z.string(), z.null()]).optional(),
     unitNav: z.union([z.number(), z.string(), z.null()]).optional(),
@@ -41,6 +48,7 @@ const rawRecordSchema = z
     type: z.union([z.string(), z.null()]).optional(),
     recordKind: recordKindSchema.optional(),
     kind: z.union([recordKindSchema, z.string(), z.null()]).optional(),
+    tradeChannel: tradeChannelSchema.optional(),
   })
   .passthrough();
 
@@ -58,6 +66,8 @@ const planHintsSchema = z
 
 const aiResponseSchema = z.object({
   screenshotType: screenshotTypeSchema.optional(),
+  tradeChannel: tradeChannelSchema.optional(),
+  tradeChannelLabel: z.union([z.string(), z.null()]).optional(),
   planMode: planModeSchema.optional(),
   planModeLabel: z.union([z.string(), z.null()]).optional(),
   planHints: planHintsSchema.nullish(),
@@ -74,6 +84,8 @@ export type LedgerAiScreenshotType = z.infer<typeof screenshotTypeSchema>;
 export interface ParsedLedgerAiImportResponse {
   records: LedgerAiExtractedRecord[];
   warnings: string[];
+  tradeChannel: LedgerAiTradeChannel;
+  tradeChannelLabel: string | null;
   planMode: SipRecognizedPlanMode;
   planModeLabel: string | null;
   screenshotType: LedgerAiScreenshotType;
@@ -93,6 +105,14 @@ function coerceNullableNumber(value: unknown): number | null {
   if (!cleaned) return null;
   const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+/** 过滤 AI 误把买入金额写入 fees 的情况。 */
+function normalizeFundFees(fees: number | null, amount: number | null): number | null {
+  if (fees === null) return null;
+  if (amount !== null && fees >= amount) return null;
+  if (amount !== null && amount >= 10 && fees > amount * 0.05) return null;
+  return fees;
 }
 
 function parseSide(raw: unknown, rawType: string | null): LedgerAiTradeSide | null {
@@ -132,30 +152,43 @@ function normalizeRawRecord(
   const rawType = coerceNullableString(raw.rawType ?? raw.type);
   const side = parseSide(raw.side ?? raw.direction, rawType);
   const recordKind = parseRecordKind(raw.recordKind ?? raw.kind, rawType, side);
-  const tradeAt = coerceNullableString(raw.tradeDate ?? raw.trade_date ?? raw.date ?? raw.confirmDate);
-  const price = coerceNullableNumber(raw.price ?? raw.nav ?? raw.unitNav);
-  const quantity = coerceNullableNumber(raw.quantity ?? raw.shares ?? raw.confirmShares);
-  const amount = coerceNullableNumber(raw.amount ?? raw.confirmAmount);
-  const fees = coerceNullableNumber(raw.fees ?? raw.commission);
+  const confirmAt = coerceNullableString(raw.confirmDate);
+  const purchaseTime = coerceNullableString(raw.purchaseTime ?? raw.tradeTime);
+  const tradeDate = coerceNullableString(raw.tradeDate ?? raw.trade_date ?? raw.date);
+  const confirmAmount = coerceNullableNumber(raw.confirmAmount);
+  const purchaseAmount = coerceNullableNumber(raw.amount);
+  const amount = confirmAmount ?? purchaseAmount;
+  const amountIsNetConfirmed = confirmAmount !== null;
+  const price = coerceNullableNumber(raw.unitNav ?? raw.nav ?? raw.price);
+  const quantity = coerceNullableNumber(raw.confirmShares ?? raw.shares ?? raw.quantity);
+  const fees = normalizeFundFees(coerceNullableNumber(raw.fees ?? raw.commission ?? raw.serviceFee), amount);
+  const tradeChannel = parseTradeChannel(raw.tradeChannel);
+  const hasConfirmFields =
+    confirmAt !== null || confirmAmount !== null || price !== null || quantity !== null;
+  const tradeAt = purchaseTime ?? tradeDate ?? (hasConfirmFields ? null : confirmAt);
+
+  const baseFields = {
+    rowIndex: 0,
+    symbol,
+    instrumentName,
+    side,
+    tradeAt,
+    price,
+    quantity,
+    amount,
+    fees,
+    note: null,
+    rawType,
+    tradeChannel: tradeChannel ?? null,
+    confirmAt,
+    amountIsNetConfirmed,
+    sourceImageIndex,
+    sourceFileName,
+  };
 
   if (recordKind === 'skip') return null;
   if (recordKind === 'dividend') {
-    return {
-      rowIndex: 0,
-      symbol,
-      instrumentName,
-      side: null,
-      tradeAt,
-      price,
-      quantity,
-      amount,
-      fees,
-      note: null,
-      rawType,
-      recordKind: 'dividend',
-      sourceImageIndex,
-      sourceFileName,
-    };
+    return { ...baseFields, side: null, recordKind: 'dividend' };
   }
 
   if (
@@ -169,22 +202,7 @@ function normalizeRawRecord(
     return null;
   }
 
-  return {
-    rowIndex: 0,
-    symbol,
-    instrumentName,
-    side,
-    tradeAt,
-    price,
-    quantity,
-    amount,
-    fees,
-    note: null,
-    rawType,
-    recordKind,
-    sourceImageIndex,
-    sourceFileName,
-  };
+  return { ...baseFields, recordKind };
 }
 
 function collectRawRecords(payload: z.infer<typeof aiResponseSchema>): z.infer<typeof rawRecordSchema>[] {
@@ -224,6 +242,18 @@ export function parseLedgerAiImportResponse(
 
   const parsed = aiResponseSchema.parse(payload);
   const planHints = parsePlanHints(parsed.planHints);
+  const responseChannel = parseTradeChannel(parsed.tradeChannel);
+  const inferredChannel =
+    responseChannel ??
+    inferTradeChannelFromText(
+      [
+        parsed.tradeChannelLabel ?? '',
+        ...(parsed.warnings ?? []),
+        ...collectRawRecords(parsed).map((record) =>
+          `${record.rawType ?? ''} ${record.type ?? ''} ${record.instrumentName ?? record.name ?? ''}`,
+        ),
+      ].join(' '),
+    );
   const normalized = collectRawRecords(parsed)
     .map((record) => normalizeRawRecord(record, sourceImageIndex, sourceFileName))
     .filter((record): record is LedgerAiExtractedRecord => record !== null)
@@ -243,6 +273,8 @@ export function parseLedgerAiImportResponse(
   return {
     records: normalized,
     warnings,
+    tradeChannel: inferredChannel ?? 'exchange',
+    tradeChannelLabel: coerceNullableString(parsed.tradeChannelLabel),
     planMode: parsed.planMode ?? 'unknown',
     planModeLabel: coerceNullableString(parsed.planModeLabel),
     screenshotType: parsed.screenshotType ?? 'unknown',
@@ -268,26 +300,126 @@ export function buildLedgerAiEmptyRecordsError(input: {
   return '未从截图中识别到买卖或申赎流水。请截取包含成交时间、价格/净值与数量/份额的明细列表。';
 }
 
-/** 多图合并去重（symbol + side + 日期 + 数量 + 价格）。 */
+/** 多图合并：同一标的+方向+相邻申请/确认日合并，保留字段更完整的一条。 */
 export function mergeLedgerExtractedRecords(records: LedgerAiExtractedRecord[]): LedgerAiExtractedRecord[] {
-  const seen = new Set<string>();
-  const merged: LedgerAiExtractedRecord[] = [];
+  const importable = records.filter(
+    (record) => record.recordKind === 'trade' || record.recordKind === 'sip_deduction',
+  );
+  const clusters: LedgerAiExtractedRecord[][] = [];
 
-  for (const record of records) {
-    if (record.recordKind !== 'trade' && record.recordKind !== 'sip_deduction') continue;
-    const day = record.tradeAt?.slice(0, 10) ?? '';
-    const key = [
-      record.symbol ?? record.instrumentName ?? '',
-      record.side ?? record.recordKind,
-      day,
-      record.quantity?.toFixed(4) ?? '',
-      record.price?.toFixed(4) ?? '',
-      record.amount?.toFixed(2) ?? '',
-    ].join('|');
-    if (seen.has(key)) continue;
-    seen.add(key);
-    merged.push(record);
+  for (const record of importable) {
+    const cluster = clusters.find((items) => recordsShouldCluster(items[0]!, record));
+    if (cluster) {
+      cluster.push(record);
+    } else {
+      clusters.push([record]);
+    }
   }
 
-  return merged.map((record, index) => ({ ...record, rowIndex: index + 1 }));
+  return clusters
+    .map((cluster) =>
+      cluster.reduce((merged, current) => {
+        const leftScore = scoreRecordCompleteness(merged);
+        const rightScore = scoreRecordCompleteness(current);
+        const [richer, poorer] = leftScore >= rightScore ? [merged, current] : [current, merged];
+        return mergeRecordFields(richer, poorer);
+      }),
+    )
+    .map((record, index) => ({ ...record, rowIndex: index + 1 }));
+}
+
+function recordsShouldCluster(a: LedgerAiExtractedRecord, b: LedgerAiExtractedRecord): boolean {
+  if (a.recordKind !== b.recordKind) return false;
+  const symbolA = a.symbol ?? a.instrumentName ?? '';
+  const symbolB = b.symbol ?? b.instrumentName ?? '';
+  if (symbolA !== symbolB) return false;
+  if ((a.side ?? a.recordKind) !== (b.side ?? b.recordKind)) return false;
+
+  const daysA = collectRecordDays(a);
+  const daysB = collectRecordDays(b);
+  if (daysA.length === 0 || daysB.length === 0) return true;
+
+  for (const dayA of daysA) {
+    for (const dayB of daysB) {
+      if (dayA === dayB) return true;
+    }
+  }
+
+  // 定投每期独立，禁止跨日合并
+  if (a.recordKind === 'sip_deduction') return false;
+
+  // 买卖：仅合并「列表 + 详情」互补记录（如 1/19 申请 + 1/20 确认）
+  const aHasQuote = a.price !== null && a.quantity !== null;
+  const bHasQuote = b.price !== null && b.quantity !== null;
+  if (aHasQuote === bHasQuote) return false;
+
+  for (const dayA of daysA) {
+    for (const dayB of daysB) {
+      if (Math.abs(dayDiff(dayA, dayB)) <= 1) return true;
+    }
+  }
+  return false;
+}
+
+function collectRecordDays(record: LedgerAiExtractedRecord): string[] {
+  const days = new Set<string>();
+  const tradeDay = record.tradeAt?.slice(0, 10);
+  const confirmDay = record.confirmAt?.slice(0, 10);
+  if (tradeDay) days.add(tradeDay);
+  if (confirmDay) days.add(confirmDay);
+  return [...days];
+}
+
+function dayDiff(left: string, right: string): number {
+  const start = Date.parse(`${left}T00:00:00`);
+  const end = Date.parse(`${right}T00:00:00`);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return Number.POSITIVE_INFINITY;
+  return Math.round((end - start) / 86_400_000);
+}
+
+function scoreRecordCompleteness(record: LedgerAiExtractedRecord): number {
+  let score = 0;
+  if (record.price !== null) score += 2;
+  if (record.quantity !== null) score += 2;
+  if (record.amountIsNetConfirmed) score += 2;
+  if (record.confirmAt) score += 1;
+  if (record.fees !== null) score += 1;
+  return score;
+}
+
+function pickRicherTradeAt(left: string | null, right: string | null): string | null {
+  if (!left) return right;
+  if (!right) return left;
+  if (left.length !== right.length) return left.length > right.length ? left : right;
+  return left.includes(':') ? left : right;
+}
+
+function mergeRecordFields(
+  primary: LedgerAiExtractedRecord,
+  secondary: LedgerAiExtractedRecord,
+): LedgerAiExtractedRecord {
+  const pick = <T>(left: T | null, right: T | null): T | null => left ?? right;
+  const amount = primary.amountIsNetConfirmed
+    ? primary.amount
+    : secondary.amountIsNetConfirmed
+      ? secondary.amount
+      : pick(primary.amount, secondary.amount);
+
+  return {
+    ...primary,
+    symbol: pick(primary.symbol, secondary.symbol),
+    instrumentName: pick(primary.instrumentName, secondary.instrumentName),
+    side: pick(primary.side, secondary.side),
+    tradeAt: pickRicherTradeAt(primary.tradeAt, secondary.tradeAt),
+    confirmAt: pick(primary.confirmAt, secondary.confirmAt),
+    price: pick(primary.price, secondary.price),
+    quantity: pick(primary.quantity, secondary.quantity),
+    amount,
+    amountIsNetConfirmed: primary.amountIsNetConfirmed || secondary.amountIsNetConfirmed,
+    fees: pick(primary.fees, secondary.fees),
+    rawType: pick(primary.rawType, secondary.rawType),
+    tradeChannel: pick(primary.tradeChannel, secondary.tradeChannel),
+    sourceImageIndex: primary.sourceImageIndex,
+    sourceFileName: pick(primary.sourceFileName, secondary.sourceFileName),
+  };
 }

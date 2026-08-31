@@ -149,6 +149,23 @@
   margin-left: auto;
 }
 
+.sip-pause-hint,
+.sip-pause-next {
+  color: var(--td-color-ink-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.sip-pause-next .link-button {
+  margin-left: 8px;
+}
+
+.sip-plan-status-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .sip-import-hint {
   color: var(--td-color-ink-secondary);
 }

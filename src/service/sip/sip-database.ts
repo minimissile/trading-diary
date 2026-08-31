@@ -59,6 +59,7 @@ interface FundSipPlanRow {
   end_date: string | null;
   thesis: string;
   status: SipPlanStatus;
+  pause_from_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -223,10 +224,84 @@ export class SipDatabase {
       throw new Error(`计划状态不能从 ${current.status} 变更为 ${status}`);
     }
     const now = new Date().toISOString();
-    this.db.prepare('UPDATE fund_sip_plans SET status = ?, updated_at = ? WHERE id = ?').run(status, now, id);
+    const today = now.slice(0, 10);
+
+    if (status === 'active') {
+      this.db
+        .prepare(`UPDATE fund_sip_plans SET status = 'active', pause_from_date = NULL, updated_at = ? WHERE id = ?`)
+        .run(now, id);
+      const plan = this.getPlan(id);
+      this.ensureRollingOccurrences(plan, today);
+      return plan;
+    }
+
+    if (status === 'paused') {
+      return this.applyPlanPause(id, today);
+    }
+
+    this.db
+      .prepare(`UPDATE fund_sip_plans SET status = ?, pause_from_date = NULL, updated_at = ? WHERE id = ?`)
+      .run(status, now, id);
+    return this.getPlan(id);
+  }
+
+  schedulePlanPause(id: string, fromDate: string): { plan: FundSipPlan; removedOccurrences: number; removedLedgerEntries: number } {
     const plan = this.getPlan(id);
-    if (status === 'active') this.ensureRollingOccurrences(plan);
-    return plan;
+    if (plan.status !== 'active' && plan.status !== 'paused') {
+      throw new Error('只能暂停执行中或已暂停的计划');
+    }
+    this.assertIsoDate(fromDate);
+    if (compareIsoDate(fromDate, plan.startDate) < 0) {
+      throw new Error('暂停日不能早于计划开始日');
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date().toISOString();
+    const { removedOccurrences, removedLedgerEntries } = this.purgeOccurrencesFromDate(id, fromDate);
+
+    if (compareIsoDate(fromDate, today) <= 0) {
+      this.db
+        .prepare(`UPDATE fund_sip_plans SET status = 'paused', pause_from_date = ?, updated_at = ? WHERE id = ?`)
+        .run(fromDate, now, id);
+    } else {
+      this.db
+        .prepare(`UPDATE fund_sip_plans SET status = 'active', pause_from_date = ?, updated_at = ? WHERE id = ?`)
+        .run(fromDate, now, id);
+    }
+
+    return {
+      plan: this.getPlan(id),
+      removedOccurrences,
+      removedLedgerEntries,
+    };
+  }
+
+  cancelScheduledPause(id: string): FundSipPlan {
+    const plan = this.getPlan(id);
+    if (plan.status !== 'active' || !plan.pauseFromDate) {
+      throw new Error('当前没有预约暂停');
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    if (compareIsoDate(plan.pauseFromDate, today) <= 0) {
+      throw new Error('预约暂停已生效，请直接恢复计划');
+    }
+
+    const fromDate = plan.pauseFromDate;
+    const now = new Date().toISOString();
+    this.db.prepare(`UPDATE fund_sip_plans SET pause_from_date = NULL, updated_at = ? WHERE id = ?`).run(now, id);
+    const next = this.getPlan(id);
+    this.ensureRollingOccurrences(next, today);
+    return next;
+  }
+
+  applyScheduledPauses(today = new Date().toISOString().slice(0, 10)): number {
+    const plans = this.listPlans(['active']).filter(
+      (plan) => plan.pauseFromDate && compareIsoDate(plan.pauseFromDate, today) <= 0,
+    );
+    for (const plan of plans) {
+      this.applyPlanPause(plan.id, plan.pauseFromDate!);
+    }
+    return plans.length;
   }
 
   deletePlan(id: string): void {
@@ -250,6 +325,8 @@ export class SipDatabase {
     for (const id of toMissed) {
       this.db.prepare(`UPDATE fund_sip_occurrences SET status = 'missed', updated_at = ? WHERE id = ?`).run(now, id);
     }
+
+    this.applyScheduledPauses(today);
 
     for (const plan of this.listPlans(['active'])) {
       this.ensureRollingOccurrences(plan, today);
@@ -380,6 +457,7 @@ export class SipDatabase {
     let addedFuture = 0;
     for (const scheduledDate of dates) {
       if (plan.endDate && compareIsoDate(scheduledDate, plan.endDate) > 0) break;
+      if (plan.pauseFromDate && compareIsoDate(scheduledDate, plan.pauseFromDate) >= 0) break;
       insert.run(randomUUID(), plan.id, scheduledDate, now, now);
       existingDates.add(scheduledDate);
       if (compareIsoDate(scheduledDate, today) >= 0) {
@@ -498,6 +576,49 @@ export class SipDatabase {
     }
   }
 
+  private applyPlanPause(id: string, fromDate: string): FundSipPlan {
+    const now = new Date().toISOString();
+    this.purgeOccurrencesFromDate(id, fromDate);
+    this.db
+      .prepare(`UPDATE fund_sip_plans SET status = 'paused', pause_from_date = ?, updated_at = ? WHERE id = ?`)
+      .run(fromDate, now, id);
+    return this.getPlan(id);
+  }
+
+  private purgeOccurrencesFromDate(
+    planId: string,
+    fromDate: string,
+  ): { removedOccurrences: number; removedLedgerEntries: number } {
+    const rows = this.db
+      .prepare(
+        `SELECT id, ledger_entry_id FROM fund_sip_occurrences
+         WHERE plan_id = ? AND scheduled_date >= ?`,
+      )
+      .all(planId, fromDate) as unknown as Array<{ id: string; ledger_entry_id: string | null }>;
+
+    let removedLedgerEntries = 0;
+    for (const row of rows) {
+      if (!row.ledger_entry_id) continue;
+      this.db.prepare('DELETE FROM portfolio_ledger WHERE id = ?').run(row.ledger_entry_id);
+      removedLedgerEntries += 1;
+    }
+
+    const result = this.db
+      .prepare(`DELETE FROM fund_sip_occurrences WHERE plan_id = ? AND scheduled_date >= ?`)
+      .run(planId, fromDate);
+
+    return {
+      removedOccurrences: Number(result.changes ?? 0),
+      removedLedgerEntries,
+    };
+  }
+
+  private assertIsoDate(value: string): void {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      throw new Error('暂停日期格式无效');
+    }
+  }
+
   private mapPlan(row: FundSipPlanRow): FundSipPlan {
     return {
       id: row.id,
@@ -513,6 +634,7 @@ export class SipDatabase {
       endDate: row.end_date,
       thesis: row.thesis,
       status: row.status,
+      pauseFromDate: row.pause_from_date,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

@@ -72,6 +72,23 @@ export async function getQuote(symbolInput: string): Promise<MarketQuote> {
   return fetchExchangeQuote(instrument);
 }
 
+/** 按场外基金净值接口取价（不依赖 resolveInstrument 的场内/场外分类）。 */
+export async function getOtcFundQuote(symbolInput: string): Promise<MarketQuote> {
+  const symbol = normalizeSymbol(symbolInput);
+  return fetchOtcFundQuote(
+    enrichEastMoneyInstrument({
+      symbol,
+      name: symbol,
+      kind: 'otc_fund',
+      market: null,
+      secid: null,
+      f10Code: null,
+      securityTypeName: '场外基金',
+      source: 'eastmoney',
+    }),
+  );
+}
+
 export async function getQuotes(symbols: string[]): Promise<MarketQuote[]> {
   const unique = [...new Set(symbols.map(normalizeSymbol))];
   const exchangeSymbols = unique.filter((symbol) => Boolean(toSecid(symbol)));

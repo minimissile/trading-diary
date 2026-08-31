@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { App, Button, Checkbox, Form, Input, InputNumber, Modal, Radio } from 'antd';
+import { App, Button, Checkbox, Form, Input, InputNumber, Modal, Radio, Segmented } from 'antd';
 import type { Dayjs } from 'dayjs';
 import { useNavigate } from 'react-router';
 import type { InstrumentInfo, MarketQuote, TradingAccountSummary } from '../../../shared/api.types';
 import type { PortfolioLedgerEntry } from '../../../shared/portfolio/types';
+import {
+  LEDGER_IMPORT_ASSET_KIND_LABELS,
+  type LedgerAiImportAssetKind,
+} from '../../../shared/portfolio/ledger-import-types';
 import { routePaths } from '../../router/paths';
 import type { JournalReviewDraft } from '../../router/journal-state';
 import { SymbolSearchInput } from './SymbolSearchInput';
@@ -50,6 +54,7 @@ export function PortfolioLedgerModal({
   const [quote, setQuote] = useState<MarketQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [accounts, setAccounts] = useState<TradingAccountSummary[]>([]);
+  const [ledgerAssetKind, setLedgerAssetKind] = useState<LedgerAiImportAssetKind>('stock');
 
   const accountId = Form.useWatch('accountId', form);
   const marketScopes = useMemo(() => {
@@ -80,6 +85,20 @@ export function PortfolioLedgerModal({
     }
   }, []);
 
+  const syncLedgerAssetKindFromSymbol = useCallback(
+    async (symbol: string, currentAccountId?: string): Promise<void> => {
+      if (!currentAccountId || editingEntry) return;
+      try {
+        const entries = await window.desktop.portfolio.listLedgerEntries(currentAccountId, symbol);
+        if (entries.length === 0) return;
+        setLedgerAssetKind(entries[0]?.kind === 'otc_fund' ? 'fund' : 'stock');
+      } catch {
+        // 忽略查询失败，保留用户选择
+      }
+    },
+    [editingEntry],
+  );
+
   useEffect(() => {
     if (!open) return;
     let active = true;
@@ -98,10 +117,12 @@ export function PortfolioLedgerModal({
       setResolving(false);
       setQuote(null);
       setQuoteLoading(false);
+      setLedgerAssetKind('stock');
       return;
     }
 
     if (editingEntry) {
+      setLedgerAssetKind(editingEntry.kind === 'otc_fund' ? 'fund' : 'stock');
       form.setFieldsValue({
         accountId: editingEntry.accountId,
         symbol: editingEntry.symbol,
@@ -160,10 +181,13 @@ export function PortfolioLedgerModal({
         });
         void message.success('流水已更新');
       } else {
+        const kind = ledgerAssetKind === 'fund' ? 'otc_fund' : resolved?.kind;
+        const venue = ledgerAssetKind === 'fund' ? 'OTC' as const : undefined;
         await window.desktop.portfolio.addLedgerEntry({
           accountId: values.accountId,
           symbol,
-          kind: resolved?.kind,
+          kind,
+          venue,
           side: values.side,
           quantity: values.quantity,
           price: values.price,
@@ -287,6 +311,26 @@ export function PortfolioLedgerModal({
           <AccountSelect disabled={Boolean(editingEntry)} />
         </Form.Item>
 
+        {!editingEntry ? (
+          <>
+            <Form.Item label="交易渠道">
+              <Segmented
+                value={ledgerAssetKind}
+                onChange={(value) => setLedgerAssetKind(value as LedgerAiImportAssetKind)}
+                options={[
+                  { label: LEDGER_IMPORT_ASSET_KIND_LABELS.stock, value: 'stock' },
+                  { label: LEDGER_IMPORT_ASSET_KIND_LABELS.fund, value: 'fund' },
+                ]}
+              />
+            </Form.Item>
+            <p className="ledger-ai-import-hint ledger-ai-import-hint--compact">
+              {ledgerAssetKind === 'fund'
+                ? '蚂蚁、天天基金等场外申购/定投请选「场外基金」。同一基金代码若已存在场外持仓，会自动归入该持仓。'
+                : '券商 App 场内买卖（含 LOF、ETF）请选「股票（含场内基金）」。'}
+            </p>
+          </>
+        ) : null}
+
         <Form.Item
           className="symbol-field"
           label="标的代码"
@@ -306,6 +350,7 @@ export function PortfolioLedgerModal({
               setResolving(false);
               setResolved(instrument);
               if (instrument) {
+                void syncLedgerAssetKindFromSymbol(instrument.symbol, accountId);
                 void loadQuote(instrument.symbol);
               } else {
                 setQuote(null);
@@ -317,7 +362,11 @@ export function PortfolioLedgerModal({
 
         {resolved ? (
           <LedgerTradeContextPanel
-            instrument={resolved}
+            instrument={
+              ledgerAssetKind === 'fund'
+                ? { ...resolved, kind: 'otc_fund', venue: 'OTC', quoteCurrency: 'CNY' }
+                : resolved
+            }
             quote={quote}
             quoteLoading={quoteLoading || resolving}
             side={side ?? 'buy'}

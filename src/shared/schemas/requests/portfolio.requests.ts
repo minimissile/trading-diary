@@ -15,6 +15,9 @@ const ledgerAiExtractedRecordSchema = z
     note: z.string().trim().max(500).nullable(),
     rawType: z.string().trim().max(64).nullable(),
     recordKind: z.enum(['trade', 'sip_deduction', 'dividend', 'skip']),
+    tradeChannel: z.enum(['exchange', 'otc']).nullable().optional(),
+    confirmAt: z.string().trim().max(64).nullable().optional(),
+    amountIsNetConfirmed: z.boolean().optional(),
     sourceImageIndex: z.number().int().nonnegative(),
     sourceFileName: z.string().trim().max(256).nullable(),
   })
@@ -24,6 +27,8 @@ const ledgerAiImportParamsSchema = z
   .object({
     accountId: z.string().trim().min(1).max(64).optional(),
     records: z.array(ledgerAiExtractedRecordSchema),
+    importAssetKind: z.enum(['stock', 'fund']).optional(),
+    defaultTradeChannel: z.enum(['exchange', 'otc']).optional(),
     importSipDeductions: z.boolean().optional(),
     sipPlanMode: z.enum(['fixed', 'smart', 'unknown']).optional(),
     sipPlanModeLabel: z.string().trim().max(64).nullable().optional(),
@@ -270,6 +275,8 @@ export const portfolioServiceRequests = [
     params: z
       .object({
         sourcePaths: z.array(z.string().trim().min(1).max(4096)).min(1).max(20),
+        importAssetKind: z.enum(['stock', 'fund']).optional(),
+        defaultTradeChannel: z.enum(['exchange', 'otc']).optional(),
       })
       .strict(),
   }),
