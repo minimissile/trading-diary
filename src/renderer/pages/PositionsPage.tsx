@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { App, Button, Dropdown, Empty, Segmented, Skeleton, Table, Tag } from 'antd';
-import type { ColumnsType, TableProps } from 'antd/es/table';
+import { useCallback, useMemo, useState } from 'react';
+import { App, Button, Dropdown, Empty, Input, Segmented, Skeleton, Table, Tag } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import {
   EditOutlined,
   DeleteOutlined,
@@ -11,10 +11,11 @@ import {
   PlusOutlined,
   FallOutlined,
   PictureOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router';
 import type { InstrumentKind } from '../../shared/market/types';
-import type { PortfolioPositionView, PortfolioSummaryView } from '../../shared/portfolio/types';
+import type { PortfolioPositionView } from '../../shared/portfolio/types';
 import { ALL_ACCOUNTS_ID } from '../../shared/accounts/constants';
 import { priceListPresetForKind, quantityPresetForKind } from '../../shared/format/display-presets';
 import { PortfolioLedgerModal } from '../components/trading/PortfolioLedgerModal';
@@ -23,15 +24,13 @@ import { PositionLedgerDrawer } from '../components/trading/PositionLedgerDrawer
 import { PositionSellModal } from '../components/trading/PositionSellModal';
 import { AccountSelect } from '../components/trading/AccountSelect';
 import { ValueDisplay, AnimatedValueDisplay, formatQuoteRefreshTime, formatFloatingPnlCaption, formatDailyPnlCaption } from '../lib/trading-format';
-import { useInterval } from '../hooks/useInterval';
+import { usePortfolioDashboard } from '../hooks/usePortfolioDashboard';
 import { confirmDanger } from '../lib/confirm-dialog';
 import { deletePortfolioPosition } from '../lib/portfolio-actions';
 import { buildPositionChartPath, routePaths } from '../router/paths';
 
 type AssetCategory = 'all' | 'fund' | 'stock';
 type StockSubKind = 'all' | 'stock' | 'listed_fund';
-
-const QUOTE_REFRESH_INTERVAL_MS = 30_000;
 
 const kindLabels: Record<string, string> = {
   stock: 'A股',
@@ -53,6 +52,32 @@ function matchesAssetFilter(
   return position.kind === 'etf' || position.kind === 'lof';
 }
 
+function symbolSearchKeys(value: string): string[] {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return [];
+  const keys = new Set<string>([trimmed]);
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length > 0 && digits.length <= 6) {
+    keys.add(digits.padStart(6, '0'));
+    const stripped = digits.replace(/^0+/u, '');
+    if (stripped) keys.add(stripped);
+  }
+  return [...keys];
+}
+
+function matchesSymbolQuery(position: PortfolioPositionView, query: string): boolean {
+  const trimmed = query.trim();
+  if (!trimmed) return true;
+  const lowered = trimmed.toLowerCase();
+  if (position.name.toLowerCase().includes(lowered)) return true;
+
+  const queryKeys = symbolSearchKeys(trimmed);
+  const symbolKeys = symbolSearchKeys(position.symbol);
+  return queryKeys.some((queryKey) =>
+    symbolKeys.some((symbolKey) => symbolKey.includes(queryKey) || queryKey.includes(symbolKey)),
+  );
+}
+
 function compareNullableNumber(a: number | null, b: number | null): number {
   if (a === null && b === null) return 0;
   if (a === null) return 1;
@@ -66,10 +91,7 @@ function compareNullableNumber(a: number | null, b: number | null): number {
 export function PositionsPage(): React.JSX.Element {
   const { message, modal } = App.useApp();
   const navigate = useNavigate();
-  const [summary, setSummary] = useState<PortfolioSummaryView | null>(null);
-  const [positions, setPositions] = useState<PortfolioPositionView[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const year = new Date().getFullYear();
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [aiImportOpen, setAiImportOpen] = useState(false);
   const [accountId, setAccountId] = useState<string>(ALL_ACCOUNTS_ID);
@@ -78,52 +100,31 @@ export function PositionsPage(): React.JSX.Element {
   const [editingPosition, setEditingPosition] = useState<PortfolioPositionView | null>(null);
   const [sellingPosition, setSellingPosition] = useState<PortfolioPositionView | null>(null);
   const [deletingSymbol, setDeletingSymbol] = useState<string | null>(null);
-  const [pnlSortOrder, setPnlSortOrder] = useState<'ascend' | 'descend' | null>(null);
+  const [symbolQuery, setSymbolQuery] = useState('');
 
-  const load = useCallback(async (silent = false): Promise<void> => {
-    if (!silent) setLoading(true);
-    else setRefreshing(true);
-    try {
-      const year = new Date().getFullYear();
-      const [nextSummary, nextPositions] = await Promise.all([
-        window.desktop.portfolio.getSummary(accountId, year),
-        window.desktop.portfolio.syncMarketQuotes(accountId),
-      ]);
-      setSummary(nextSummary);
-      setPositions(nextPositions);
-    } catch (reason) {
-      void message.error(reason instanceof Error ? reason.message : '持仓数据读取失败');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [accountId, message]);
+  const { summary, positions, isLoading, isFetching, refetch, invalidate } = usePortfolioDashboard(accountId, year);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const filteredPositions = useMemo(
-    () => positions.filter((row) => matchesAssetFilter(row, assetCategory, stockSubKind)),
-    [assetCategory, positions, stockSubKind],
+  const refreshQuotes = useCallback(
+    async (silent = false): Promise<void> => {
+      const result = await refetch();
+      if (result.error) {
+        if (!silent) void message.error(result.error instanceof Error ? result.error.message : '行情刷新失败');
+        return;
+      }
+      if (!silent) void message.success('行情已刷新');
+    },
+    [message, refetch],
   );
 
-  const sortedPositions = useMemo(() => {
-    if (!pnlSortOrder) return filteredPositions;
-    const rows = [...filteredPositions];
-    rows.sort((a, b) => {
-      const compared = compareNullableNumber(a.unrealizedPnl, b.unrealizedPnl);
-      return pnlSortOrder === 'ascend' ? compared : -compared;
-    });
-    return rows;
-  }, [filteredPositions, pnlSortOrder]);
-
-  const handleTableChange: TableProps<PortfolioPositionView>['onChange'] = (_pagination, _filters, sorter) => {
-    const active = Array.isArray(sorter) ? sorter[0] : sorter;
-    if (active?.columnKey === 'pnl') {
-      setPnlSortOrder(active.order ?? null);
-    }
-  };
+  const filteredPositions = useMemo(
+    () =>
+      positions.filter(
+        (row) =>
+          matchesAssetFilter(row, assetCategory, stockSubKind) &&
+          matchesSymbolQuery(row, symbolQuery),
+      ),
+    [assetCategory, positions, stockSubKind, symbolQuery],
+  );
 
   const deletePosition = useCallback(
     async (row: PortfolioPositionView): Promise<void> => {
@@ -131,44 +132,38 @@ export function PositionsPage(): React.JSX.Element {
       try {
         await deletePortfolioPosition(accountId, row.symbol);
         void message.success('持仓已删除');
-        await load(true);
+        await invalidate();
       } catch (reason) {
         void message.error(reason instanceof Error ? reason.message : '删除失败');
       } finally {
         setDeletingSymbol(null);
       }
     },
-    [accountId, load, message],
+    [accountId, invalidate, message],
   );
-
-  const refreshQuotes = useCallback(
-    async (silent = false): Promise<void> => {
-      if (!silent) setRefreshing(true);
-      try {
-        setPositions(await window.desktop.portfolio.syncMarketQuotes(accountId));
-        setSummary(await window.desktop.portfolio.getSummary(accountId, new Date().getFullYear()));
-        if (!silent) void message.success('行情已刷新');
-      } catch (reason) {
-        if (!silent) void message.error(reason instanceof Error ? reason.message : '行情刷新失败');
-      } finally {
-        if (!silent) setRefreshing(false);
-      }
-    },
-    [accountId, message],
-  );
-
-  useInterval(() => {
-    if (document.hidden || loading) return;
-    void refreshQuotes(true);
-  }, QUOTE_REFRESH_INTERVAL_MS);
 
   const positionColumns = useMemo<ColumnsType<PortfolioPositionView>>(
     () => [
       {
-        title: '标的',
+        title: (
+          <div className="portfolio-symbol-column-head">
+            <span>标的</span>
+            <Input
+              allowClear
+              size="small"
+              placeholder="搜索代码/名称"
+              prefix={<SearchOutlined aria-hidden="true" />}
+              value={symbolQuery}
+              onChange={(event) => setSymbolQuery(event.target.value)}
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+              aria-label="搜索标的"
+            />
+          </div>
+        ),
         key: 'symbol',
         fixed: 'left',
-        width: 200,
+        width: 260,
         render: (_, row) => (
           <button
             className="watchlist-symbol-button"
@@ -263,13 +258,10 @@ export function PositionsPage(): React.JSX.Element {
       {
         title: '浮盈',
         key: 'pnl',
-        dataIndex: 'unrealizedPnl',
         width: 116,
         align: 'right',
         sorter: (a, b) => compareNullableNumber(a.unrealizedPnl, b.unrealizedPnl),
-        sortOrder: pnlSortOrder,
         sortDirections: ['descend', 'ascend'],
-        showSorterTooltip: { title: pnlSortOrder === 'ascend' ? '点击降序' : '点击升序' },
         render: (_, row) =>
           row.unrealizedPnl === null ? (
             '—'
@@ -286,6 +278,8 @@ export function PositionsPage(): React.JSX.Element {
         key: 'returnRate',
         width: 96,
         align: 'right',
+        sorter: (a, b) => compareNullableNumber(a.unrealizedReturnPercent, b.unrealizedReturnPercent),
+        sortDirections: ['descend', 'ascend'],
         render: (_, row) =>
           row.unrealizedReturnPercent === null ? (
             '—'
@@ -347,7 +341,7 @@ export function PositionsPage(): React.JSX.Element {
         ),
       },
     ],
-    [accountId, deletePosition, deletingSymbol, modal, navigate, pnlSortOrder],
+    [accountId, deletePosition, deletingSymbol, modal, navigate, symbolQuery],
   );
 
   const unrealizedPnl = summary?.unrealizedPnl ?? 0;
@@ -360,6 +354,8 @@ export function PositionsPage(): React.JSX.Element {
     () => positions.filter((row) => row.dailyPnl === null && row.quantity > 0).length,
     [positions],
   );
+
+  const refreshing = isFetching && !isLoading;
 
   return (
     <main className="workspace-page portfolio-page positions-page">
@@ -394,7 +390,7 @@ export function PositionsPage(): React.JSX.Element {
         </div>
       </header>
 
-      {loading && !summary ? (
+      {isLoading && !summary ? (
         <Skeleton active paragraph={{ rows: 10 }} />
       ) : (
         <>
@@ -472,7 +468,15 @@ export function PositionsPage(): React.JSX.Element {
           </div>
 
           {filteredPositions.length === 0 ? (
-            <Empty description={positions.length === 0 ? '还没有持仓，录入第一笔买入流水开始跟踪' : '当前筛选条件下暂无持仓'}>
+            <Empty
+              description={
+                positions.length === 0
+                  ? '还没有持仓，录入第一笔买入流水开始跟踪'
+                  : symbolQuery.trim()
+                    ? '未找到匹配的标的'
+                    : '当前筛选条件下暂无持仓'
+              }
+            >
               {positions.length === 0 ? (
                 <Button type="primary" onClick={() => setLedgerOpen(true)}>
                   录入买入
@@ -483,12 +487,11 @@ export function PositionsPage(): React.JSX.Element {
             <Table<PortfolioPositionView>
               className="watchlist-table"
               columns={positionColumns}
-              dataSource={sortedPositions}
+              dataSource={filteredPositions}
               pagination={false}
               rowKey="symbol"
               size="small"
               scroll={{ x: 1024 }}
-              onChange={handleTableChange}
             />
           )}
         </>
@@ -498,14 +501,14 @@ export function PositionsPage(): React.JSX.Element {
         open={ledgerOpen}
         defaultAccountId={accountId === ALL_ACCOUNTS_ID ? undefined : accountId}
         onClose={() => setLedgerOpen(false)}
-        onSaved={() => void load(true)}
+        onSaved={() => void invalidate()}
       />
 
       <LedgerAiImportModal
         open={aiImportOpen}
         defaultAccountId={accountId === ALL_ACCOUNTS_ID ? undefined : accountId}
         onClose={() => setAiImportOpen(false)}
-        onSaved={() => void load(true)}
+        onSaved={() => void invalidate()}
       />
 
       <PositionSellModal
@@ -513,7 +516,7 @@ export function PositionsPage(): React.JSX.Element {
         position={sellingPosition}
         accountId={accountId}
         onClose={() => setSellingPosition(null)}
-        onSaved={() => void load(true)}
+        onSaved={() => void invalidate()}
       />
 
       <PositionLedgerDrawer
@@ -521,7 +524,7 @@ export function PositionsPage(): React.JSX.Element {
         position={editingPosition}
         accountId={accountId}
         onClose={() => setEditingPosition(null)}
-        onChanged={() => void load(true)}
+        onChanged={() => void invalidate()}
       />
     </main>
   );

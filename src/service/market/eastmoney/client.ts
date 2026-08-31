@@ -8,23 +8,59 @@ export interface EastMoneyFetchOptions {
   signal?: AbortSignal;
 }
 
+async function eastMoneyFetchResponse(url: string | URL, options: EastMoneyFetchOptions = {}): Promise<Response> {
+  try {
+    const response = await fetch(url.toString(), {
+      signal: options.signal,
+      headers: {
+        'User-Agent': USER_AGENT,
+        Referer: options.referer ?? 'https://www.eastmoney.com/',
+        Accept: 'application/json, text/plain, */*',
+      },
+    });
+    return response;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : '网络错误';
+    throw new MarketProviderError(`东方财富网络请求失败：${detail}`);
+  }
+}
+
 export async function eastMoneyFetchJson<T>(
   url: string | URL,
   options: EastMoneyFetchOptions = {},
 ): Promise<T> {
-  const response = await fetch(url.toString(), {
-    signal: options.signal,
-    headers: {
-      'User-Agent': USER_AGENT,
-      Referer: options.referer ?? 'https://www.eastmoney.com/',
-    },
-  });
+  const response = await eastMoneyFetchResponse(url, options);
 
   if (!response.ok) {
     throw new MarketProviderError(`东方财富 HTTP ${response.status}：${url.toString()}`);
   }
 
   return response.json() as Promise<T>;
+}
+
+/**
+ * 依次尝试多个东方财富域名，首个成功响应即返回。
+ */
+export async function eastMoneyFetchJsonFromOrigins<T>(
+  origins: readonly string[],
+  buildUrl: (origin: string) => URL,
+  options: EastMoneyFetchOptions = {},
+): Promise<T> {
+  let lastError: unknown;
+
+  for (const origin of origins) {
+    try {
+      return await eastMoneyFetchJson<T>(buildUrl(origin), options);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (lastError instanceof MarketProviderError) throw lastError;
+  if (lastError instanceof Error) {
+    throw new MarketProviderError(`东方财富 K 线请求失败：${lastError.message}`);
+  }
+  throw new MarketProviderError('东方财富 K 线请求失败');
 }
 
 export async function eastMoneyPostForm<T>(

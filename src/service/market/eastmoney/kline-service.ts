@@ -1,8 +1,14 @@
 import type { KLineAdjust, KLineBar, KLineListResult, KLinePeriod } from '../../../shared/market/types';
-import { MarketNotFoundError } from '../../../shared/market/errors';
-import { eastMoneyFetchJson, eastMoneyFetchText, parseEastMoneyJsonp } from './client';
+import { MarketNotFoundError, MarketProviderError } from '../../../shared/market/errors';
+import { canUseKlineFallback, listKlinesFromFallback } from '../kline-fallback-service';
+import { formatEastMoneyKLineEnd, sliceKLineBars } from '../kline-utils';
+import { eastMoneyFetchJson } from './client';
+import { EASTMONEY_KLINE_ORIGINS, EASTMONEY_QUOTE_REFERER, eastMoneyKlineUrl } from './endpoints';
+import { eastMoneyFetchText, parseEastMoneyJsonp } from './client';
 import { resolveInstrument } from './search-service';
 import { toSecid } from './symbols';
+
+export { formatEastMoneyKLineEnd, sliceKLineBars } from '../kline-utils';
 
 interface KLineResponse {
   rc: number;
@@ -44,78 +50,16 @@ const ADJUST_TO_FQT: Record<KLineAdjust, number> = {
 const FUND_NAV_PAGE_SIZE = 20;
 const FUND_NAV_MAX_PAGES = 160;
 const DEFAULT_KLINE_LIMIT = 240;
+const KLINE_ORIGIN_BATCH_SIZE = 15;
 
-function isIntradayPeriod(period: KLinePeriod): boolean {
-  return period === '1m' || period === '5m' || period === '15m' || period === '30m' || period === '60m';
-}
-
-function periodStepMs(period: KLinePeriod): number {
-  switch (period) {
-    case '1m':
-      return 60_000;
-    case '5m':
-      return 5 * 60_000;
-    case '15m':
-      return 15 * 60_000;
-    case '30m':
-      return 30 * 60_000;
-    case '60m':
-      return 60 * 60_000;
-    case '1d':
-      return 86_400_000;
-    case '1w':
-      return 7 * 86_400_000;
-    case '1M':
-      return 30 * 86_400_000;
-  }
-}
-
-/** 将「早于该时间戳」转换为东方财富 K 线 end 参数。 */
-export function formatEastMoneyKLineEnd(beforeTimestamp: number | undefined, period: KLinePeriod): string {
-  if (beforeTimestamp === undefined) return '20500101';
-
-  const anchor = beforeTimestamp - periodStepMs(period);
-  const date = new Date(anchor);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-
-  if (isIntradayPeriod(period)) {
-    const hour = String(date.getHours()).padStart(2, '0');
-    const minute = String(date.getMinutes()).padStart(2, '0');
-    return `${year}${month}${day}${hour}${minute}`;
-  }
-
-  return `${year}${month}${day}`;
-}
-
-/** 从完整序列中截取 init / forward 请求需要的 K 线段。 */
-export function sliceKLineBars(
-  bars: KLineBar[],
-  limit: number,
-  beforeTimestamp?: number,
-): { bars: KLineBar[]; hasMoreHistory: boolean } {
-  const sorted = [...bars].sort((left, right) => left.timestamp - right.timestamp);
-  const pool =
-    beforeTimestamp === undefined ? sorted : sorted.filter((bar) => bar.timestamp < beforeTimestamp);
-
-  if (pool.length === 0) {
-    return { bars: [], hasMoreHistory: false };
-  }
-
-  if (beforeTimestamp === undefined) {
-    const slice = pool.slice(-limit);
-    return {
-      bars: slice,
-      hasMoreHistory: pool.length > slice.length || slice.length >= limit,
-    };
-  }
-
-  const slice = pool.slice(-limit);
-  return {
-    bars: slice,
-    hasMoreHistory: pool.length > slice.length || slice.length >= limit,
-  };
+interface KLineSearchParams {
+  secid: string;
+  klt: string;
+  fqt: string;
+  lmt: string;
+  end: string;
+  fields1: string;
+  fields2: string;
 }
 
 /**
@@ -148,17 +92,61 @@ export async function listKlines(
   const secid = instrument.secid ?? toSecid(instrument.symbol);
   if (!secid) throw new MarketNotFoundError(`无法解析 K 线代码：${instrument.symbol}`);
 
-  const url = new URL('https://push2his.eastmoney.com/api/qt/stock/kline/get');
-  url.searchParams.set('secid', secid);
-  url.searchParams.set('klt', String(PERIOD_TO_KLT[period]));
-  url.searchParams.set('fqt', String(ADJUST_TO_FQT[adjust]));
-  url.searchParams.set('lmt', String(clampedLimit));
-  url.searchParams.set('end', formatEastMoneyKLineEnd(beforeTimestamp, period));
-  url.searchParams.set('fields1', 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13');
-  url.searchParams.set('fields2', 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61');
+  const searchParams: KLineSearchParams = {
+    secid,
+    klt: String(PERIOD_TO_KLT[period]),
+    fqt: String(ADJUST_TO_FQT[adjust]),
+    lmt: String(clampedLimit),
+    end: formatEastMoneyKLineEnd(beforeTimestamp, period),
+    fields1: 'f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13',
+    fields2: 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
+  };
 
-  const payload = await eastMoneyFetchJson<KLineResponse>(url, { referer: 'https://quote.eastmoney.com/' });
-  if (payload.rc !== 0 || !payload.data?.klines?.length) {
+  try {
+    const payload = await fetchEastMoneyKlinePayload(searchParams);
+    if (payload.rc !== 0 || !payload.data?.klines?.length) {
+      if (beforeTimestamp !== undefined) {
+        return {
+          symbol: instrument.symbol,
+          name: instrument.name,
+          kind: instrument.kind,
+          period,
+          adjust,
+          bars: [],
+          hasMoreHistory: false,
+        };
+      }
+      throw new MarketNotFoundError(`K 线为空：${instrument.symbol}`);
+    }
+
+    const parsed = payload.data.klines
+      .map(parseExchangeKLineRow)
+      .filter((bar): bar is KLineBar => bar !== null)
+      .sort((left, right) => left.timestamp - right.timestamp);
+
+    const sliced = sliceKLineBars(parsed, clampedLimit, beforeTimestamp);
+    return {
+      symbol: payload.data.code ?? instrument.symbol,
+      name: payload.data.name ?? instrument.name,
+      kind: instrument.kind,
+      period,
+      adjust,
+      bars: sliced.bars,
+      hasMoreHistory: sliced.hasMoreHistory,
+    };
+  } catch (error) {
+    if (canUseKlineFallback(instrument.symbol, period)) {
+      return listKlinesFromFallback(
+        instrument.symbol,
+        instrument.name,
+        instrument.kind,
+        period,
+        adjust,
+        clampedLimit,
+        beforeTimestamp,
+      );
+    }
+
     if (beforeTimestamp !== undefined) {
       return {
         symbol: instrument.symbol,
@@ -170,24 +158,34 @@ export async function listKlines(
         hasMoreHistory: false,
       };
     }
-    throw new MarketNotFoundError(`K 线为空：${instrument.symbol}`);
+
+    if (error instanceof MarketNotFoundError || error instanceof MarketProviderError) throw error;
+    throw new MarketProviderError(error instanceof Error ? error.message : 'K 线加载失败');
+  }
+}
+
+async function fetchEastMoneyKlinePayload(searchParams: KLineSearchParams): Promise<KLineResponse> {
+  for (let offset = 0; offset < EASTMONEY_KLINE_ORIGINS.length; offset += KLINE_ORIGIN_BATCH_SIZE) {
+    const batch = EASTMONEY_KLINE_ORIGINS.slice(offset, offset + KLINE_ORIGIN_BATCH_SIZE);
+    const attempts = batch.map((origin) =>
+      eastMoneyFetchJson<KLineResponse>(eastMoneyKlineUrl(origin, searchParams), {
+        referer: EASTMONEY_QUOTE_REFERER,
+      }).then((payload) => {
+        if (payload.rc !== 0 || !payload.data?.klines?.length) {
+          throw new MarketProviderError('东方财富 K 线为空');
+        }
+        return payload;
+      }),
+    );
+
+    try {
+      return await Promise.any(attempts);
+    } catch {
+      // 当前批次全部失败，继续下一批 CDN 节点。
+    }
   }
 
-  const parsed = payload.data.klines
-    .map(parseExchangeKLineRow)
-    .filter((bar): bar is KLineBar => bar !== null)
-    .sort((left, right) => left.timestamp - right.timestamp);
-
-  const sliced = sliceKLineBars(parsed, clampedLimit, beforeTimestamp);
-  return {
-    symbol: payload.data.code ?? instrument.symbol,
-    name: payload.data.name ?? instrument.name,
-    kind: instrument.kind,
-    period,
-    adjust,
-    bars: sliced.bars,
-    hasMoreHistory: sliced.hasMoreHistory,
-  };
+  throw new MarketProviderError('东方财富 K 线节点不可达');
 }
 
 async function fetchFundNavPage(symbol: string, pageIndex: number): Promise<FundNavRow[]> {

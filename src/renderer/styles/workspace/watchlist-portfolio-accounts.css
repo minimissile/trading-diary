@@ -97,6 +97,29 @@
   color: var(--td-color-accent);
 }
 
+.portfolio-symbol-column-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 240px;
+}
+
+.portfolio-symbol-column-head > span {
+  flex: 0 0 auto;
+  color: var(--td-color-ink-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.portfolio-symbol-column-head .ant-input-affix-wrapper {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: 2px;
+  font-weight: 400;
+}
+
 .watchlist-detail dl {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

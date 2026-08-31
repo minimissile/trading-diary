@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { App, Alert, Button, Checkbox, Popover, Segmented, Tag } from 'antd';
+import { App, Alert, Button, Checkbox, Popover, Segmented, Space, Tag } from 'antd';
 import { ArrowLeftOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router';
 import type { InstrumentKind, KLineAdjust, KLinePeriod } from '../../shared/market/types';
+import type { PortfolioLedgerEntry } from '../../shared/portfolio/types';
+import { buildChartTradeMarkers } from '../../shared/chart/trade-markers';
 import { TradingChart } from '../components/chart/TradingChart';
 import {
   chartMainIndicatorOptions,
@@ -36,15 +38,18 @@ export function SymbolChartPage(): React.JSX.Element {
   const { symbol: symbolParam } = useParams();
   const symbol = parsePositionChartSymbol(symbolParam);
   const [symbolName, setSymbolName] = useState('');
-  const [instrumentKind, setInstrumentKind] = useState<InstrumentKind>('stock');
+  const [instrumentKind, setInstrumentKind] = useState<InstrumentKind | null>(null);
   const [period, setPeriod] = useState<KLinePeriod>('1d');
   const [adjust, setAdjust] = useState<KLineAdjust>('forward');
   const [mainIndicators, setMainIndicators] = useState<ChartMainIndicator[]>(['MA', 'BOLL']);
   const [subIndicators, setSubIndicators] = useState<ChartSubIndicator[]>(['VOL', 'MACD']);
   const [quoteSummary, setQuoteSummary] = useState('');
   const [chartError, setChartError] = useState<string | null>(null);
+  const [ledgerEntries, setLedgerEntries] = useState<PortfolioLedgerEntry[]>([]);
+  const [showTradeMarkers, setShowTradeMarkers] = useState(true);
 
   const isOtcFund = instrumentKind === 'otc_fund';
+  const chartKind = instrumentKind ?? 'stock';
 
   const loadSymbolMeta = useCallback(async (): Promise<void> => {
     if (!symbol) return;
@@ -64,9 +69,20 @@ export function SymbolChartPage(): React.JSX.Element {
     } catch (reason) {
       setSymbolName('');
       setQuoteSummary('');
+      setInstrumentKind('stock');
       void message.error(reason instanceof Error ? reason.message : '加载行情失败');
     }
   }, [message, symbol]);
+
+  const loadTradeMarkers = useCallback(async (): Promise<void> => {
+    if (!symbol) return;
+    try {
+      const entries = await window.desktop.portfolio.listLedgerEntries(undefined, symbol);
+      setLedgerEntries(entries);
+    } catch {
+      setLedgerEntries([]);
+    }
+  }, [symbol]);
 
   useEffect(() => {
     if (!symbol) {
@@ -74,13 +90,23 @@ export function SymbolChartPage(): React.JSX.Element {
       return;
     }
     void loadSymbolMeta();
-  }, [loadSymbolMeta, navigate, symbol]);
+    void loadTradeMarkers();
+  }, [loadSymbolMeta, loadTradeMarkers, navigate, symbol]);
+
+  useEffect(() => {
+    const refresh = (): void => {
+      void loadTradeMarkers();
+    };
+    window.addEventListener('workspace-changed', refresh);
+    return () => window.removeEventListener('workspace-changed', refresh);
+  }, [loadTradeMarkers]);
 
   useEffect(() => {
     setChartError(null);
   }, [symbol, period, adjust, instrumentKind]);
 
   useEffect(() => {
+    if (instrumentKind === null) return;
     if (instrumentKind === 'otc_fund') {
       setPeriod('1d');
       setAdjust('none');
@@ -108,6 +134,18 @@ export function SymbolChartPage(): React.JSX.Element {
       ),
     [isOtcFund],
   );
+
+  const tradeMarkers = useMemo(
+    () => buildChartTradeMarkers(ledgerEntries, isOtcFund ? '1d' : period),
+    [isOtcFund, ledgerEntries, period],
+  );
+
+  const tradeMarkerSummary = useMemo(() => {
+    const buyCount = tradeMarkers.filter((marker) => marker.side === 'buy').length;
+    const sellCount = tradeMarkers.filter((marker) => marker.side === 'sell').length;
+    const reinvestCount = tradeMarkers.filter((marker) => marker.side === 'dividend_reinvest').length;
+    return { buyCount, sellCount, reinvestCount, total: tradeMarkers.length };
+  }, [tradeMarkers]);
 
   const indicatorPanel = (
     <div className="symbol-chart-indicator-panel">
@@ -140,7 +178,7 @@ export function SymbolChartPage(): React.JSX.Element {
           <div className="symbol-chart-title-block">
             <strong className="symbol-chart-title">{symbolName || symbol}</strong>
             <span className="symbol-chart-code">{symbol}</span>
-            <Tag className="symbol-chart-kind-tag">{kindLabels[instrumentKind]}</Tag>
+            <Tag className="symbol-chart-kind-tag">{instrumentKind ? kindLabels[instrumentKind] : '…'}</Tag>
           </div>
           <span className="symbol-chart-quote">{quoteSummary || '—'}</span>
         </div>
@@ -155,23 +193,46 @@ export function SymbolChartPage(): React.JSX.Element {
               指标
             </Button>
           </Popover>
-          <Button size="small" icon={<ReloadOutlined />} aria-label="刷新行情" onClick={() => void loadSymbolMeta()} />
+          <Checkbox checked={showTradeMarkers} onChange={(event) => setShowTradeMarkers(event.target.checked)}>
+            买卖点
+          </Checkbox>
+          {tradeMarkerSummary.total > 0 ? (
+            <span className="symbol-chart-marker-legend">
+              <Tag color="error">B {tradeMarkerSummary.buyCount}</Tag>
+              <Tag color="success">S {tradeMarkerSummary.sellCount}</Tag>
+              {tradeMarkerSummary.reinvestCount > 0 ? <Tag color="processing">再 {tradeMarkerSummary.reinvestCount}</Tag> : null}
+            </span>
+          ) : null}
+          <Button
+            size="small"
+            icon={<ReloadOutlined />}
+            aria-label="刷新行情"
+            onClick={() => {
+              void loadSymbolMeta();
+              void loadTradeMarkers();
+            }}
+          />
         </div>
       </header>
 
       {chartError ? <Alert className="symbol-chart-error" type="error" showIcon message={chartError} /> : null}
 
       <section className="symbol-chart-stage">
-        <TradingChart
-          symbol={symbol}
-          name={symbolName}
-          kind={instrumentKind}
-          period={period}
-          adjust={adjust}
-          mainIndicators={[...mainIndicators]}
-          subIndicators={[...subIndicators]}
-          onLoadError={(errorMessage) => setChartError(errorMessage)}
-        />
+        {instrumentKind ? (
+          <TradingChart
+            key={`${symbol}-${instrumentKind}`}
+            symbol={symbol}
+            name={symbolName}
+            kind={chartKind}
+            period={period}
+            adjust={adjust}
+            mainIndicators={mainIndicators}
+            subIndicators={subIndicators}
+            tradeMarkers={tradeMarkers}
+            showTradeMarkers={showTradeMarkers}
+            onLoadError={(errorMessage) => setChartError(errorMessage)}
+          />
+        ) : null}
       </section>
     </main>
   );

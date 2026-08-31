@@ -57,7 +57,7 @@ describe('inferMarketFromSymbol', () => {
 });
 
 describe('computeReferenceUnrealizedPnl', () => {
-  it('matches Tonghuashun reference PnL for 601519 (SH, wan 2.5)', () => {
+  it('matches reference PnL with sell fees for 601519 (SH, wan 2.5)', () => {
     const quantity = 600;
     const marketPrice = 8.9;
     const totalCost = quantity * 8.77 + 5.05;
@@ -75,7 +75,7 @@ describe('computeReferenceUnrealizedPnl', () => {
     expect(computeReferenceReturnPercent(pnl, totalCost)).toBeCloseTo(1.238, 2);
   });
 
-  it('matches Tonghuashun reference PnL for 002387 (SZ, wan 1.054)', () => {
+  it('matches reference PnL with sell fees for 002387 (SZ, wan 1.054)', () => {
     const pnl = computeReferenceUnrealizedPnl({
       marketPrice: 7.32,
       quantity: 500,
@@ -88,7 +88,7 @@ describe('computeReferenceUnrealizedPnl', () => {
     expect(pnl).toBeCloseTo(-847.79, 2);
   });
 
-  it('matches Tonghuashun reference PnL for 002575 (SZ, wan 1.054, two buys)', () => {
+  it('matches reference PnL with sell fees for 002575 (SZ, wan 1.054, two buys)', () => {
     const pnl = computeReferenceUnrealizedPnl({
       marketPrice: 5.31,
       quantity: 1200,
@@ -137,7 +137,7 @@ describe('computeReferenceUnrealizedPnl', () => {
     expect(pnl).toBe(-45.6);
   });
 
-  it('matches Tonghuashun reference PnL for 000158 after partial sell', () => {
+  it('matches reference PnL with sell fees for 000158 after partial sell', () => {
     const entries = [
       ledgerEntry({ id: '1', side: 'buy', quantity: 200, price: 21.4, fees: 0.45, tradeAt: '2026-03-09T14:49:00+08:00' }),
       ledgerEntry({ id: '2', side: 'buy', quantity: 100, price: 21.22, fees: 0.22, tradeAt: '2026-03-11T14:16:00+08:00' }),

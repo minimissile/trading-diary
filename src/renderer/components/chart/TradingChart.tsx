@@ -1,6 +1,8 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { dispose, init, type Chart } from 'klinecharts';
+import type { ChartTradeMarker } from '../../../shared/chart/trade-markers';
 import type { InstrumentKind, KLineAdjust, KLinePeriod } from '../../../shared/market/types';
+import { applyTradeMarkersToChart } from '../../lib/chart/apply-trade-markers';
 import { buildTradingChartStyles, pricePrecisionForKind } from '../../lib/chart/trading-chart-theme';
 import { toChartPeriod } from '../../lib/chart/period-map';
 
@@ -12,6 +14,8 @@ export interface TradingChartProps {
   adjust: KLineAdjust;
   mainIndicators?: string[];
   subIndicators?: string[];
+  tradeMarkers?: ChartTradeMarker[];
+  showTradeMarkers?: boolean;
   onLoadError?: (message: string) => void;
 }
 
@@ -77,6 +81,8 @@ export function TradingChart({
   adjust,
   mainIndicators = ['MA'],
   subIndicators = ['VOL', 'MACD'],
+  tradeMarkers = [],
+  showTradeMarkers = true,
   onLoadError,
 }: TradingChartProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -92,6 +98,8 @@ export function TradingChart({
     mainIndicators,
     subIndicators,
   });
+  const tradeMarkersRef = useRef(tradeMarkers);
+  const showTradeMarkersRef = useRef(showTradeMarkers);
   const onLoadErrorRef = useRef(onLoadError);
 
   loadContextRef.current = {
@@ -103,7 +111,14 @@ export function TradingChart({
     mainIndicators,
     subIndicators,
   };
+  tradeMarkersRef.current = tradeMarkers;
+  showTradeMarkersRef.current = showTradeMarkers;
   onLoadErrorRef.current = onLoadError;
+
+  const refreshTradeMarkers = useCallback((chart: Chart): void => {
+    if (chart.getDataList().length === 0) return;
+    applyTradeMarkersToChart(chart, tradeMarkersRef.current, { visible: showTradeMarkersRef.current });
+  }, []);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -120,7 +135,6 @@ export function TradingChart({
 
     chartRef.current = chart;
 
-    // 官方推荐顺序：init → setSymbol → setPeriod → setDataLoader
     syncSymbolAndPeriod(chart, loadContextRef.current);
 
     chart.setDataLoader({
@@ -144,21 +158,21 @@ export function TradingChart({
           )
           .then(
             (result) => {
-              if (!mountedRef.current || currentRequestId !== requestIdRef.current) {
-                callback([], false);
-                return;
-              }
+              if (!mountedRef.current || currentRequestId !== requestIdRef.current) return;
+
               callback(result.bars, { forward: result.hasMoreHistory, backward: false });
-              if (type === 'init') {
-                applyIndicators(chart, ctx.mainIndicators, ctx.subIndicators);
+              requestAnimationFrame(() => {
+                if (!mountedRef.current || chartRef.current !== chart) return;
+                if (type === 'init') {
+                  applyIndicators(chart, ctx.mainIndicators, ctx.subIndicators);
+                }
+                refreshTradeMarkers(chart);
                 scheduleChartResize(chart);
-              }
+              });
             },
             (reason) => {
-              if (!mountedRef.current || currentRequestId !== requestIdRef.current) {
-                callback([], false);
-                return;
-              }
+              if (!mountedRef.current || currentRequestId !== requestIdRef.current) return;
+
               callback([], false);
               if (type === 'init') {
                 const message = reason instanceof Error ? reason.message : 'K 线加载失败';
@@ -183,17 +197,18 @@ export function TradingChart({
       dispose(container);
       chartRef.current = null;
     };
-  }, []);
+  }, [refreshTradeMarkers]);
 
   useEffect(() => {
     const chart = chartRef.current;
     const container = containerRef.current;
     if (!chart || !container) return;
 
+    requestIdRef.current += 1;
     ensureContainerHeight(container);
     syncSymbolAndPeriod(chart, loadContextRef.current);
     scheduleChartResize(chart);
-  }, [symbol, name, kind, period, adjust]);
+  }, [symbol, kind, period, adjust]);
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -201,7 +216,13 @@ export function TradingChart({
 
     applyIndicators(chart, mainIndicators, subIndicators);
     scheduleChartResize(chart);
-  }, [mainIndicators, subIndicators]);
+  }, [mainIndicators, subIndicators, symbol, period, adjust]);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    refreshTradeMarkers(chart);
+  }, [tradeMarkers, showTradeMarkers, refreshTradeMarkers]);
 
   return <div className="trading-chart-host" ref={containerRef} />;
 }

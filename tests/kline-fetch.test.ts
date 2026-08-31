@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { formatEastMoneyKLineEnd, listKlines, sliceKLineBars } from '../src/service/market/eastmoney/kline-service';
+import { listKlines } from '../src/service/market/eastmoney/kline-service';
+import { formatEastMoneyKLineEnd, sliceKLineBars } from '../src/service/market/kline-utils';
 
 describe('kline pagination helpers', () => {
   it('slices latest bars for init requests', () => {

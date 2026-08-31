@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { nonNegativeNumberSchema, positiveNumberSchema, symbolSchema } from '../primitives';
+import { nonNegativeNumberSchema, positiveNumberSchema, symbolSchema, instrumentVenueSchema } from '../primitives';
 
 const ledgerAiExtractedRecordSchema = z
   .object({
@@ -92,6 +92,7 @@ export const portfolioServiceRequests = [
       .object({
         accountId: z.string().trim().min(1).max(64).optional(),
         symbol: symbolSchema,
+        venue: instrumentVenueSchema.optional(),
         kind: z.enum(['stock', 'etf', 'lof', 'otc_fund']).optional(),
         side: z.enum(['buy', 'sell', 'dividend_reinvest']),
         quantity: positiveNumberSchema,

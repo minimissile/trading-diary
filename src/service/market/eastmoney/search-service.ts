@@ -45,6 +45,54 @@ interface UlistResponse {
   data?: { diff?: Array<{ f12?: string; f14?: string }> };
 }
 
+function scoreSearchHit(keyword: string, hit: MarketSearchHit): number {
+  let score = 0;
+  if (hit.symbol === keyword) score += 100;
+  else if (hit.symbol.startsWith(keyword)) score += 40;
+  else if (keyword.startsWith(hit.symbol)) score += 30;
+  if (hit.kind === 'otc_fund') score += 15;
+  if (hit.name.toUpperCase().includes(keyword)) score += 5;
+  return score;
+}
+
+function mergeAndRankSearchHits(keyword: string, hits: MarketSearchHit[], limit: number): MarketSearchHit[] {
+  const normalizedKeyword = normalizeSymbol(keyword);
+  const seen = new Set<string>();
+  const unique: MarketSearchHit[] = [];
+  for (const hit of hits) {
+    const key = `${hit.venue}:${hit.symbol}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(hit);
+  }
+  unique.sort((a, b) => scoreSearchHit(normalizedKeyword, b) - scoreSearchHit(normalizedKeyword, a));
+  return unique.slice(0, limit);
+}
+
+async function searchOtcFundHits(keyword: string, limit: number): Promise<MarketSearchHit[]> {
+  const fundUrl = new URL('https://fundsuggest.eastmoney.com/FundSearch/api/FundSearchAPI.ashx');
+  fundUrl.searchParams.set('m', '1');
+  fundUrl.searchParams.set('key', keyword);
+  fundUrl.searchParams.set('_', String(Date.now()));
+
+  const fundPayload = await eastMoneyFetchJson<FundSuggestResponse>(fundUrl, {
+    referer: 'https://fund.eastmoney.com/',
+  });
+
+  return (fundPayload.Datas ?? []).slice(0, limit).map((row) =>
+    enrichEastMoneySearchHit(
+      {
+        symbol: normalizeSymbol(row.CODE),
+        name: row.NAME,
+        securityTypeName: row.CATEGORYDESC ?? '基金',
+        kind: 'otc_fund' as const,
+        source: 'eastmoney',
+      },
+      'OTC',
+    ),
+  );
+}
+
 export async function searchInstruments(query: string, limit = 10): Promise<MarketSearchHit[]> {
   return searchInstrumentsScoped(query, ['CN_A'], limit);
 }
@@ -99,32 +147,17 @@ export async function searchInstrumentsScoped(
         venue,
       ),
     );
-    if (hits.length >= limit) return hits;
+    if (hits.length >= limit) break;
   }
 
-  if (hits.length > 0 || !scopes.includes('CN_A')) return hits;
+  if (!scopes.includes('CN_A')) return hits;
 
-  const fundUrl = new URL('https://fundsuggest.eastmoney.com/FundSearch/api/FundSearchAPI.ashx');
-  fundUrl.searchParams.set('m', '1');
-  fundUrl.searchParams.set('key', keyword);
-  fundUrl.searchParams.set('_', String(Date.now()));
-
-  const fundPayload = await eastMoneyFetchJson<FundSuggestResponse>(fundUrl, {
-    referer: 'https://fund.eastmoney.com/',
-  });
-
-  return (fundPayload.Datas ?? []).slice(0, limit).map((row) =>
-    enrichEastMoneySearchHit(
-      {
-        symbol: normalizeSymbol(row.CODE),
-        name: row.NAME,
-        securityTypeName: row.CATEGORYDESC ?? '基金',
-        kind: 'otc_fund' as const,
-        source: 'eastmoney',
-      },
-      'OTC',
-    ),
-  );
+  try {
+    const fundHits = await searchOtcFundHits(keyword, limit);
+    return mergeAndRankSearchHits(keyword, [...hits, ...fundHits], limit);
+  } catch {
+    return hits;
+  }
 }
 
 export async function resolveInstrument(symbolInput: string): Promise<InstrumentInfo> {
@@ -150,10 +183,52 @@ export async function resolveInstrument(symbolInput: string): Promise<Instrument
 
   const fundInfo = await fetchFundName(symbol);
   const exactHit = searchHits.find((hit) => hit.symbol === symbol);
+  const stockHit = searchHits.find((hit) => hit.symbol === symbol && hit.kind === 'stock');
   const markedAsFund =
     exactHit?.kind === 'otc_fund' || /基金/u.test(exactHit?.securityTypeName ?? securityTypeName ?? '');
 
-  if (markedAsFund && fundInfo) {
+  if (fundInfo) {
+    const exchangeKind = secid ? classifyExchangeCode(symbol) : null;
+    let exchangeListed: { name: string } | null = null;
+    if (secid) {
+      try {
+        exchangeListed = await fetchExchangeName(secid);
+      } catch {
+        exchangeListed = null;
+      }
+    }
+
+    if (exchangeKind === 'lof' || exchangeKind === 'etf') {
+      return enrichEastMoneyInstrument({
+        symbol,
+        name: exchangeListed?.name ?? fundInfo.name,
+        kind: exchangeKind,
+        market,
+        secid,
+        f10Code,
+        securityTypeName: securityTypeName ?? (exchangeKind === 'lof' ? 'LOF' : 'ETF'),
+        source: 'eastmoney',
+      });
+    }
+
+    if (!exchangeListed) {
+      const looksLikeCnStock = Boolean(secid && market && exchangeKind === 'stock');
+      if (!looksLikeCnStock || (markedAsFund && !stockHit)) {
+        return enrichEastMoneyInstrument({
+          symbol,
+          name: fundInfo.name,
+          kind: 'otc_fund',
+          market: null,
+          secid: null,
+          f10Code: null,
+          securityTypeName: securityTypeName ?? '场外基金',
+          source: 'eastmoney',
+        });
+      }
+    }
+  }
+
+  if (markedAsFund && fundInfo && !stockHit) {
     const exchangeKind = secid ? classifyExchangeCode(symbol) : null;
     const kind = exchangeKind === 'lof' || exchangeKind === 'etf' ? exchangeKind : 'otc_fund';
     return enrichEastMoneyInstrument({
@@ -179,7 +254,7 @@ export async function resolveInstrument(symbolInput: string): Promise<Instrument
     }
 
     const exchangeKind = classifyExchangeCode(symbol);
-    if (fundInfo && exchangeKind === 'stock' && exactHit?.kind !== 'stock') {
+    if (fundInfo && exchangeKind === 'stock' && !stockHit && exactHit?.kind !== 'stock') {
       return enrichEastMoneyInstrument({
         symbol,
         name: fundInfo.name,

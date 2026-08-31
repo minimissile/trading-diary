@@ -48,9 +48,9 @@ export interface PortfolioPositionView {
   avgCost: number;
   marketPrice: number | null;
   marketValue: number | null;
-  /** 参考浮动盈亏 = 市值 − 净投入/成本 − 预估卖出费用（对齐同花顺持仓盈亏）。 */
+  /** 浮动盈亏 = 市值 − 净投入/成本 − 预估卖出费用（场内统一扣费）。 */
   unrealizedPnl: number | null;
-  /** 参考收益率 = 参考浮盈 / 净投入或总成本（对齐同花顺）。 */
+  /** 参考收益率 = 浮动盈亏 / 净投入或总成本。 */
   unrealizedReturnPercent: number | null;
   /** 当日盈亏（持仓数量 × 当日涨跌额），无行情时为 null。 */
   dailyPnl: number | null;
@@ -82,7 +82,7 @@ export interface PortfolioSummaryView {
   dailyAverage: number;
   totalMarketValue: number;
   totalCost: number;
-  /** 参考浮动盈亏合计（已扣预估卖出费用）。 */
+  /** 浮动盈亏合计（已扣预估卖出费用）。 */
   unrealizedPnl: number;
   /** 组合当日盈亏合计。 */
   dailyPnl: number;

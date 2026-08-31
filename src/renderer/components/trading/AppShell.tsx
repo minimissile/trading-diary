@@ -1,7 +1,8 @@
 import { BarChartOutlined, BellOutlined, CalendarOutlined, DownOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { Badge, Button, Input } from 'antd';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
+import { useScrollRestoration } from '../../hooks/useScrollRestoration';
 import { routePaths } from '../../router/paths';
 import { AppSidebar } from './AppSidebar';
 
@@ -50,6 +51,8 @@ function compactDate(): string {
 export function AppShell(): React.JSX.Element {
   const location = useLocation();
   const navigate = useNavigate();
+  const pageScrollRef = useRef<HTMLDivElement>(null);
+  useScrollRestoration(pageScrollRef);
   const [alertCount, setAlertCount] = useState(0);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -156,7 +159,7 @@ export function AppShell(): React.JSX.Element {
           </div>
         </header>
 
-        <div className="app-page-scroll">
+        <div className="app-page-scroll" ref={pageScrollRef}>
           <Outlet />
         </div>
       </div>

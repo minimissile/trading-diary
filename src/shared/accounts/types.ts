@@ -231,7 +231,7 @@ export interface TradingAccountSummary extends TradingAccount {
   totalMarketValue: number;
   /** 持仓成本。 */
   totalCost: number;
-  /** 参考浮动盈亏合计（已扣预估卖出费用）。 */
+  /** 浮动盈亏合计（已扣预估卖出费用）。 */
   unrealizedPnl: number;
 }
 

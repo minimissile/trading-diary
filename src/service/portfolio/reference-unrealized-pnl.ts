@@ -21,9 +21,10 @@ export function inferMarketFromSymbol(symbol: string): 'SH' | 'SZ' | null {
 }
 
 /**
- * 参考浮动盈亏（对齐券商 / 同花顺）：
- * 市值 − 成本基数 − 按当前价卖出的预估费用（与 estimateTradeFees 一致）。
- * 成本基数：场内为累计净投入（含历史卖出）；场外基金为持有总成本。
+ * 参考浮动盈亏（统一口径）：
+ * 市值 − 成本基数 − 按当前价卖出的预估费用（佣金/印花税/规费等）。
+ * 买入费用已通过净投入计入成本基数；场内 A 股/ETF 一律扣预估卖出费，场外基金不扣。
+ * 成本基数：场内为累计净投入（含历史卖出、现金分红）；场外基金为持有总成本。
  */
 export function computeReferenceUnrealizedPnl(input: {
   marketPrice: number;
