@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { MarketSearchHit } from '../../shared/api.types';
 import { debounce, throttle } from '../../shared/timing';
+import { queryClient } from '../lib/query-client';
+import { queryKeys } from '../lib/queries/keys';
 
 const SEARCH_DEBOUNCE_MS = 300;
 const SEARCH_THROTTLE_MS = 400;
@@ -27,14 +29,19 @@ export function useSymbolSearch(
   const [options, setOptions] = useState<MarketSearchHit[]>([]);
   const [loading, setLoading] = useState(false);
   const requestSeq = useRef(0);
+  const scopesKey = marketScopes.join(',');
 
   const fetchHits = useMemo(
     () =>
       throttle((query: string) => {
         const seq = ++requestSeq.current;
         setLoading(true);
-        void window.desktop.market
-          .search(query, limit, [...marketScopes])
+        void queryClient
+          .fetchQuery({
+            queryKey: queryKeys.market.search(query, limit, scopesKey),
+            queryFn: () => window.desktop.market.search(query, limit, [...marketScopes]),
+            staleTime: 60_000,
+          })
           .then((hits) => {
             if (seq !== requestSeq.current) return;
             setOptions(hits);
@@ -47,7 +54,7 @@ export function useSymbolSearch(
             if (seq === requestSeq.current) setLoading(false);
           });
       }, SEARCH_THROTTLE_MS),
-    [limit, marketScopes],
+    [limit, marketScopes, scopesKey],
   );
 
   const debouncedFetch = useMemo(() => debounce(fetchHits, SEARCH_DEBOUNCE_MS), [fetchHits]);

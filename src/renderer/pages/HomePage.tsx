@@ -13,95 +13,28 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { App, Button, Progress, Skeleton } from 'antd';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import type { OverlapPoolItemLive, TradeAlert, WorkspaceSnapshot } from '../../shared/api.types';
-import type { LofArbitrageSnapshot } from '../../shared/lof-arbitrage/types';
+import type { TradeAlert } from '../../shared/api.types';
 import { summarizeActionHint } from '../../shared/lof-arbitrage/action-hint';
-import { isExecutableArbitrage } from '../../shared/lof-arbitrage/executable';
 import { CommandPanel } from '../components/home/CommandPanel';
 import { previewActionItems, ruleRows, stageColumns, timelineSteps } from '../components/home/home-preview-data';
 import type { ActionItem, QueueCategory } from '../components/home/types';
 import { PlanCreateModal } from '../components/trading/PlanCreateModal';
 import { formatAlertCondition, formatCurrency, formatPrice, ValueDisplay } from '../lib/trading-format';
 import { priceListPresetForKind } from '../../shared/format/display-presets';
+import { invalidateWorkspaceData, useHomeLofPreviewQuery, useHomeOverlapPoolQuery, useWorkspaceSnapshot } from '../lib/queries';
 import { routePaths } from '../router/paths';
 
 export function HomePage(): React.JSX.Element {
   const { message } = App.useApp();
   const location = useLocation();
   const navigate = useNavigate();
-  const [snapshot, setSnapshot] = useState<WorkspaceSnapshot | null>(null);
+  const { snapshot, isLoading: loading } = useWorkspaceSnapshot();
+  const { items: overlapPreview, isLoading: overlapLoading } = useHomeOverlapPoolQuery();
+  const { items: lofPreview } = useHomeLofPreviewQuery();
   const [newPlanOpen, setNewPlanOpen] = useState(() => Boolean((location.state as { newPlan?: boolean } | null)?.newPlan));
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [queueFilter, setQueueFilter] = useState<QueueCategory>('all');
-  const [overlapPreview, setOverlapPreview] = useState<OverlapPoolItemLive[]>([]);
-  const [overlapLoading, setOverlapLoading] = useState(true);
-  const [lofPreview, setLofPreview] = useState<LofArbitrageSnapshot[]>([]);
-
-  const load = useCallback(async (): Promise<void> => {
-    setError(null);
-    try {
-      setSnapshot(await window.desktop.workspace.snapshot());
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '工作台读取失败');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    void window.desktop.workspace
-      .snapshot()
-      .then((next) => {
-        if (active) setSnapshot(next);
-      })
-      .catch((reason: unknown) => {
-        if (active) setError(reason instanceof Error ? reason.message : '工作台读取失败');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    void window.desktop.watchlist
-      .getPoolSnapshot('overlap')
-      .then((snapshot) => {
-        if (active && snapshot.poolId === 'overlap') setOverlapPreview(snapshot.items);
-      })
-      .catch(() => {
-        if (active) setOverlapPreview([]);
-      })
-      .finally(() => {
-        if (active) setOverlapLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    void window.desktop.lofArbitrage
-      .scanMarket(120)
-      .then((result) => {
-        if (!active) return;
-        setLofPreview(result.snapshots.filter((row) => isExecutableArbitrage(row)).slice(0, 3));
-      })
-      .catch(() => {
-        if (active) setLofPreview([]);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
 
   useEffect(() => {
     const state = location.state as { newPlan?: boolean } | null;
@@ -201,8 +134,7 @@ export function HomePage(): React.JSX.Element {
   const completeAlert = async (alert: TradeAlert): Promise<void> => {
     try {
       await window.desktop.alerts.setStatus(alert.id, 'completed');
-      window.dispatchEvent(new Event('workspace-changed'));
-      await load();
+      await invalidateWorkspaceData();
       void message.success('提醒已标记为处理完成');
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '提醒处理失败');
@@ -232,8 +164,7 @@ export function HomePage(): React.JSX.Element {
       const nextStatus = item.source.status === 'watching' ? 'holding' : item.source.status === 'holding' ? 'completed' : null;
       if (nextStatus) {
         await window.desktop.plans.setStatus(item.source.id, nextStatus);
-        window.dispatchEvent(new Event('workspace-changed'));
-        await load();
+        await invalidateWorkspaceData();
         if (nextStatus === 'completed') void navigate(routePaths.journal, { state: { planId: item.source.id } });
         else void message.success('已确认入场，风险提醒开始监控');
         return;
@@ -262,7 +193,6 @@ export function HomePage(): React.JSX.Element {
 
   return (
     <div className="command-dashboard">
-      {error ? <div className="page-error command-error">{error}</div> : null}
       <div className="command-grid">
         <CommandPanel
           className="queue-panel"
@@ -675,8 +605,7 @@ export function HomePage(): React.JSX.Element {
         onClose={() => setNewPlanOpen(false)}
         onSaved={(plan) => {
           setNewPlanOpen(false);
-          window.dispatchEvent(new Event('workspace-changed'));
-          void load();
+          void invalidateWorkspaceData();
           void message.success(plan.status === 'watching' ? '计划已创建并进入监控' : '计划已保存为草稿');
         }}
       />

@@ -4,7 +4,7 @@ import type {
   FundSipPlanDetailView,
   FundSipPlanView,
   SipOccurrenceCalendarDay,
-  SipSummaryView,
+  SipPlanStatus,
 } from '../../../shared/sip/types';
 import { queryKeys } from './keys';
 
@@ -75,12 +75,11 @@ export function useSipOccurrenceCalendarQuery(month: string): {
   return { calendarDays: query.data ?? [], isLoading: query.isLoading };
 }
 
-export function usePrefetchSipPlan(): (planId: string) => Promise<void> {
+export function usePrefetchSipPlan(): (planId: string) => Promise<FundSipPlanDetailView> {
   const client = useQueryClient();
-  return async (planId: string) => {
-    await client.fetchQuery({
+  return (planId: string) =>
+    client.fetchQuery({
       queryKey: queryKeys.sip.plan(planId),
       queryFn: () => window.desktop.sip.getPlan(planId),
     });
-  };
 }

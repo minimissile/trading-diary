@@ -21,7 +21,6 @@ import type {
   CreateTradeReviewInput,
   TradeDirection,
   TradeEpisodeView,
-  TradeReview,
   TradingPlan,
 } from '../../shared/api.types';
 import { ExecutionEntryModal } from '../components/trading/ExecutionEntryModal';
@@ -29,6 +28,7 @@ import { EpisodeTimeline } from '../components/trading/EpisodeTimeline';
 import { directionLabels, formatDateTime, formatPrice, formatSignedCurrency, statisticCurrencyFormatter, ValueDisplay } from '../lib/trading-format';
 import { useReviewAiDraft } from '../hooks/useReviewAiDraft';
 import { useTradingAccountId } from '../hooks/useTradingAccountId';
+import { invalidateWorkspaceData, useEpisodesQuery, usePlansQuery, useReviewsQuery } from '../lib/queries';
 import { routePaths } from '../router/paths';
 import type { JournalLocationState, JournalReviewDraft } from '../router/journal-state';
 import { SymbolSearchInput } from '../components/trading/SymbolSearchInput';
@@ -62,36 +62,19 @@ export function JournalPage(): React.JSX.Element {
   const requestedOpenReview = state?.openReview ?? false;
   const requestedOpenExecution = state?.openExecution ?? false;
 
-  const [reviews, setReviews] = useState<TradeReview[]>([]);
-  const [episodes, setEpisodes] = useState<TradeEpisodeView[]>([]);
-  const [plans, setPlans] = useState<TradingPlan[]>([]);
   const [executionOpen, setExecutionOpen] = useState(requestedOpenExecution);
   const [reviewOpen, setReviewOpen] = useState(Boolean(requestedPlanId || requestedEpisodeId || requestedReviewDraft || requestedOpenReview));
   const [initialPlanId, setInitialPlanId] = useState<string | null>(requestedPlanId);
   const [initialEpisodeId, setInitialEpisodeId] = useState<string | null>(requestedEpisodeId);
   const [initialReviewDraft, setInitialReviewDraft] = useState<JournalReviewDraft | null>(requestedReviewDraft);
-  const [loading, setLoading] = useState(true);
+  const { reviews, isLoading: reviewsLoading, refetch: refetchReviews } = useReviewsQuery();
+  const { episodes, isLoading: episodesLoading, refetch: refetchEpisodes } = useEpisodesQuery(accountId);
+  const { plans, isLoading: plansLoading } = usePlansQuery();
+  const loading = reviewsLoading || episodesLoading || plansLoading;
 
-  const load = useCallback(async (): Promise<void> => {
-    try {
-      const [nextReviews, nextEpisodes, nextPlans] = await Promise.all([
-        window.desktop.reviews.list(),
-        window.desktop.episodes.list(accountId),
-        window.desktop.plans.list(),
-      ]);
-      setReviews(nextReviews);
-      setEpisodes(nextEpisodes);
-      setPlans(nextPlans);
-    } catch (reason) {
-      void message.error(reason instanceof Error ? reason.message : '交易日记读取失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, message]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const reloadJournal = useCallback(async (): Promise<void> => {
+    await Promise.all([refetchReviews(), refetchEpisodes()]);
+  }, [refetchEpisodes, refetchReviews]);
 
   useEffect(() => {
     if (!state?.reviewDraft && !state?.openReview && !state?.openExecution && !state?.episodeId && !state?.planId) return;
@@ -330,8 +313,7 @@ export function JournalPage(): React.JSX.Element {
         defaultAccountId={accountId}
         onClose={() => setExecutionOpen(false)}
         onSaved={() => {
-          window.dispatchEvent(new Event('workspace-changed'));
-          void load();
+          void invalidateWorkspaceData().then(() => reloadJournal());
         }}
       />
 
@@ -353,8 +335,7 @@ export function JournalPage(): React.JSX.Element {
           setInitialReviewDraft(null);
           setInitialEpisodeId(null);
           setInitialPlanId(null);
-          window.dispatchEvent(new Event('workspace-changed'));
-          void load();
+          void invalidateWorkspaceData().then(() => reloadJournal());
           void message.success('复盘已保存');
         }}
       />

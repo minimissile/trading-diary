@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { App, Button, Empty, Segmented, Skeleton, Tag } from 'antd';
 import { useNavigate } from 'react-router';
 import type { TradingPlan, TradingPlanStatus } from '../../shared/api.types';
 import { PlanCreateModal } from '../components/trading/PlanCreateModal';
 import { PlanActivationModal } from '../components/trading/PlanActivationModal';
+import { invalidateWorkspaceData, usePlansQuery } from '../lib/queries';
 import {
   calculateExpectedR,
   directionLabels,
@@ -21,39 +22,10 @@ type PlanFilter = 'all' | 'active' | 'closed';
 export function PlansPage(): React.JSX.Element {
   const { message, modal } = App.useApp();
   const navigate = useNavigate();
-  const [plans, setPlans] = useState<TradingPlan[]>([]);
+  const { plans, isLoading: loading, refetch } = usePlansQuery();
   const [filter, setFilter] = useState<PlanFilter>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [activatingPlan, setActivatingPlan] = useState<TradingPlan | null>(null);
-
-  const load = useCallback(async (): Promise<void> => {
-    try {
-      setPlans(await window.desktop.plans.list());
-    } catch (reason) {
-      void message.error(reason instanceof Error ? reason.message : '计划读取失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [message]);
-
-  useEffect(() => {
-    let active = true;
-    void window.desktop.plans
-      .list()
-      .then((nextPlans) => {
-        if (active) setPlans(nextPlans);
-      })
-      .catch((reason: unknown) => {
-        if (active) void message.error(reason instanceof Error ? reason.message : '计划读取失败');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [message]);
 
   const visiblePlans = useMemo(() => {
     if (filter === 'all') return plans;
@@ -72,8 +44,8 @@ export function PlansPage(): React.JSX.Element {
   const applyStatus = async (plan: TradingPlan, status: TradingPlanStatus): Promise<void> => {
     try {
       await window.desktop.plans.setStatus(plan.id, status);
-      window.dispatchEvent(new Event('workspace-changed'));
-      await load();
+      await invalidateWorkspaceData();
+      await refetch();
       if (status === 'completed') {
         void navigate(routePaths.journal, { state: { planId: plan.id } });
       } else {
@@ -216,8 +188,7 @@ export function PlansPage(): React.JSX.Element {
         onClose={() => setDialogOpen(false)}
         onSaved={(plan) => {
           setDialogOpen(false);
-          window.dispatchEvent(new Event('workspace-changed'));
-          void load();
+          void invalidateWorkspaceData().then(() => refetch());
           void message.success(plan.status === 'watching' ? '计划已创建并激活' : '计划已保存为草稿');
         }}
       />

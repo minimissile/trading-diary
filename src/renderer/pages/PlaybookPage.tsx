@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { App, Button, Empty, Form, Input, Modal, Segmented, Select, Skeleton, Tag } from 'antd';
 import type {
   CreatePlaybookRuleInput,
@@ -7,6 +7,7 @@ import type {
   PlaybookRuleCategory,
 } from '../../shared/playbook/types';
 import { formatDateTime, playbookCategoryLabels, playbookCheckTimingLabels } from '../lib/trading-format';
+import { invalidatePlaybook, invalidateWorkspaceData, usePlaybookQuery } from '../lib/queries';
 import { withConfirmDefaults } from '../lib/confirm-dialog';
 
 type RuleFilter = 'active' | 'archived';
@@ -21,40 +22,11 @@ interface RuleFormValues {
 export function PlaybookPage(): React.JSX.Element {
   const { message, modal } = App.useApp();
   const [form] = Form.useForm<RuleFormValues>();
-  const [rules, setRules] = useState<PlaybookRule[]>([]);
+  const { rules, isLoading: loading, refetch } = usePlaybookQuery();
   const [filter, setFilter] = useState<RuleFilter>('active');
-  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<PlaybookRule | null>(null);
   const [saving, setSaving] = useState(false);
-
-  const load = useCallback(async (): Promise<void> => {
-    try {
-      setRules(await window.desktop.playbook.list());
-    } catch (reason) {
-      void message.error(reason instanceof Error ? reason.message : '规则读取失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [message]);
-
-  useEffect(() => {
-    let active = true;
-    void window.desktop.playbook
-      .list()
-      .then((nextRules) => {
-        if (active) setRules(nextRules);
-      })
-      .catch((reason: unknown) => {
-        if (active) void message.error(reason instanceof Error ? reason.message : '规则读取失败');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [message]);
 
   const visibleRules = useMemo(
     () => rules.filter((rule) => rule.status === (filter === 'active' ? 'active' : 'archived')),
@@ -100,7 +72,8 @@ export function PlaybookPage(): React.JSX.Element {
         void message.success('规则已创建');
       }
       setDialogOpen(false);
-      await load();
+      await invalidatePlaybook();
+      await refetch();
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '保存失败');
     } finally {
@@ -111,7 +84,8 @@ export function PlaybookPage(): React.JSX.Element {
   const archiveRule = async (id: string): Promise<void> => {
     try {
       await window.desktop.playbook.archive(id);
-      await load();
+      await invalidateWorkspaceData();
+      await refetch();
       void message.success('规则已归档');
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '归档失败');

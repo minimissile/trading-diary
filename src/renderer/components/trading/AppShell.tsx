@@ -1,8 +1,9 @@
 import { BarChartOutlined, BellOutlined, CalendarOutlined, DownOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { Badge, Button, Input } from 'antd';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useScrollRestoration } from '../../hooks/useScrollRestoration';
+import { useWorkspaceSnapshot } from '../../lib/queries';
 import { routePaths } from '../../router/paths';
 import { AppSidebar } from './AppSidebar';
 
@@ -53,39 +54,8 @@ export function AppShell(): React.JSX.Element {
   const navigate = useNavigate();
   const pageScrollRef = useRef<HTMLDivElement>(null);
   useScrollRestoration(pageScrollRef);
-  const [alertCount, setAlertCount] = useState(0);
+  const { triggeredAlertCount: alertCount } = useWorkspaceSnapshot();
   const [collapsed, setCollapsed] = useState(false);
-
-  const refreshAlertCount = useCallback(async (): Promise<void> => {
-    try {
-      const snapshot = await window.desktop.workspace.snapshot();
-      setAlertCount(snapshot.triggeredAlertCount);
-    } catch {
-      setAlertCount(0);
-    }
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    void window.desktop.workspace
-      .snapshot()
-      .then((snapshot) => {
-        if (active) setAlertCount(snapshot.triggeredAlertCount);
-      })
-      .catch(() => {
-        if (active) setAlertCount(0);
-      });
-    const handler = (): void => void refreshAlertCount();
-    window.addEventListener('workspace-changed', handler);
-    const unsubscribe = window.desktop.workspace.onChanged(() => {
-      window.dispatchEvent(new Event('workspace-changed'));
-    });
-    return () => {
-      active = false;
-      window.removeEventListener('workspace-changed', handler);
-      unsubscribe();
-    };
-  }, [refreshAlertCount]);
 
   return (
     <div className={`trading-app${collapsed ? ' trading-app--collapsed' : ''}`}>

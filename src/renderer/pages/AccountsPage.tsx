@@ -1,10 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { App, Button, Empty, Skeleton, Switch, Tag } from 'antd';
-import { EditOutlined, DeleteOutlined, PlusOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
 import type {
   CreateTradingAccountInput,
-  FeeProfile,
-  TradingAccountSummary,
   UpdateTradingAccountInput,
 } from '../../shared/api.types';
 import { getBrokerLabel } from '../../shared/accounts/brokers';
@@ -13,6 +10,10 @@ import { ValueDisplay } from '../lib/trading-format';
 import { confirmDanger, withConfirmDefaults } from '../lib/confirm-dialog';
 import { AccountFormModal } from '../components/trading/AccountFormModal';
 import { BrokerAvatar } from '../components/trading/BrokerAvatar';
+import { invalidateAccounts, useAccountsPageQuery } from '../lib/queries';
+
+import { EditOutlined, DeleteOutlined, PlusOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
+import type { TradingAccountSummary } from '../../shared/api.types';
 
 const kindLabels = {
   securities: '股票账户',
@@ -21,32 +22,11 @@ const kindLabels = {
 
 export function AccountsPage(): React.JSX.Element {
   const { message } = App.useApp();
-  const [accounts, setAccounts] = useState<TradingAccountSummary[]>([]);
-  const [feeProfiles, setFeeProfiles] = useState<FeeProfile[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
+  const { accounts, feeProfiles, isLoading: loading, refetch } = useAccountsPageQuery(showArchived);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<TradingAccountSummary | null>(null);
   const [saving, setSaving] = useState(false);
-
-  const load = useCallback(async (): Promise<void> => {
-    try {
-      const [nextAccounts, nextProfiles] = await Promise.all([
-        window.desktop.accounts.list(showArchived),
-        window.desktop.accounts.listFeeProfiles(),
-      ]);
-      setAccounts(nextAccounts);
-      setFeeProfiles(nextProfiles);
-    } catch (reason) {
-      void message.error(reason instanceof Error ? reason.message : '账户数据读取失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [message, showArchived]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   const handleSubmit = async (
     payload: CreateTradingAccountInput | { id: string; input: UpdateTradingAccountInput },
@@ -62,7 +42,8 @@ export function AccountsPage(): React.JSX.Element {
       }
       setModalOpen(false);
       setEditing(null);
-      await load();
+      await invalidateAccounts();
+      await refetch();
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '保存失败');
     } finally {
@@ -123,17 +104,20 @@ export function AccountsPage(): React.JSX.Element {
               onSetDefault={async () => {
                 await window.desktop.accounts.setDefault(account.id);
                 void message.success('已设为默认账户');
-                await load();
+                await invalidateAccounts();
+                await refetch();
               }}
               onArchive={async () => {
                 await window.desktop.accounts.archive(account.id);
                 void message.success('账户已归档');
-                await load();
+                await invalidateAccounts();
+                await refetch();
               }}
               onDelete={async () => {
                 await window.desktop.accounts.delete(account.id);
                 void message.success('账户已删除');
-                await load();
+                await invalidateAccounts();
+                await refetch();
               }}
             />
           ))}

@@ -1,8 +1,8 @@
 import { Select } from 'antd';
-import { useEffect, useMemo, useState } from 'react';
-import type { TradingAccountSummary } from '../../../shared/api.types';
+import { useMemo } from 'react';
 import { ALL_ACCOUNTS_ID } from '../../../shared/accounts/constants';
 import { formatAccountSelectLabel } from '../../../shared/accounts/account-display';
+import { useAccountsQuery } from '../../lib/queries';
 import { AccountSelectOptionLabel } from './AccountSelectOption';
 
 interface AccountSelectProps {
@@ -28,23 +28,7 @@ export function AccountSelect({
   placeholder = '选择账户',
   allowClear = false,
 }: AccountSelectProps): React.JSX.Element {
-  const [accounts, setAccounts] = useState<TradingAccountSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    void window.desktop.accounts
-      .list(includeArchived)
-      .then((list) => {
-        if (active) setAccounts(list);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [includeArchived]);
+  const { accounts, isLoading: loading } = useAccountsQuery(includeArchived);
 
   const accountById = useMemo(() => new Map(accounts.map((account) => [account.id, account])), [accounts]);
 

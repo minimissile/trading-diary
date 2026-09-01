@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button, Empty, Segmented, Skeleton, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ArrowLeftOutlined } from '@ant-design/icons';
@@ -6,11 +6,11 @@ import { Link, useNavigate } from 'react-router';
 import type { InstrumentKind } from '../../shared/market/types';
 import type {
   ClosedPositionSummary,
-  PortfolioRealizedHistoryView,
   RealizedTradeView,
 } from '../../shared/portfolio/types';
 import { ALL_ACCOUNTS_ID } from '../../shared/accounts/constants';
 import { AccountSelect } from '../components/trading/AccountSelect';
+import { useRealizedHistoryQuery } from '../lib/queries';
 import {
   AnimatedValueDisplay,
   formatTradeDate,
@@ -38,22 +38,7 @@ export function PositionHistoryPage(): React.JSX.Element {
   const [accountId, setAccountId] = useState<string>(ALL_ACCOUNTS_ID);
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [tab, setTab] = useState<HistoryTab>('trades');
-  const [history, setHistory] = useState<PortfolioRealizedHistoryView | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async (): Promise<void> => {
-    setLoading(true);
-    try {
-      setHistory(await window.desktop.portfolio.getRealizedHistory(accountId, year));
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, year]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
+  const { history, isLoading: loading } = useRealizedHistoryQuery(accountId, year);
   const yearOptions = useMemo(() => {
     const current = new Date().getFullYear();
     return Array.from({ length: 5 }, (_, index) => ({

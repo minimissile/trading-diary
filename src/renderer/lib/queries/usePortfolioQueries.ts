@@ -5,7 +5,7 @@ import type {
   PortfolioPnlCalendarView,
   PortfolioRealizedHistoryView,
   PortfolioSummaryView,
-} from '../../../shared/api.types';
+} from '../../../shared/portfolio/types';
 import type { PortfolioPositionView } from '../../../shared/portfolio/types';
 import type { DividendGoalSettings } from '../../../shared/portfolio/dividend-goal';
 import type { PortfolioLedgerEntry } from '../../../shared/portfolio/types';
@@ -113,12 +113,19 @@ export function useDividendsDashboardQuery(
 export function useDividendGoalQuery(accountId: string): {
   goalSettings: DividendGoalSettings | null | undefined;
   isLoading: boolean;
+  refetch: () => Promise<void>;
 } {
   const query = useQuery({
     queryKey: queryKeys.portfolio.dividendGoal(accountId),
     queryFn: () => window.desktop.portfolio.getDividendGoal(accountId),
   });
-  return { goalSettings: query.data, isLoading: query.isLoading };
+  return {
+    goalSettings: query.data,
+    isLoading: query.isLoading,
+    refetch: async () => {
+      await query.refetch();
+    },
+  };
 }
 
 export function useRealizedHistoryQuery(accountId: string, year: number): {

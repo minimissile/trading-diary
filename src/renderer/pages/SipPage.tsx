@@ -14,7 +14,7 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import type {
   FundSipOccurrenceView,
@@ -22,7 +22,6 @@ import type {
   FundSipPlanView,
   SipOccurrenceCalendarDay,
   SipPlanStatus,
-  SipSummaryView,
 } from '../../shared/sip/types';
 import { SipConfirmModal } from '../components/trading/SipConfirmModal';
 import { SipCreateModal } from '../components/trading/SipCreateModal';
@@ -30,8 +29,9 @@ import { SipImportModal } from '../components/trading/SipImportModal';
 import { SipPauseModal } from '../components/trading/SipPauseModal';
 import { SipReviewModal } from '../components/trading/SipReviewModal';
 import { useTradingAccountId } from '../hooks/useTradingAccountId';
-import { routePaths } from '../router/paths';
+import { invalidateWorkspaceData, usePrefetchSipPlan, useSipDashboardQuery } from '../lib/queries';
 import type { SipLocationState } from '../router/sip-state';
+import { routePaths } from '../router/paths';
 import { quantityPresetForKind } from '../../shared/format/display-presets';
 import {
   formatSipSchedule,
@@ -67,13 +67,14 @@ export function SipPage(): React.JSX.Element {
   const [accountId] = useTradingAccountId();
   const [tab, setTab] = useState<SipTab>('plans');
   const [filter, setFilter] = useState<'all' | SipPlanStatus>('active');
-  const [plans, setPlans] = useState<FundSipPlanView[]>([]);
-  const [dueOccurrences, setDueOccurrences] = useState<FundSipOccurrenceView[]>([]);
-  const [historyOccurrences, setHistoryOccurrences] = useState<FundSipOccurrenceView[]>([]);
-  const [calendarDays, setCalendarDays] = useState<SipOccurrenceCalendarDay[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(currentMonth());
-  const [summary, setSummary] = useState<SipSummaryView | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading: loading, refetch } = useSipDashboardQuery(calendarMonth);
+  const prefetchSipPlan = usePrefetchSipPlan();
+  const plans = data?.plans ?? [];
+  const summary = data?.summary ?? null;
+  const dueOccurrences = data?.dueOccurrences ?? [];
+  const historyOccurrences = data?.historyOccurrences ?? [];
+  const calendarDays = data?.calendarDays ?? [];
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [reviewPlanId, setReviewPlanId] = useState<string | null>(null);
@@ -81,33 +82,6 @@ export function SipPage(): React.JSX.Element {
   const [confirmTarget, setConfirmTarget] = useState<FundSipOccurrenceView | null>(null);
   const [pauseTarget, setPauseTarget] = useState<FundSipPlanView | null>(null);
   const [detailPlan, setDetailPlan] = useState<FundSipPlanDetailView | null>(null);
-
-  const load = useCallback(async (): Promise<void> => {
-    setLoading(true);
-    try {
-      await window.desktop.sip.scanDue();
-      const [nextPlans, nextSummary, snapshot, nextHistory, nextCalendar] = await Promise.all([
-        window.desktop.sip.listPlans(),
-        window.desktop.sip.getSummary(),
-        window.desktop.workspace.snapshot(),
-        window.desktop.sip.listOccurrenceViews(),
-        window.desktop.sip.getOccurrenceCalendar(calendarMonth),
-      ]);
-      setPlans(nextPlans);
-      setSummary(nextSummary);
-      setDueOccurrences(snapshot.dueSipOccurrences);
-      setHistoryOccurrences(nextHistory);
-      setCalendarDays(nextCalendar);
-    } catch (reason) {
-      void message.error(reason instanceof Error ? reason.message : '定投数据读取失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [calendarMonth, message]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   useEffect(() => {
     const state = location.state as SipLocationState | null;
@@ -118,7 +92,7 @@ export function SipPage(): React.JSX.Element {
       setTab('plans');
     }
     if (state.openPlanId) {
-      void window.desktop.sip.getPlan(state.openPlanId).then(setDetailPlan).catch(() => undefined);
+      void prefetchSipPlan(state.openPlanId).then((plan) => setDetailPlan(plan)).catch(() => undefined);
       setTab('plans');
     }
 
@@ -173,8 +147,8 @@ export function SipPage(): React.JSX.Element {
         try {
           await window.desktop.sip.delete(plan.id);
           if (detailPlan?.id === plan.id) setDetailPlan(null);
-          window.dispatchEvent(new Event('workspace-changed'));
-          await load();
+          await invalidateWorkspaceData();
+          await refetch();
           void message.success('计划已删除');
         } catch (reason) {
           void message.error(reason instanceof Error ? reason.message : '删除失败');
@@ -186,8 +160,8 @@ export function SipPage(): React.JSX.Element {
   const cancelScheduledPause = async (plan: FundSipPlanView): Promise<void> => {
     try {
       await window.desktop.sip.cancelScheduledPause(plan.id);
-      window.dispatchEvent(new Event('workspace-changed'));
-      await load();
+      await invalidateWorkspaceData();
+      await refetch();
       if (detailPlan?.id === plan.id) await openPlanDetail(plan.id);
       void message.success('已取消预约暂停');
     } catch (reason) {
@@ -198,8 +172,8 @@ export function SipPage(): React.JSX.Element {
   const setStatus = async (plan: FundSipPlanView, status: SipPlanStatus): Promise<void> => {
     try {
       await window.desktop.sip.setStatus(plan.id, status);
-      window.dispatchEvent(new Event('workspace-changed'));
-      await load();
+      await invalidateWorkspaceData();
+      await refetch();
       if (detailPlan?.id === plan.id) await openPlanDetail(plan.id);
       void message.success('计划状态已更新');
     } catch (reason) {
@@ -214,8 +188,8 @@ export function SipPage(): React.JSX.Element {
       okText: '确认跳过',
       onOk: async () => {
         await window.desktop.sip.skipOccurrence(occurrence.id, '用户主动跳过');
-        window.dispatchEvent(new Event('workspace-changed'));
-        await load();
+        await invalidateWorkspaceData();
+        await refetch();
         void message.success('本期已标记为跳过');
       },
     });
@@ -624,7 +598,6 @@ export function SipPage(): React.JSX.Element {
                 onPanelChange={(value) => {
                   const month = `${value.year()}-${String(value.month() + 1).padStart(2, '0')}`;
                   setCalendarMonth(month);
-                  void window.desktop.sip.getOccurrenceCalendar(month).then(setCalendarDays);
                 }}
                 cellRender={(current, info) => {
                   if (info.type !== 'date') return info.originNode;
@@ -741,8 +714,7 @@ export function SipPage(): React.JSX.Element {
         plans={plans}
         onClose={() => setImportOpen(false)}
         onSaved={() => {
-          window.dispatchEvent(new Event('workspace-changed'));
-          void load();
+          void invalidateWorkspaceData().then(() => refetch());
         }}
       />
       <SipReviewModal
@@ -750,7 +722,7 @@ export function SipPage(): React.JSX.Element {
         planId={reviewPlanId}
         onClose={() => setReviewPlanId(null)}
         onSaved={() => {
-          window.dispatchEvent(new Event('workspace-changed'));
+          void invalidateWorkspaceData();
         }}
       />
       <SipCreateModal
@@ -758,8 +730,7 @@ export function SipPage(): React.JSX.Element {
         defaultAccountId={accountId}
         onClose={() => setCreateOpen(false)}
         onSaved={() => {
-          window.dispatchEvent(new Event('workspace-changed'));
-          void load();
+          void invalidateWorkspaceData().then(() => refetch());
         }}
       />
       <SipPauseModal
@@ -767,9 +738,10 @@ export function SipPage(): React.JSX.Element {
         plan={pauseTarget}
         onClose={() => setPauseTarget(null)}
         onSaved={() => {
-          window.dispatchEvent(new Event('workspace-changed'));
-          void load();
-          if (pauseTarget && detailPlan?.id === pauseTarget.id) void openPlanDetail(pauseTarget.id);
+          void invalidateWorkspaceData().then(() => {
+            void refetch();
+            if (pauseTarget && detailPlan?.id === pauseTarget.id) void openPlanDetail(pauseTarget.id);
+          });
         }}
       />
       <SipConfirmModal
@@ -777,8 +749,7 @@ export function SipPage(): React.JSX.Element {
         occurrence={confirmTarget}
         onClose={() => setConfirmTarget(null)}
         onSaved={() => {
-          window.dispatchEvent(new Event('workspace-changed'));
-          void load();
+          void invalidateWorkspaceData().then(() => refetch());
         }}
       />
     </main>

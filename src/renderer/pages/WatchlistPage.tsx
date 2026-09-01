@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, App, Button, Drawer, Segmented, Skeleton, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ReloadOutlined } from '@ant-design/icons';
@@ -7,10 +7,9 @@ import type {
   GrowthPoolItemLive,
   OverlapPoolItemLive,
   WatchlistPoolId,
-  WatchlistPoolMeta,
-  WatchlistPoolSnapshot,
 } from '../../shared/api.types';
-import type { DividendEvent, MarketSnapshotView } from '../../shared/api.types';
+import type { DividendEvent } from '../../shared/api.types';
+import { useMarketSnapshotQuery, useWatchlistPoolSnapshotQuery, useWatchlistPoolsQuery } from '../lib/queries';
 import { formatPrice, ValueDisplay } from '../lib/trading-format';
 
 type PoolTab = WatchlistPoolId;
@@ -29,80 +28,19 @@ function stabilityColor(grade: string): string {
 
 export function WatchlistPage(): React.JSX.Element {
   const { message } = App.useApp();
-  const [pools, setPools] = useState<WatchlistPoolMeta[]>([]);
+  const { pools, isLoading: loadingMeta } = useWatchlistPoolsQuery();
   const [activePool, setActivePool] = useState<PoolTab>('dividend');
-  const [snapshot, setSnapshot] = useState<WatchlistPoolSnapshot | null>(null);
-  const [loadingMeta, setLoadingMeta] = useState(true);
-  const [loadingSnapshot, setLoadingSnapshot] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const {
+    snapshot,
+    isLoading: loadingSnapshot,
+    isFetching: refreshing,
+    refetch: refetchSnapshot,
+  } = useWatchlistPoolSnapshotQuery(activePool);
   const [detailSymbol, setDetailSymbol] = useState<string | null>(null);
-  const [detailSnapshot, setDetailSnapshot] = useState<MarketSnapshotView | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const { snapshot: detailSnapshot, isLoading: detailLoading } = useMarketSnapshotQuery(detailSymbol);
 
-  const loadSnapshot = useCallback(
-    async (poolId: PoolTab, silent = false): Promise<void> => {
-      if (!silent) setLoadingSnapshot(true);
-      else setRefreshing(true);
-      try {
-        setSnapshot(await window.desktop.watchlist.getPoolSnapshot(poolId));
-      } catch (reason) {
-        void message.error(reason instanceof Error ? reason.message : '自选池行情读取失败');
-      } finally {
-        setLoadingSnapshot(false);
-        setRefreshing(false);
-      }
-    },
-    [message],
-  );
-
-  useEffect(() => {
-    let active = true;
-    void window.desktop.watchlist
-      .listPools()
-      .then((nextPools) => {
-        if (active) setPools(nextPools);
-      })
-      .catch((reason: unknown) => {
-        if (active) void message.error(reason instanceof Error ? reason.message : '自选池列表读取失败');
-      })
-      .finally(() => {
-        if (active) setLoadingMeta(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [message]);
-
-  useEffect(() => {
-    let active = true;
-    setLoadingSnapshot(true);
-    void window.desktop.watchlist
-      .getPoolSnapshot(activePool)
-      .then((nextSnapshot) => {
-        if (active) setSnapshot(nextSnapshot);
-      })
-      .catch((reason: unknown) => {
-        if (active) void message.error(reason instanceof Error ? reason.message : '自选池行情读取失败');
-      })
-      .finally(() => {
-        if (active) setLoadingSnapshot(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [activePool, message]);
-
-  const openDetail = async (symbol: string): Promise<void> => {
+  const openDetail = (symbol: string): void => {
     setDetailSymbol(symbol);
-    setDetailSnapshot(null);
-    setDetailLoading(true);
-    try {
-      setDetailSnapshot(await window.desktop.market.getSnapshot(symbol));
-    } catch (reason) {
-      void message.error(reason instanceof Error ? reason.message : '标的详情读取失败');
-    } finally {
-      setDetailLoading(false);
-    }
   };
 
   const dividendColumns = useMemo<ColumnsType<DividendPoolItemLive>>(
@@ -359,7 +297,7 @@ export function WatchlistPage(): React.JSX.Element {
         <Button
           icon={<ReloadOutlined spin={refreshing} />}
           loading={refreshing}
-          onClick={() => void loadSnapshot(activePool, true)}
+          onClick={() => void refetchSnapshot()}
         >
           刷新行情
         </Button>

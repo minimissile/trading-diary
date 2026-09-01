@@ -27,6 +27,13 @@ export async function invalidatePortfolio(accountId?: string, year?: number): Pr
   await queryClient.invalidateQueries({ queryKey: queryKeys.portfolio.all });
 }
 
+export async function invalidatePortfolioDashboard(
+  accountId: string,
+  year = new Date().getFullYear(),
+): Promise<void> {
+  await queryClient.invalidateQueries({ queryKey: queryKeys.portfolio.dashboard(accountId, year) });
+}
+
 export async function invalidateSip(): Promise<void> {
   await queryClient.invalidateQueries({ queryKey: queryKeys.sip.all });
 }

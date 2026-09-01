@@ -1,32 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
-import { App, Empty, Progress, Skeleton, Statistic, Tag } from 'antd';
-import type { TradeReview, WorkspaceSnapshot } from '../../shared/api.types';
+import { Empty, Progress, Skeleton, Statistic, Tag } from 'antd';
+import { useMemo } from 'react';
+import { useReviewsQuery, useWorkspaceSnapshot } from '../lib/queries';
 import { statisticCurrencyFormatter } from '../lib/trading-format';
 
 export function AnalysisPage(): React.JSX.Element {
-  const { message } = App.useApp();
-  const [snapshot, setSnapshot] = useState<WorkspaceSnapshot | null>(null);
-  const [reviews, setReviews] = useState<TradeReview[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    void Promise.all([window.desktop.workspace.snapshot(), window.desktop.reviews.list()])
-      .then(([nextSnapshot, nextReviews]) => {
-        if (!active) return;
-        setSnapshot(nextSnapshot);
-        setReviews(nextReviews);
-      })
-      .catch((reason: unknown) => {
-        if (active) void message.error(reason instanceof Error ? reason.message : '分析数据读取失败');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [message]);
+  const { snapshot, isLoading: snapshotLoading } = useWorkspaceSnapshot();
+  const { reviews, isLoading: reviewsLoading } = useReviewsQuery();
+  const loading = snapshotLoading || reviewsLoading;
 
   const stats = useMemo(() => {
     let wins = 0;

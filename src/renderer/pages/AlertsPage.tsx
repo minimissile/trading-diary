@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, App, Button, Empty, Form, Input, InputNumber, Modal, Radio, Segmented, Skeleton, Space, Tag } from 'antd';
 import type { CreateTradeAlertInput, TradeAlert, TradeAlertCondition, TradeAlertStatus } from '../../shared/api.types';
-import type { AlertEvent } from '../../shared/alerts/event-types';
 import {
   alertRoleLabels,
   alertStatusColors,
@@ -10,6 +9,7 @@ import {
   formatDateTime,
   formatPrice,
 } from '../lib/trading-format';
+import { invalidateWorkspaceData, useAlertsDashboardQuery } from '../lib/queries';
 import { SymbolSearchInput } from '../components/trading/SymbolSearchInput';
 
 interface QuoteFormValues {
@@ -23,46 +23,12 @@ export function AlertsPage(): React.JSX.Element {
   const { message } = App.useApp();
   const [quoteForm] = Form.useForm<QuoteFormValues>();
   const [createForm] = Form.useForm<CreateTradeAlertInput>();
-  const [alerts, setAlerts] = useState<TradeAlert[]>([]);
-  const [events, setEvents] = useState<AlertEvent[]>([]);
+  const { alerts, events, isLoading: loading, refetch } = useAlertsDashboardQuery();
   const [filter, setFilter] = useState<AlertFilter>('open');
   const [createOpen, setCreateOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [evaluating, setEvaluating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lastEvaluation, setLastEvaluation] = useState<string | null>(null);
-
-  const load = useCallback(async (): Promise<void> => {
-    try {
-      const [nextAlerts, nextEvents] = await Promise.all([window.desktop.alerts.list(), window.desktop.alerts.listEvents(100)]);
-      setAlerts(nextAlerts);
-      setEvents(nextEvents);
-    } catch (reason) {
-      void message.error(reason instanceof Error ? reason.message : '提醒读取失败');
-    } finally {
-      setLoading(false);
-    }
-  }, [message]);
-
-  useEffect(() => {
-    let active = true;
-    void Promise.all([window.desktop.alerts.list(), window.desktop.alerts.listEvents(100)])
-      .then(([nextAlerts, nextEvents]) => {
-        if (active) {
-          setAlerts(nextAlerts);
-          setEvents(nextEvents);
-        }
-      })
-      .catch((reason: unknown) => {
-        if (active) void message.error(reason instanceof Error ? reason.message : '提醒读取失败');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [message]);
 
   const visibleAlerts = useMemo(
     () =>
@@ -78,8 +44,8 @@ export function AlertsPage(): React.JSX.Element {
     setEvaluating(true);
     try {
       const result = await window.desktop.alerts.evaluatePrice(values.symbol.trim().toUpperCase(), values.price);
-      window.dispatchEvent(new Event('workspace-changed'));
-      await load();
+      await invalidateWorkspaceData();
+      await refetch();
       if (result.evaluatedCount === 0) {
         setLastEvaluation(`${result.symbol} 当前没有处于监控中的提醒。`);
       } else if (result.newlyTriggered.length === 0) {
@@ -101,8 +67,8 @@ export function AlertsPage(): React.JSX.Element {
       await window.desktop.alerts.create({ ...values, symbol: values.symbol.trim().toUpperCase() });
       createForm.resetFields();
       setCreateOpen(false);
-      window.dispatchEvent(new Event('workspace-changed'));
-      await load();
+      await invalidateWorkspaceData();
+      await refetch();
       void message.success('自定义价格提醒已开始监控');
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '提醒创建失败');
@@ -114,8 +80,8 @@ export function AlertsPage(): React.JSX.Element {
   const setStatus = async (alert: TradeAlert, status: TradeAlertStatus): Promise<void> => {
     try {
       await window.desktop.alerts.setStatus(alert.id, status);
-      window.dispatchEvent(new Event('workspace-changed'));
-      await load();
+      await invalidateWorkspaceData();
+      await refetch();
       void message.success(status === 'active' ? '提醒已重新启用' : status === 'completed' ? '提醒已处理' : '提醒已停用');
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '提醒更新失败');

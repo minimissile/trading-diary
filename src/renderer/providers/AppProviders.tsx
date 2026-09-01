@@ -3,6 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { App as AntdApp, ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import { queryClient } from '../lib/query-client';
+import { QueryWorkspaceSync } from '../lib/queries';
 import { appTheme } from '../theme';
 
 const waveConfig = {
@@ -16,6 +17,7 @@ const cspConfig = {
 export function AppProviders({ children }: PropsWithChildren): React.JSX.Element {
   return (
     <QueryClientProvider client={queryClient}>
+      <QueryWorkspaceSync />
       <ConfigProvider
         csp={cspConfig}
         iconPrefixCls="anticon"

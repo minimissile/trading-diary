@@ -8,6 +8,7 @@ import { ALL_ACCOUNTS_ID } from '../../shared/accounts/constants';
 import type { PortfolioPnlCalendarView } from '../../shared/portfolio/types';
 import { currentMonthPrefix, formatMonthPrefix, parseMonthPrefix } from '../../shared/portfolio/pnl-calendar-window';
 import { AccountSelect } from '../components/trading/AccountSelect';
+import { usePnlCalendarQuery } from '../lib/queries';
 import { AnimatedValueDisplay, ValueDisplay } from '../lib/trading-format';
 import { routePaths } from '../router/paths';
 
@@ -27,9 +28,7 @@ export function PnlCalendarPage(): React.JSX.Element {
   const navigate = useNavigate();
   const [accountId, setAccountId] = useState<string>(ALL_ACCOUNTS_ID);
   const [calendarMonth, setCalendarMonth] = useState(currentMonthPrefix());
-  const [view, setView] = useState<PortfolioPnlCalendarView | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { view, isLoading: loading, isFetching: refreshing, refetch } = usePnlCalendarQuery(accountId, calendarMonth);
   const [syncing, setSyncing] = useState(false);
   const [syncLabel, setSyncLabel] = useState<string | null>(null);
   const [syncErrors, setSyncErrors] = useState<string[]>([]);
@@ -37,18 +36,9 @@ export function PnlCalendarPage(): React.JSX.Element {
   const autoSyncAccountRef = useRef<string | null>(null);
 
   const refreshCalendar = useCallback(
-    async (month = calendarMonth, options?: { silent?: boolean }): Promise<PortfolioPnlCalendarView | null> => {
-      if (!options?.silent) setRefreshing(true);
-      try {
-        const next = await window.desktop.portfolio.getPnlCalendar(accountId, month);
-        setView(next);
-        return next;
-      } finally {
-        if (!options?.silent) setRefreshing(false);
-        setLoading(false);
-      }
-    },
-    [accountId, calendarMonth],
+    async (_month = calendarMonth, _options?: { silent?: boolean }): Promise<PortfolioPnlCalendarView | undefined> =>
+      refetch(),
+    [calendarMonth, refetch],
   );
 
   const runSync = useCallback(
@@ -84,10 +74,6 @@ export function PnlCalendarPage(): React.JSX.Element {
     },
     [accountId, calendarMonth, refreshCalendar],
   );
-
-  useEffect(() => {
-    void refreshCalendar(calendarMonth);
-  }, [calendarMonth, refreshCalendar]);
 
   useEffect(() => {
     setCalendarMonth(currentMonthPrefix());

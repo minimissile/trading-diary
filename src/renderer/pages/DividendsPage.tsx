@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import {
   Alert,
@@ -16,15 +16,18 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { ReloadOutlined, CheckOutlined, CloseOutlined, MoreOutlined, SwapOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
 import type {
-  DividendCalendarDay,
   PortfolioDividendRecord,
-  PortfolioSummaryView,
 } from '../../shared/api.types';
 import { ALL_ACCOUNTS_ID, isAllAccountsId } from '../../shared/accounts/constants';
 import { formatAccountSelectLabel } from '../../shared/accounts/account-display';
 import { quantityPresetForKind } from '../../shared/format/display-presets';
-import type { DividendGoalSettings } from '../../shared/portfolio/dividend-goal';
 import { computeDividendGoalProgressList } from '../../shared/portfolio/dividend-goal';
+import {
+  invalidatePortfolio,
+  useAccountsQuery,
+  useDividendGoalQuery,
+  useDividendsDashboardQuery,
+} from '../lib/queries';
 import { ValueDisplay } from '../lib/trading-format';
 import { AccountSelect } from '../components/trading/AccountSelect';
 import { DividendGoalModal } from '../components/trading/DividendGoalModal';
@@ -48,28 +51,26 @@ function currentMonth(): string {
 export function DividendsPage(): React.JSX.Element {
   const { message } = App.useApp();
   const [tab, setTab] = useState<DividendsTab>('overview');
-  const [summary, setSummary] = useState<PortfolioSummaryView | null>(null);
-  const [dividends, setDividends] = useState<PortfolioDividendRecord[]>([]);
-  const [calendarDays, setCalendarDays] = useState<DividendCalendarDay[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(currentMonth());
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [accountId, setAccountId] = useState<string>(ALL_ACCOUNTS_ID);
-  const [accountLabels, setAccountLabels] = useState<Map<string, string>>(new Map());
-  const [goalSettings, setGoalSettings] = useState<DividendGoalSettings | null>(null);
+  const year = new Date().getFullYear();
+  const { data, isLoading: loading, isFetching: refreshing, refetch } = useDividendsDashboardQuery(
+    accountId,
+    year,
+    calendarMonth,
+  );
+  const summary = data?.summary ?? null;
+  const dividends = data?.dividends ?? [];
+  const calendarDays = data?.calendarDays ?? [];
+  const { accounts } = useAccountsQuery(false);
+  const accountLabels = useMemo(
+    () => new Map(accounts.map((item) => [item.id, formatAccountSelectLabel(item)])),
+    [accounts],
+  );
+  const { goalSettings, refetch: refetchGoal } = useDividendGoalQuery(accountId);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [payoutRecord, setPayoutRecord] = useState<PortfolioDividendRecord | null>(null);
   const allAccountsView = isAllAccountsId(accountId);
-
-  useEffect(() => {
-    void window.desktop.accounts.list().then((accounts) => {
-      setAccountLabels(new Map(accounts.map((item) => [item.id, formatAccountSelectLabel(item)])));
-    });
-  }, []);
-
-  useEffect(() => {
-    void window.desktop.portfolio.getDividendGoal(accountId).then(setGoalSettings);
-  }, [accountId]);
 
   const goalProgressList = useMemo(
     () =>
@@ -81,63 +82,30 @@ export function DividendsPage(): React.JSX.Element {
     [goalSettings, summary],
   );
 
-  const load = useCallback(async (silent = false): Promise<void> => {
-    if (!silent) setLoading(true);
-    else setRefreshing(true);
-    try {
-      const year = new Date().getFullYear();
-      const [nextSummary, nextDividends, nextCalendar] = await Promise.all([
-        window.desktop.portfolio.getSummary(accountId, year),
-        window.desktop.portfolio.listDividends(accountId, year),
-        window.desktop.portfolio.getDividendCalendar(accountId, calendarMonth),
-      ]);
-      setSummary(nextSummary);
-      setDividends(nextDividends);
-      setCalendarDays(nextCalendar);
-    } catch (reason) {
-      void message.error(reason instanceof Error ? reason.message : '分红数据读取失败');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [accountId, calendarMonth, message]);
-
-  const changeCalendarMonth = useCallback(
-    (value: dayjs.Dayjs): void => {
-      const month = `${value.year()}-${String(value.month() + 1).padStart(2, '0')}`;
-      setCalendarMonth(month);
-      void window.desktop.portfolio.getDividendCalendar(accountId, month).then(setCalendarDays);
-    },
-    [accountId],
-  );
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const changeCalendarMonth = useCallback((value: dayjs.Dayjs): void => {
+    setCalendarMonth(`${value.year()}-${String(value.month() + 1).padStart(2, '0')}`);
+  }, []);
 
   const refreshDividends = async (): Promise<void> => {
-    setRefreshing(true);
     try {
       const result = await window.desktop.portfolio.refreshDividends(accountId);
-      await load(true);
+      await refetch();
       void message.success(`已同步 ${result.synced} 条分红，其中 ${result.estimated} 条待确认`);
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '分红同步失败');
-    } finally {
-      setRefreshing(false);
     }
   };
 
   const confirmDividend = useCallback(async (id: string, confirmed: boolean): Promise<void> => {
-    const year = new Date().getFullYear();
     try {
-      setDividends(await window.desktop.portfolio.confirmDividend(id, confirmed, undefined, accountId, year));
-      setSummary(await window.desktop.portfolio.getSummary(accountId, year));
+      await window.desktop.portfolio.confirmDividend(id, confirmed, undefined, accountId, year);
+      await invalidatePortfolio(accountId, year);
+      await refetch();
       void message.success(confirmed ? '分红已确认' : '分红已驳回');
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '操作失败');
     }
-  }, [accountId, message]);
+  }, [accountId, message, refetch, year]);
 
   const dividendColumns = useMemo<ColumnsType<PortfolioDividendRecord>>(
     () => {
@@ -496,7 +464,10 @@ export function DividendsPage(): React.JSX.Element {
         accountId={accountId}
         settings={goalSettings}
         onClose={() => setGoalModalOpen(false)}
-        onSaved={setGoalSettings}
+        onSaved={() => {
+          void refetchGoal();
+          void refetch();
+        }}
       />
 
       <DividendPayoutModeModal
@@ -505,9 +476,8 @@ export function DividendsPage(): React.JSX.Element {
         listAccountId={accountId}
         year={summary?.year ?? new Date().getFullYear()}
         onClose={() => setPayoutRecord(null)}
-        onSaved={(records) => {
-          setDividends(records);
-          void window.desktop.portfolio.getSummary(accountId, summary?.year ?? new Date().getFullYear()).then(setSummary);
+        onSaved={() => {
+          void refetch();
         }}
       />
     </main>
