@@ -149,9 +149,11 @@
 }
 
 .workspace-page {
-  width: min(1220px, 100%);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
   min-height: 100%;
-  margin: 0 auto;
+  margin: 0;
   padding: 42px 44px 64px;
 }
 

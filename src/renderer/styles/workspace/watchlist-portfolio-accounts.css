@@ -1,11 +1,3 @@
-/* 持仓中心撑满 app-stage 内容区，避免 1220px 居中留白 */
-.positions-page.workspace-page {
-  box-sizing: border-box;
-  width: 100%;
-  max-width: none;
-  margin: 0;
-}
-
 .watchlist-page .watchlist-disclaimer,
 .portfolio-page .watchlist-disclaimer {
   margin-bottom: 20px;

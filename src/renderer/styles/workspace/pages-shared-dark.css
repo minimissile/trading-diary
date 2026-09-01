@@ -1,6 +1,9 @@
 /* 次级页面与表单保持同一视觉语言。 */
 .workspace-page {
-  width: min(1220px, 100%);
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin: 0;
   padding: 32px 34px 56px;
   color: var(--td-color-ink);
   background: #061521;

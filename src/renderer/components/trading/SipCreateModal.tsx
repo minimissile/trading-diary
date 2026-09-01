@@ -93,7 +93,7 @@ export function SipCreateModal({
 
   return (
     <Modal
-      title="新建基金定投"
+      title="新建定投计划"
       open={open}
       onCancel={onClose}
       onOk={() => void save()}

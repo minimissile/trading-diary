@@ -58,7 +58,7 @@ const occurrenceStatusColors: Record<string, string> = {
 };
 
 /**
- * 基金定投页面，管理计划、期次与扣款确认。
+ * 定投管理页面，管理计划、期次与扣款确认。
  */
 export function SipPage(): React.JSX.Element {
   const { message } = App.useApp();
@@ -456,8 +456,8 @@ export function SipPage(): React.JSX.Element {
     <main className="workspace-page portfolio-page sip-page">
       <header className="page-header">
         <div>
-          <p className="page-kicker">FUND SIP</p>
-          <h1>基金定投</h1>
+          <p className="page-kicker">SIP</p>
+          <h1>定投管理</h1>
           <p className="page-intro">按计划提醒扣款，确认后自动写入持仓流水。系统不会代扣或推荐买卖。</p>
         </div>
         <div className="portfolio-header-actions">
