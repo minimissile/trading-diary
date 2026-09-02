@@ -109,6 +109,14 @@ export function PositionHistoryPage(): React.JSX.Element {
         render: (value: number) => <ValueDisplay kind="pnl" value={value} />,
       },
       {
+        title: '做T收益',
+        dataIndex: 'tTradingPnl',
+        width: 108,
+        align: 'right',
+        render: (value: number | null) =>
+          value === null ? '—' : <ValueDisplay kind="pnl" value={value} />,
+      },
+      {
         title: '收益率',
         dataIndex: 'returnPercent',
         width: 96,
@@ -186,7 +194,7 @@ export function PositionHistoryPage(): React.JSX.Element {
           <p className="page-kicker">REALIZED PNL</p>
           <h1>历史持仓</h1>
           <p className="page-intro">
-            按每笔卖出记录已实现盈亏（与持仓成本算法一致）；「已清仓」汇总完全退出的标的。
+            按每笔卖出记录已实现盈亏（移动加权成本）；「做 T 收益」为同日先买后卖配对；「已清仓」汇总完全退出的标的。
           </p>
         </div>
         <div className="portfolio-header-actions">
@@ -250,7 +258,7 @@ export function PositionHistoryPage(): React.JSX.Element {
               rowKey={tab === 'trades' ? 'id' : (row) => `${row.accountId}:${row.symbol}`}
               pagination={{ pageSize: 20, hideOnSinglePage: true }}
               size="small"
-              scroll={{ x: tab === 'trades' ? 1100 : 900 }}
+              scroll={{ x: tab === 'trades' ? 1220 : 900 }}
             />
           )}
         </>

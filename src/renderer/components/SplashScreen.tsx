@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { APP_NAME, APP_SLOGAN } from '../../shared/brand';
+import { IS_RENDERER_DEV } from '../lib/dev-mode';
 
 type SplashPhase = 'enter' | 'hold' | 'exit' | 'done';
 
@@ -82,7 +83,9 @@ interface SplashScreenProps extends PropsWithChildren {
 }
 
 export function SplashScreen({ children, onFinished }: SplashScreenProps): React.JSX.Element {
-  const [phase, setPhase] = useState<SplashPhase>(() => (splashCompletedOnce ? 'done' : 'enter'));
+  const [phase, setPhase] = useState<SplashPhase>(() =>
+    IS_RENDERER_DEV || splashCompletedOnce ? 'done' : 'enter',
+  );
   const [reducedMotion] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
@@ -99,7 +102,7 @@ export function SplashScreen({ children, onFinished }: SplashScreenProps): React
   };
 
   useEffect(() => {
-    if (splashCompletedOnce || finishedRef.current) {
+    if (IS_RENDERER_DEV || splashCompletedOnce || finishedRef.current) {
       setPhase('done');
       markFinished();
       return;

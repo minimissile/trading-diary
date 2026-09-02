@@ -10,6 +10,7 @@ import type { PortfolioPositionView } from '../../../shared/portfolio/types';
 import type { DividendGoalSettings } from '../../../shared/portfolio/dividend-goal';
 import type { PortfolioLedgerEntry } from '../../../shared/portfolio/types';
 import { PORTFOLIO_QUOTE_STALE_MS } from '../query-client';
+import { IS_RENDERER_DEV } from '../dev-mode';
 import { queryKeys } from './keys';
 
 export interface PortfolioDashboardData {
@@ -38,8 +39,8 @@ export function usePortfolioDashboard(accountId: string, year: number): {
     queryKey: queryKeys.portfolio.dashboard(accountId, year),
     queryFn: () => fetchPortfolioDashboard(accountId, year),
     staleTime: PORTFOLIO_QUOTE_STALE_MS,
-    refetchOnMount: 'always',
-    refetchInterval: PORTFOLIO_QUOTE_STALE_MS,
+    refetchOnMount: IS_RENDERER_DEV ? false : 'always',
+    refetchInterval: IS_RENDERER_DEV ? false : PORTFOLIO_QUOTE_STALE_MS,
     refetchIntervalInBackground: false,
   });
 
@@ -59,6 +60,8 @@ export function usePnlCalendarQuery(accountId: string, month: string): {
   view: PortfolioPnlCalendarView | undefined;
   isLoading: boolean;
   isFetching: boolean;
+  isPlaceholderData: boolean;
+  error: Error | null;
   refetch: () => Promise<PortfolioPnlCalendarView | undefined>;
 } {
   const query = useQuery({
@@ -69,6 +72,8 @@ export function usePnlCalendarQuery(accountId: string, month: string): {
     view: query.data,
     isLoading: query.isLoading,
     isFetching: query.isFetching,
+    isPlaceholderData: query.isPlaceholderData,
+    error: query.error,
     refetch: async () => (await query.refetch()).data,
   };
 }

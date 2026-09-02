@@ -6,7 +6,12 @@ import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router';
 import { ALL_ACCOUNTS_ID } from '../../shared/accounts/constants';
 import type { PortfolioPnlCalendarView } from '../../shared/portfolio/types';
-import { currentMonthPrefix, formatMonthPrefix, parseMonthPrefix } from '../../shared/portfolio/pnl-calendar-window';
+import {
+  currentMonthPrefix,
+  formatMonthPrefix,
+  parseMonthPrefix,
+  resolvePnlCalendarPanelDate,
+} from '../../shared/portfolio/pnl-calendar-window';
 import { AccountSelect } from '../components/trading/AccountSelect';
 import { usePnlCalendarQuery } from '../lib/queries';
 import { AnimatedValueDisplay, ValueDisplay } from '../lib/trading-format';
@@ -28,7 +33,14 @@ export function PnlCalendarPage(): React.JSX.Element {
   const navigate = useNavigate();
   const [accountId, setAccountId] = useState<string>(ALL_ACCOUNTS_ID);
   const [calendarMonth, setCalendarMonth] = useState(currentMonthPrefix());
-  const { view, isLoading: loading, isFetching: refreshing, refetch } = usePnlCalendarQuery(accountId, calendarMonth);
+  const {
+    view,
+    isLoading: loading,
+    isFetching: refreshing,
+    isPlaceholderData,
+    error: queryError,
+    refetch,
+  } = usePnlCalendarQuery(accountId, calendarMonth);
   const [syncing, setSyncing] = useState(false);
   const [syncLabel, setSyncLabel] = useState<string | null>(null);
   const [syncErrors, setSyncErrors] = useState<string[]>([]);
@@ -80,12 +92,14 @@ export function PnlCalendarPage(): React.JSX.Element {
     autoSyncAccountRef.current = null;
   }, [accountId]);
 
+  const viewReady = Boolean(view && !isPlaceholderData && view.month === calendarMonth);
+
   useEffect(() => {
-    if (!view || view.missingBarSymbols.length === 0) return;
+    if (!viewReady || !view || view.missingBarSymbols.length === 0) return;
     if (autoSyncAccountRef.current === accountId) return;
     autoSyncAccountRef.current = accountId;
     void runSync(view.missingBarSymbols);
-  }, [accountId, runSync, view]);
+  }, [accountId, runSync, view, viewReady]);
 
   const dayMap = useMemo(() => {
     const map = new Map<string, PortfolioPnlCalendarView['days'][number]>();
@@ -120,10 +134,11 @@ export function PnlCalendarPage(): React.JSX.Element {
     [view],
   );
 
-  const validRange = useMemo((): [Dayjs, Dayjs] | undefined => {
-    if (!view) return undefined;
-    return [dayjs(view.windowStart), dayjs(view.windowEnd)];
-  }, [view]);
+  const calendarPanelValue = useMemo((): Dayjs | undefined => {
+    if (!viewReady || !view) return undefined;
+    const anchor = resolvePnlCalendarPanelDate(calendarMonth, view.windowStart, view.windowEnd);
+    return dayjs(anchor);
+  }, [calendarMonth, view, viewReady]);
 
   const handleManualSync = (): void => {
     if (!view) return;
@@ -183,7 +198,22 @@ export function PnlCalendarPage(): React.JSX.Element {
         />
       ) : null}
 
-      {!syncing && view && view.missingBarSymbols.length > 0 && !syncLabel ? (
+      {queryError ? (
+        <Alert
+          className="watchlist-disclaimer"
+          type="error"
+          showIcon
+          title="收益日历加载失败"
+          description={queryError.message}
+          action={
+            <Button size="small" onClick={() => void refetch()}>
+              重试
+            </Button>
+          }
+        />
+      ) : null}
+
+      {!syncing && viewReady && view && view.missingBarSymbols.length > 0 && !syncLabel ? (
         <Alert
           className="watchlist-disclaimer"
           type="warning"
@@ -193,7 +223,7 @@ export function PnlCalendarPage(): React.JSX.Element {
         />
       ) : null}
 
-      {loading && !view ? (
+      {(loading && !view) || (view && !viewReady) ? (
         <Skeleton active paragraph={{ rows: 12 }} />
       ) : !view ? (
         <Empty description="暂无收益数据，请先录入持仓流水" />
@@ -243,8 +273,7 @@ export function PnlCalendarPage(): React.JSX.Element {
             <Calendar
               fullscreen={false}
               mode="month"
-              value={dayjs(`${calendarMonth}-01`)}
-              validRange={validRange}
+              value={calendarPanelValue}
               disabledDate={disabledDate}
               headerRender={({ value }) => (
                 <div className="pnl-calendar-panel-head">

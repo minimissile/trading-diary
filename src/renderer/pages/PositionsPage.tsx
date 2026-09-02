@@ -39,17 +39,25 @@ const kindLabels: Record<string, string> = {
   otc_fund: '场外基金',
 };
 
+function isFundKind(kind: InstrumentKind): boolean {
+  return kind === 'otc_fund' || kind === 'etf' || kind === 'lof';
+}
+
 function matchesAssetFilter(
   position: PortfolioPositionView,
   category: AssetCategory,
   stockSubKind: StockSubKind,
 ): boolean {
   if (category === 'all') return true;
-  if (category === 'fund') return position.kind === 'otc_fund';
-  if (position.kind === 'otc_fund') return false;
+  if (category === 'fund') {
+    if (!isFundKind(position.kind)) return false;
+    if (stockSubKind === 'all') return true;
+    if (stockSubKind === 'listed_fund') return position.kind === 'etf' || position.kind === 'lof';
+    return position.kind === 'otc_fund';
+  }
+  if (isFundKind(position.kind)) return false;
   if (stockSubKind === 'all') return true;
-  if (stockSubKind === 'stock') return position.kind === 'stock';
-  return position.kind === 'etf' || position.kind === 'lof';
+  return position.kind === 'stock';
 }
 
 function symbolSearchKeys(value: string): string[] {
@@ -85,6 +93,50 @@ function compareNullableNumber(a: number | null, b: number | null): number {
   return a - b;
 }
 
+interface FilteredPortfolioStats {
+  totalMarketValue: number;
+  totalCost: number;
+  unrealizedPnl: number;
+  dailyPnl: number;
+  missingQuoteCount: number;
+  missingDailyPnlCount: number;
+  positionCount: number;
+}
+
+function aggregatePortfolioStats(rows: readonly PortfolioPositionView[]): FilteredPortfolioStats {
+  let totalMarketValue = 0;
+  let totalCost = 0;
+  let unrealizedPnl = 0;
+  let dailyPnl = 0;
+  let missingQuoteCount = 0;
+  let missingDailyPnlCount = 0;
+
+  for (const row of rows) {
+    totalMarketValue += row.marketValue ?? 0;
+    totalCost += row.avgCost * row.quantity;
+    unrealizedPnl += row.unrealizedPnl ?? 0;
+    dailyPnl += row.dailyPnl ?? 0;
+    if (row.marketPrice === null) missingQuoteCount += 1;
+    if (row.dailyPnl === null && row.quantity > 0) missingDailyPnlCount += 1;
+  }
+
+  return {
+    totalMarketValue,
+    totalCost,
+    unrealizedPnl,
+    dailyPnl,
+    missingQuoteCount,
+    missingDailyPnlCount,
+    positionCount: rows.length,
+  };
+}
+
+function statsCacheSuffix(category: AssetCategory, stockSubKind: StockSubKind): string {
+  if (category === 'all') return 'all';
+  if (category === 'fund') return stockSubKind === 'all' ? 'fund' : `fund:${stockSubKind}`;
+  return stockSubKind === 'all' ? 'stock' : `stock:${stockSubKind}`;
+}
+
 /**
  * 持仓中心页面，展示真实持仓与市值统计。
  */
@@ -116,15 +168,22 @@ export function PositionsPage(): React.JSX.Element {
     [message, refetch],
   );
 
-  const filteredPositions = useMemo(
-    () =>
-      positions.filter(
-        (row) =>
-          matchesAssetFilter(row, assetCategory, stockSubKind) &&
-          matchesSymbolQuery(row, symbolQuery),
-      ),
-    [assetCategory, positions, stockSubKind, symbolQuery],
+  const tabFilteredPositions = useMemo(
+    () => positions.filter((row) => matchesAssetFilter(row, assetCategory, stockSubKind)),
+    [assetCategory, positions, stockSubKind],
   );
+
+  const filteredPositions = useMemo(
+    () => tabFilteredPositions.filter((row) => matchesSymbolQuery(row, symbolQuery)),
+    [symbolQuery, tabFilteredPositions],
+  );
+
+  const filteredStats = useMemo(
+    () => aggregatePortfolioStats(tabFilteredPositions),
+    [tabFilteredPositions],
+  );
+
+  const statsCacheKey = statsCacheSuffix(assetCategory, stockSubKind);
 
   const deletePosition = useCallback(
     async (row: PortfolioPositionView): Promise<void> => {
@@ -229,10 +288,11 @@ export function PositionsPage(): React.JSX.Element {
         width: 116,
         align: 'right',
         render: (_, row) =>
-          row.marketValue === null ? (
+          row.marketValue == null ? (
             '—'
           ) : (
             <AnimatedValueDisplay
+              key={`${accountId}:${row.symbol}:${row.marketValue}`}
               cacheKey={`positions:${accountId}:${row.symbol}:marketValue`}
               kind="currency"
               value={row.marketValue}
@@ -344,16 +404,10 @@ export function PositionsPage(): React.JSX.Element {
     [accountId, deletePosition, deletingSymbol, modal, navigate, symbolQuery],
   );
 
-  const unrealizedPnl = summary?.unrealizedPnl ?? 0;
-  const dailyPnl = summary?.dailyPnl ?? 0;
-  const missingQuoteCount = useMemo(
-    () => positions.filter((row) => row.marketPrice === null).length,
-    [positions],
-  );
-  const missingDailyPnlCount = useMemo(
-    () => positions.filter((row) => row.dailyPnl === null && row.quantity > 0).length,
-    [positions],
-  );
+  const unrealizedPnl = filteredStats.unrealizedPnl;
+  const dailyPnl = filteredStats.dailyPnl;
+  const missingQuoteCount = filteredStats.missingQuoteCount;
+  const missingDailyPnlCount = filteredStats.missingDailyPnlCount;
 
   const refreshing = isFetching && !isLoading;
 
@@ -394,43 +448,32 @@ export function PositionsPage(): React.JSX.Element {
         <Skeleton active paragraph={{ rows: 10 }} />
       ) : (
         <>
-          <section className="portfolio-metrics">
+          <section className="portfolio-metrics" key={statsCacheKey}>
             <article className="portfolio-metric-card portfolio-metric-card--primary">
               <small>持仓市值</small>
-              <AnimatedValueDisplay
-                as="strong"
-                cacheKey={`positions:${accountId}:summary:totalMarketValue`}
-                kind="currency"
-                value={summary?.totalMarketValue ?? 0}
-              />
+              <ValueDisplay as="strong" kind="currency" value={filteredStats.totalMarketValue} />
               <span>
-                成本 <ValueDisplay kind="currency" value={summary?.totalCost ?? 0} />
+                成本 <ValueDisplay kind="currency" value={filteredStats.totalCost} />
               </span>
             </article>
             <article className="portfolio-metric-card">
               <small>浮动盈亏</small>
-              <AnimatedValueDisplay
-                as="strong"
-                cacheKey={`positions:${accountId}:summary:unrealizedPnl`}
-                kind="pnl"
-                value={unrealizedPnl}
-              />
+              <ValueDisplay as="strong" kind="pnl" value={unrealizedPnl} />
               <span>{formatFloatingPnlCaption(unrealizedPnl, { missingQuoteCount })}</span>
             </article>
             <article className="portfolio-metric-card">
               <small>日收益</small>
-              <AnimatedValueDisplay
-                as="strong"
-                cacheKey={`positions:${accountId}:summary:dailyPnl`}
-                kind="pnl"
-                value={dailyPnl}
-              />
+              <ValueDisplay as="strong" kind="pnl" value={dailyPnl} />
               <span>{formatDailyPnlCaption(dailyPnl, { missingQuoteCount: missingDailyPnlCount })}</span>
             </article>
             <article className="portfolio-metric-card">
               <small>持仓数量</small>
-              <strong>{filteredPositions.length}</strong>
-              <span>{assetCategory === 'all' ? '当前有效标的' : `筛选后 / 共 ${positions.length}`}</span>
+              <strong>{filteredStats.positionCount}</strong>
+              <span>
+                {assetCategory === 'all' && stockSubKind === 'all'
+                  ? '当前有效标的'
+                  : `筛选后 / 共 ${positions.length}`}
+              </span>
             </article>
             <article className="portfolio-metric-card">
               <small>行情更新</small>
@@ -449,16 +492,28 @@ export function PositionsPage(): React.JSX.Element {
               value={assetCategory}
               onChange={(value) => {
                 setAssetCategory(value);
-                if (value !== 'stock') setStockSubKind('all');
+                setStockSubKind('all');
               }}
             />
+            {assetCategory === 'fund' ? (
+              <div className="portfolio-filters__stock">
+                <Segmented<StockSubKind>
+                  options={[
+                    { label: '全部', value: 'all' },
+                    { label: '场外', value: 'stock' },
+                    { label: '场内', value: 'listed_fund' },
+                  ]}
+                  value={stockSubKind}
+                  onChange={setStockSubKind}
+                />
+              </div>
+            ) : null}
             {assetCategory === 'stock' ? (
               <div className="portfolio-filters__stock">
                 <Segmented<StockSubKind>
                   options={[
                     { label: '全部', value: 'all' },
                     { label: 'A股', value: 'stock' },
-                    { label: '场内基金', value: 'listed_fund' },
                   ]}
                   value={stockSubKind}
                   onChange={setStockSubKind}

@@ -7,6 +7,13 @@ import type {
   RealizedTradeView,
 } from '../../shared/portfolio/types';
 import { aggregatePositions, ledgerQuantityDelta } from './ledger-service';
+import {
+  computeTTradingPnlForSell,
+  createTBuyLot,
+  supportsTTrading,
+  tTradingDayKey,
+  type TBuyLotMutable,
+} from './t-trading-pnl';
 
 type RealizedTradeCore = Omit<RealizedTradeView, 'name'>;
 type ClosedPositionCore = Omit<ClosedPositionSummary, 'name'>;
@@ -39,12 +46,19 @@ export function computeRealizedTrades(entries: readonly PortfolioLedgerEntry[]):
     const sorted = sortedEntries(symbolEntries);
     let quantity = 0;
     let totalCost = 0;
+    const tBuyLotsByDay = new Map<string, TBuyLotMutable[]>();
 
     for (const entry of sorted) {
       const delta = ledgerQuantityDelta(entry);
       if (delta > 0) {
         quantity += delta;
         totalCost += delta * entry.price + entry.fees;
+        if (supportsTTrading(entry.kind)) {
+          const dayKey = tTradingDayKey(entry);
+          const lots = tBuyLotsByDay.get(dayKey) ?? [];
+          lots.push(createTBuyLot(entry, delta));
+          tBuyLotsByDay.set(dayKey, lots);
+        }
         continue;
       }
 
@@ -56,6 +70,10 @@ export function computeRealizedTrades(entries: readonly PortfolioLedgerEntry[]):
       const grossProceeds = sellQty * entry.price;
       const sellFees = entry.fees;
       const realizedPnl = grossProceeds - sellFees - costBasis;
+      const tTradingPnl =
+        supportsTTrading(entry.kind)
+          ? computeTTradingPnlForSell(entry, sellQty, tBuyLotsByDay.get(tTradingDayKey(entry)) ?? [])
+          : null;
 
       totalCost -= avgCost * sellQty;
       quantity -= sellQty;
@@ -76,6 +94,7 @@ export function computeRealizedTrades(entries: readonly PortfolioLedgerEntry[]):
         proceeds: grossProceeds - sellFees,
         costBasis,
         realizedPnl,
+        tTradingPnl,
         returnPercent: costBasis > 0 ? (realizedPnl / costBasis) * 100 : null,
         note: entry.note,
         remainingQuantity: quantity,

@@ -151,9 +151,12 @@ describe('buildPnlCalendar', () => {
 
 describe('pnl calendar window', () => {
   it('limits window to one year', async () => {
-    const { pnlCalendarWindowStart, pnlCalendarWindowEnd, isDateInPnlCalendarWindow } = await import(
-      '../src/shared/portfolio/pnl-calendar-window'
-    );
+    const {
+      pnlCalendarWindowStart,
+      pnlCalendarWindowEnd,
+      isDateInPnlCalendarWindow,
+      resolvePnlCalendarPanelDate,
+    } = await import('../src/shared/portfolio/pnl-calendar-window');
     const asOf = new Date('2026-08-30T12:00:00+08:00');
     const start = pnlCalendarWindowStart(asOf);
     const end = pnlCalendarWindowEnd(asOf);
@@ -161,5 +164,7 @@ describe('pnl calendar window', () => {
     expect(start).toBe('2025-08-30');
     expect(isDateInPnlCalendarWindow('2025-08-29', asOf)).toBe(false);
     expect(isDateInPnlCalendarWindow('2025-08-30', asOf)).toBe(true);
+    expect(resolvePnlCalendarPanelDate('2025-08', start, end)).toBe('2025-08-30');
+    expect(resolvePnlCalendarPanelDate('2026-08', start, end)).toBe('2026-08-01');
   });
 });

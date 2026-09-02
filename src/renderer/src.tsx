@@ -10,6 +10,7 @@ import { AccessLockGate } from './components/AccessLockGate';
 import { DesktopGate } from './components/DesktopGate';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { SplashScreen } from './components/SplashScreen';
+import { IS_RENDERER_DEV } from './lib/dev-mode';
 import './styles/global.css';
 import './styles/splash-screen.css';
 import './styles/trading-workspace.css';
@@ -21,7 +22,7 @@ const root = document.getElementById('root');
 if (!root) throw new Error('找不到渲染进程根节点');
 
 function AppRoot(): React.JSX.Element {
-  const [splashFinished, setSplashFinished] = useState(false);
+  const [splashFinished, setSplashFinished] = useState(() => IS_RENDERER_DEV);
   const handleSplashFinished = useCallback(() => setSplashFinished(true), []);
 
   return (
@@ -33,8 +34,8 @@ function AppRoot(): React.JSX.Element {
   );
 }
 
-createRoot(root).render(
-  <StrictMode>
+function AppTree(): React.JSX.Element {
+  return (
     <ErrorBoundary>
       <AppProviders>
         <DesktopGate>
@@ -42,5 +43,7 @@ createRoot(root).render(
         </DesktopGate>
       </AppProviders>
     </ErrorBoundary>
-  </StrictMode>,
-);
+  );
+}
+
+createRoot(root).render(IS_RENDERER_DEV ? <AppTree /> : <StrictMode><AppTree /></StrictMode>);

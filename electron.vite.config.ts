@@ -31,6 +31,9 @@ function devRendererCspPlugin(): Plugin {
   };
 }
 
+/** 合并连续保存，避免一次改动触发多次主进程 / preload 重建。 */
+const WATCH_BUILD_DELAY_MS = 350;
+
 export default defineConfig({
   main: {
     build: {
@@ -39,6 +42,7 @@ export default defineConfig({
         external: ['electron-updater', 'sharp'],
       },
       watch: {
+        buildDelay: WATCH_BUILD_DELAY_MS,
         include: [
           'src/main/**',
           'src/service/**',
@@ -57,14 +61,25 @@ export default defineConfig({
       // 内置模块外，其余依赖全部打进 preload 产物。
       externalizeDeps: false,
       watch: {
+        buildDelay: WATCH_BUILD_DELAY_MS,
         include: ['src/preload/**', 'src/shared/ipc-channels.ts', 'src/shared/api.types.ts'],
       },
     },
   },
   renderer: {
-    plugins: [devRendererCspPlugin(), react()],
+    plugins: [
+      devRendererCspPlugin(),
+      react({
+        // 开发态保留 Fast Refresh；StrictMode 在 src.tsx 中仅生产环境启用。
+      }),
+    ],
     build: {
       target: 'chrome150',
+    },
+    server: {
+      hmr: {
+        overlay: true,
+      },
     },
   },
 });

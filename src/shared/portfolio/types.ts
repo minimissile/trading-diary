@@ -141,6 +141,8 @@ export interface RealizedTradeView {
   proceeds: number;
   costBasis: number;
   realizedPnl: number;
+  /** 同日先买后卖配对的做 T 收益；无配对时为 null。 */
+  tTradingPnl: number | null;
   returnPercent: number | null;
   note: string;
   remainingQuantity: number;
