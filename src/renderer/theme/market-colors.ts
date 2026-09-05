@@ -3,15 +3,15 @@
  * 避免“盈利”和“操作成功”、“亏损”和“操作失败”产生语义冲突。
  */
 export const marketColors = {
-  profit: '#c23d4b',
-  profitSurface: '#fff1f2',
-  loss: '#16845b',
-  lossSurface: '#edf8f3',
-  flat: '#6b7280',
-  flatSurface: '#f1f3f5',
+  profit: '#ff5e73',
+  profitSurface: 'rgba(255, 94, 115, 0.14)',
+  loss: '#39d3c3',
+  lossSurface: 'rgba(57, 211, 195, 0.14)',
+  flat: '#65739a',
+  flatSurface: 'rgba(101, 115, 154, 0.14)',
 } as const;
 
-/** 图表默认序列色，顺序经过明度和色相区分，适合浅色画布。 */
-export const chartColors = ['#2f5bd7', '#16845b', '#c23d4b', '#b76e14', '#6d54c7', '#168099'] as const;
+/** 图表默认序列色，顺序经过明度和色相区分，适合深色玻璃画布。 */
+export const chartColors = ['#5b8cff', '#8b5cf6', '#39d3c3', '#ffb24a', '#ff5e73', '#56c7ff'] as const;
 
 export type MarketDirection = 'profit' | 'loss' | 'flat';

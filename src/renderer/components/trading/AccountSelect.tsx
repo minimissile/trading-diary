@@ -13,6 +13,7 @@ interface AccountSelectProps {
   includeAllOption?: boolean;
   disabled?: boolean;
   className?: string;
+  popupClassName?: string;
   placeholder?: string;
   allowClear?: boolean;
 }
@@ -25,6 +26,7 @@ export function AccountSelect({
   includeAllOption = false,
   disabled,
   className,
+  popupClassName,
   placeholder = '选择账户',
   allowClear = false,
 }: AccountSelectProps): React.JSX.Element {
@@ -43,7 +45,8 @@ export function AccountSelect({
   return (
     <Select
       className={className ? `account-select ${className}` : 'account-select'}
-      getPopupContainer={(trigger) => trigger.ownerDocument.body}
+      classNames={popupClassName ? { popup: { root: popupClassName } } : undefined}
+      getPopupContainer={(trigger: HTMLElement) => trigger.ownerDocument.body}
       loading={loading}
       disabled={disabled}
       placeholder={placeholder}
@@ -53,9 +56,7 @@ export function AccountSelect({
         if (next) onChange?.(next);
       }}
       options={[
-        ...(includeAllOption
-          ? [{ value: ALL_ACCOUNTS_ID, label: '全部账户汇总' }]
-          : []),
+        ...(includeAllOption ? [{ value: ALL_ACCOUNTS_ID, label: '全部账户汇总' }] : []),
         ...accounts.map((account) => ({
           value: account.id,
           label: formatAccountSelectLabel(account),

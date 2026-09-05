@@ -11,7 +11,11 @@ export function createMainWindow(): BrowserWindow {
     minHeight: 520,
     show: false,
     title: APP_NAME,
-    backgroundColor: '#061521',
+    backgroundColor: '#07122f',
+    titleBarStyle: 'hidden',
+    ...(process.platform === 'darwin'
+      ? { trafficLightPosition: { x: 14, y: 11 } }
+      : { titleBarOverlay: { color: '#101c38', symbolColor: '#96a2c3', height: 36 } }),
     icon: resolveWindowIconPath(),
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),

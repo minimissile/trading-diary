@@ -6,37 +6,43 @@
   --td-currency-letter-spacing: 0.01em;
   --td-numeric-weight: 700;
 
-  --td-color-canvas: #061521;
-  --td-color-surface: #0d2231;
-  --td-color-surface-subtle: #0a1c29;
-  --td-color-ink: #e7f1fa;
-  --td-color-ink-secondary: #9fb0c1;
-  --td-color-ink-tertiary: #6f8396;
-  --td-color-line: #20394b;
-  --td-color-line-strong: #2b4d64;
-  --td-color-border: #20394b;
-  --td-color-accent: #2c8cff;
-  --td-color-accent-soft: #113b68;
+  --td-color-canvas: #07122f;
+  --td-color-surface: #0d1938;
+  --td-color-surface-subtle: #0a1633;
+  --td-color-ink: #f5f7ff;
+  --td-color-ink-secondary: #96a2c3;
+  --td-color-ink-tertiary: #65739a;
+  --td-color-line: rgb(210 224 255 / 14%);
+  --td-color-line-strong: rgb(210 224 255 / 24%);
+  --td-color-border: rgb(210 224 255 / 14%);
+  --td-color-accent: #5b7cff;
+  --td-color-accent-soft: rgb(91 124 255 / 18%);
+  --td-color-violet: #8b5cf6;
+  --td-color-mint: #39d3c3;
+  --td-color-coral: #ff5e73;
+  --td-color-warning: #ffb24a;
+  --td-color-glass: rgb(24 38 77 / 72%);
+  --td-color-glass-strong: rgb(19 32 68 / 88%);
 
   /* Select / AutoComplete 下拉项 — 与 theme-config Select token 对齐 */
-  --td-select-dropdown-bg: #102737;
-  --td-select-option-hover-bg: #154b79;
-  --td-select-option-hover-color: #e7f1fa;
-  --td-select-option-selected-bg: #123d65;
+  --td-select-dropdown-bg: rgb(19 32 68 / 96%);
+  --td-select-option-hover-bg: rgb(91 124 255 / 19%);
+  --td-select-option-hover-color: #f5f7ff;
+  --td-select-option-selected-bg: rgb(91 124 255 / 28%);
   --td-select-option-selected-color: #ffffff;
 
   /* 交易方向色遵循中国市场习惯：红涨绿跌。 */
-  --td-color-profit: #ff626f;
-  --td-color-profit-surface: #3d1d29;
-  --td-color-loss: #42cc8b;
-  --td-color-loss-surface: #113d31;
+  --td-color-profit: #ff5e73;
+  --td-color-profit-surface: rgb(255 94 115 / 14%);
+  --td-color-loss: #39d3c3;
+  --td-color-loss-surface: rgb(57 211 195 / 14%);
   --td-color-flat: #6b7280;
   --td-color-flat-surface: #1b2e3e;
 
-  --td-radius-control: 6px;
-  --td-radius-panel: 10px;
-  --td-shadow-panel: 0 10px 30px rgb(0 7 14 / 18%);
-  --td-shadow-floating: 0 20px 52px rgb(0 4 9 / 48%);
+  --td-radius-control: 12px;
+  --td-radius-panel: 24px;
+  --td-shadow-panel: inset 0 1px 0 rgb(255 255 255 / 5.5%), 0 18px 50px rgb(0 5 25 / 28%);
+  --td-shadow-floating: inset 0 1px 0 rgb(255 255 255 / 7%), 0 32px 72px rgb(0 4 24 / 48%);
 
   --td-space-1: 4px;
   --td-space-2: 8px;
@@ -47,13 +53,13 @@
   --td-space-8: 32px;
   --td-space-12: 48px;
 
-  --td-scrollbar-size: 2px;
-  --td-scrollbar-thumb: rgb(39 67 89 / 90%);
-  --td-scrollbar-thumb-hover: rgb(56 92 118 / 95%);
+  --td-scrollbar-size: 5px;
+  --td-scrollbar-thumb: rgb(116 139 205 / 40%);
+  --td-scrollbar-thumb-hover: rgb(139 164 238 / 62%);
   --td-scrollbar-track: transparent;
 }
 
 ::selection {
   color: #ffffff;
-  background: #2469bd;
+  background: #536fe4;
 }

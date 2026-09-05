@@ -11,15 +11,8 @@ interface SloganSegment {
 }
 
 const SLOGAN_LINES: readonly (readonly SloganSegment[])[] = [
-  [
-    { text: '在交易中' },
-    { text: '成长', highlight: true },
-  ],
-  [
-    { text: '每一笔成交', highlight: true },
-    { text: '，都值得' },
-    { text: '记录', highlight: true },
-  ],
+  [{ text: '在交易中' }, { text: '成长', highlight: true }],
+  [{ text: '每一笔成交', highlight: true }, { text: '，都值得' }, { text: '记录', highlight: true }],
 ];
 
 const TIMING = {
@@ -54,10 +47,7 @@ function AnimatedSloganLine({
   return (
     <p className="splash-slogan-line">
       {segments.map((segment, segmentIndex) => (
-        <span
-          key={`${lineIndex}-${segmentIndex}`}
-          className={segment.highlight ? 'splash-slogan-highlight' : undefined}
-        >
+        <span key={`${lineIndex}-${segmentIndex}`} className={segment.highlight ? 'splash-slogan-highlight' : undefined}>
           {[...segment.text].map((char, charIndex) => {
             const delay = reducedMotion ? 0 : (charOffset + charIndex) * 42;
             charOffset += 1;
@@ -83,16 +73,17 @@ interface SplashScreenProps extends PropsWithChildren {
 }
 
 export function SplashScreen({ children, onFinished }: SplashScreenProps): React.JSX.Element {
-  const [phase, setPhase] = useState<SplashPhase>(() =>
-    IS_RENDERER_DEV || splashCompletedOnce ? 'done' : 'enter',
-  );
+  const [phase, setPhase] = useState<SplashPhase>(() => (IS_RENDERER_DEV || splashCompletedOnce ? 'done' : 'enter'));
   const [reducedMotion] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
   const finishedRef = useRef(false);
   const onFinishedRef = useRef(onFinished);
-  onFinishedRef.current = onFinished;
   const showOverlay = phase !== 'done';
+
+  useEffect(() => {
+    onFinishedRef.current = onFinished;
+  }, [onFinished]);
 
   const markFinished = (): void => {
     if (finishedRef.current) return;
@@ -126,11 +117,14 @@ export function SplashScreen({ children, onFinished }: SplashScreenProps): React
       setPhase('exit');
     }, timing.enterMs + timing.holdMs);
 
-    schedule(() => {
-      if (splashRunId !== runId) return;
-      setPhase('done');
-      markFinished();
-    }, timing.enterMs + timing.holdMs + timing.exitMs);
+    schedule(
+      () => {
+        if (splashRunId !== runId) return;
+        setPhase('done');
+        markFinished();
+      },
+      timing.enterMs + timing.holdMs + timing.exitMs,
+    );
 
     schedule(() => {
       if (splashRunId !== runId) return;
@@ -148,30 +142,21 @@ export function SplashScreen({ children, onFinished }: SplashScreenProps): React
       <div className="splash-app-root">{children}</div>
 
       {showOverlay ? (
-        <div
-          className={`splash-screen splash-screen--${phase}`}
-          role="presentation"
-          aria-hidden="true"
-        >
+        <div className={`splash-screen splash-screen--${phase}`} role="presentation" aria-hidden="true">
           <div className="splash-screen__backdrop" />
           <div className="splash-screen__grid" />
 
           <div className="splash-screen__content">
             <div className="splash-logo-wrap">
               <span className="splash-logo-ring" />
-              <img className="splash-logo" src="./logo.png" alt="" draggable={false} />
+              <img className="splash-logo" src="./logo-yingji.png" alt="" draggable={false} />
             </div>
 
             <p className="splash-product-name">{APP_NAME}</p>
 
             <div className="splash-slogan" aria-label={APP_SLOGAN.full}>
               {SLOGAN_LINES.map((segments, lineIndex) => (
-                <AnimatedSloganLine
-                  key={lineIndex}
-                  lineIndex={lineIndex}
-                  segments={segments}
-                  reducedMotion={reducedMotion}
-                />
+                <AnimatedSloganLine key={lineIndex} lineIndex={lineIndex} segments={segments} reducedMotion={reducedMotion} />
               ))}
             </div>
 

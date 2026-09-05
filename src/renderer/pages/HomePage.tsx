@@ -193,6 +193,18 @@ export function HomePage(): React.JSX.Element {
 
   return (
     <div className="command-dashboard">
+      <header className="command-welcome">
+        <div>
+          <h1>今日指挥台</h1>
+          <p>聚焦下一步行动，按计划执行并沉淀每一次交易决策。</p>
+        </div>
+        <div className="command-welcome-status" role="status" aria-live="polite">
+          <span>
+            <i /> 本地数据已就绪
+          </span>
+          <strong>{actionItems.length} 项待处理</strong>
+        </div>
+      </header>
       <div className="command-grid">
         <CommandPanel
           className="queue-panel"

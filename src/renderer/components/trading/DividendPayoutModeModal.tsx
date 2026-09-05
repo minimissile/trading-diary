@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react';
 import { App, Checkbox, Modal, Radio } from 'antd';
 import type { PortfolioDividendRecord } from '../../../shared/api.types';
-import {
-  dividendPayoutModeLabel,
-  type DividendPayoutMode,
-} from '../../../shared/portfolio/dividend-payout';
+import { dividendPayoutModeLabel, type DividendPayoutMode } from '../../../shared/portfolio/dividend-payout';
 import { ValueDisplay } from '../../lib/trading-format';
 
 interface DividendPayoutModeModalProps {
@@ -44,18 +41,10 @@ export function DividendPayoutModeModal({
     if (!record) return;
     setSaving(true);
     try {
-      const next = await window.desktop.portfolio.setDividendPayoutMode(
-        record.id,
-        payoutMode,
-        setDefault,
-        listAccountId,
-        year,
-      );
+      const next = await window.desktop.portfolio.setDividendPayoutMode(record.id, payoutMode, setDefault, listAccountId, year);
       onSaved(next);
       void message.success(
-        payoutMode === 'reinvest' && record.status === 'confirmed'
-          ? '分红方式已更新，持仓份额已同步'
-          : '分红方式已更新',
+        payoutMode === 'reinvest' && record.status === 'confirmed' ? '分红方式已更新，持仓份额已同步' : '分红方式已更新',
       );
       onClose();
     } catch (reason) {
@@ -75,6 +64,7 @@ export function DividendPayoutModeModal({
 
   return (
     <Modal
+      rootClassName="dividend-overlay"
       title="分红方式"
       open={open}
       onCancel={onClose}
@@ -113,9 +103,7 @@ export function DividendPayoutModeModal({
       </Radio.Group>
 
       {payoutMode === 'reinvest' && record.status !== 'confirmed' ? (
-        <p className="portfolio-dividend-payout-modal-hint">
-          待确认记录在确认后，才会按净值增加持仓份额。
-        </p>
+        <p className="portfolio-dividend-payout-modal-hint">待确认记录在确认后，才会按净值增加持仓份额。</p>
       ) : null}
 
       <p className="portfolio-dividend-payout-modal-label">默认设置</p>
@@ -123,9 +111,7 @@ export function DividendPayoutModeModal({
         以后 {record.symbol} 的新分红也默认按「{modeLabel}」处理
       </Checkbox>
       {effectiveDefault !== payoutMode ? (
-        <p className="portfolio-dividend-payout-modal-hint">
-          当前默认为「{savedDefaultLabel}」，勾选并保存后将更新。
-        </p>
+        <p className="portfolio-dividend-payout-modal-hint">当前默认为「{savedDefaultLabel}」，勾选并保存后将更新。</p>
       ) : null}
     </Modal>
   );

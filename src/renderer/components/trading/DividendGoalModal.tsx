@@ -18,13 +18,7 @@ interface FormValues {
 /**
  * 设置分红目标的弹窗，支持同时配置累计与日均目标。
  */
-export function DividendGoalModal({
-  open,
-  accountId,
-  settings,
-  onClose,
-  onSaved,
-}: DividendGoalModalProps): React.JSX.Element {
+export function DividendGoalModal({ open, accountId, settings, onClose, onSaved }: DividendGoalModalProps): React.JSX.Element {
   const { message } = App.useApp();
   const [form] = Form.useForm<FormValues>();
   const [saving, setSaving] = useState(false);
@@ -78,6 +72,7 @@ export function DividendGoalModal({
 
   return (
     <Modal
+      rootClassName="dividend-overlay dividend-goal-modal"
       title="设置分红目标"
       open={open}
       onCancel={onClose}
@@ -102,14 +97,10 @@ export function DividendGoalModal({
           label="今年累计分红目标"
           rules={[{ type: 'number', min: 0.01, message: '目标金额必须大于 0' }]}
         >
-          <InputNumber className="full-width-input" min={0.01} precision={2} addonBefore="¥" placeholder="可选" />
+          <InputNumber className="full-width-input" min={0.01} precision={2} prefix="¥" placeholder="可选" />
         </Form.Item>
-        <Form.Item
-          name="dailyTarget"
-          label="日均分红目标"
-          rules={[{ type: 'number', min: 0.01, message: '目标金额必须大于 0' }]}
-        >
-          <InputNumber className="full-width-input" min={0.01} precision={2} addonBefore="¥" placeholder="可选" />
+        <Form.Item name="dailyTarget" label="日均分红目标" rules={[{ type: 'number', min: 0.01, message: '目标金额必须大于 0' }]}>
+          <InputNumber className="full-width-input" min={0.01} precision={2} prefix="¥" placeholder="可选" />
         </Form.Item>
       </Form>
     </Modal>

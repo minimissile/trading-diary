@@ -10,6 +10,10 @@ files:
   - out/**/*
   - package.json
 
+extraResources:
+  - from: resources/icon.png
+    to: icon.png
+
 asar: true
 asarUnpack:
   - node_modules/sharp/**/*
@@ -31,7 +35,7 @@ artifactName: trading-diary-${version}-${arch}-${os}.${ext}
 
 mac:
   category: public.app-category.finance
-  icon: resources/icon.png
+  icon: resources/icon.icns
   # 无 Developer ID 阶段使用 ad-hoc 签名，版本更新通过 DMG 手动覆盖安装。
   identity: '-'
   hardenedRuntime: true

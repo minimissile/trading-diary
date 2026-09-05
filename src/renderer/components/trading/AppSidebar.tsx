@@ -8,8 +8,6 @@ import {
   HistoryOutlined,
   ImportOutlined,
   InfoCircleOutlined,
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
   ProjectOutlined,
   WalletOutlined,
   StarOutlined,
@@ -40,11 +38,10 @@ interface AppSidebarProps {
   activeKey: string;
   alertCount: number;
   collapsed: boolean;
-  onCollapse: () => void;
   onSelect: (key: string) => void;
 }
 
-export function AppSidebar({ activeKey, alertCount, collapsed, onCollapse, onSelect }: AppSidebarProps): React.JSX.Element {
+export function AppSidebar({ activeKey, alertCount, collapsed, onSelect }: AppSidebarProps): React.JSX.Element {
   const [appVersion, setAppVersion] = useState<string>('');
 
   useEffect(() => {
@@ -55,16 +52,13 @@ export function AppSidebar({ activeKey, alertCount, collapsed, onCollapse, onSel
   }, []);
 
   return (
-    <aside className="app-sidebar" aria-label="交易日记主导航">
+    <aside id="app-sidebar" className="app-sidebar" aria-label="交易日记主导航">
       <div className="app-brand">
-        <img className="brand-mark" src="./logo.png" alt="" aria-hidden="true" draggable={false} />
+        <img className="brand-mark" src="./logo-yingji.png" alt="" aria-hidden="true" draggable={false} />
         <span className="brand-copy">
           <strong>交易日记</strong>
           <small>交易为生，复盘为师</small>
         </span>
-        <button className="sidebar-collapse sidebar-collapse--top" type="button" aria-label="折叠侧栏" onClick={onCollapse}>
-          {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-        </button>
       </div>
 
       <nav className="primary-nav" aria-label="主导航">

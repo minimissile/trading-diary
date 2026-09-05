@@ -12,15 +12,15 @@ function readCssVar(name: string, fallback: string): string {
  * @param kind 标的类型，场外基金使用面积图展示净值
  */
 export function buildTradingChartStyles(kind: InstrumentKind = 'stock'): DeepPartial<Styles> {
-  const profit = readCssVar('--td-color-profit', '#ff626f');
-  const loss = readCssVar('--td-color-loss', '#42cc8b');
-  const flat = readCssVar('--td-color-flat', '#6b7280');
-  const line = readCssVar('--td-color-line', '#20394b');
-  const ink = readCssVar('--td-color-ink', '#e7f1fa');
-  const inkSecondary = readCssVar('--td-color-ink-secondary', '#9fb0c1');
-  const inkTertiary = readCssVar('--td-color-ink-tertiary', '#6f8396');
-  const surface = readCssVar('--td-color-surface', '#0d2231');
-  const lineStrong = readCssVar('--td-color-line-strong', '#2b4d64');
+  const profit = readCssVar('--td-color-profit', '#ff5e73');
+  const loss = readCssVar('--td-color-loss', '#39d3c3');
+  const flat = readCssVar('--td-color-flat', '#65739a');
+  const line = readCssVar('--td-color-line', 'rgb(210 224 255 / 14%)');
+  const ink = readCssVar('--td-color-ink', '#f5f7ff');
+  const inkSecondary = readCssVar('--td-color-ink-secondary', '#96a2c3');
+  const inkTertiary = readCssVar('--td-color-ink-tertiary', '#65739a');
+  const surface = readCssVar('--td-color-surface', '#0d1938');
+  const lineStrong = readCssVar('--td-color-line-strong', 'rgb(210 224 255 / 24%)');
 
   return {
     grid: {

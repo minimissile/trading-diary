@@ -128,13 +128,11 @@ export function ImportPage(): React.JSX.Element {
       title: '方向',
       dataIndex: 'side',
       width: 72,
-      render: (side: ExecutionImportPreviewRow['side']) =>
-        side === 'buy' ? '买入' : side === 'sell' ? '卖出' : '—',
+      render: (side: ExecutionImportPreviewRow['side']) => (side === 'buy' ? '买入' : side === 'sell' ? '卖出' : '—'),
     },
     {
       title: '数量 / 价格',
-      render: (_, row) =>
-        row.quantity === null || row.price === null ? '—' : `${row.quantity} @ ${formatPrice(row.price)}`,
+      render: (_, row) => (row.quantity === null || row.price === null ? '—' : `${row.quantity} @ ${formatPrice(row.price)}`),
     },
     {
       title: '时间',
@@ -156,12 +154,7 @@ export function ImportPage(): React.JSX.Element {
 
       <Steps
         current={step}
-        items={[
-          { title: '选择文件' },
-          { title: '映射列' },
-          { title: '预览确认' },
-          { title: '完成' },
-        ]}
+        items={[{ title: '选择文件' }, { title: '映射列' }, { title: '预览确认' }, { title: '完成' }]}
         style={{ marginBottom: 24 }}
       />
 
@@ -194,9 +187,7 @@ export function ImportPage(): React.JSX.Element {
                   value={mapping[field] >= 0 ? mapping[field] : undefined}
                   options={headerOptions}
                   onChange={(value) =>
-                    setMapping((current) =>
-                      current ? { ...current, [field]: typeof value === 'number' ? value : -1 } : current,
-                    )
+                    setMapping((current) => (current ? { ...current, [field]: typeof value === 'number' ? value : -1 } : current))
                   }
                 />
               </FormRow>
@@ -234,7 +225,13 @@ export function ImportPage(): React.JSX.Element {
             <Tag color="success">可导入 {preview.readyCount}</Tag>
             <Tag color="error">异常 {preview.errorCount}</Tag>
           </div>
-          <Table size="small" columns={previewColumns} dataSource={preview.rows} rowKey="rowIndex" pagination={{ pageSize: 12 }} />
+          <Table
+            size="small"
+            columns={previewColumns}
+            dataSource={preview.rows}
+            rowKey="rowIndex"
+            pagination={{ pageSize: 12 }}
+          />
           <Space>
             <Button onClick={() => setStep(1)}>返回映射</Button>
             <Button type="primary" loading={busy} disabled={preview.readyCount === 0} onClick={() => void commitImport()}>
@@ -246,12 +243,19 @@ export function ImportPage(): React.JSX.Element {
 
       {step === 3 ? (
         <section className="import-panel import-panel--done">
-          <CheckCircleOutlined style={{ fontSize: 40, color: '#42cc8b' }} />
+          <CheckCircleOutlined style={{ fontSize: 40, color: '#39d3c3' }} />
           <h2>导入完成</h2>
           <p>成交已写入交易回合，可在交易日记查看待复盘项目。</p>
           <Space>
             <Button onClick={() => void navigate(routePaths.journal)}>前往交易日记</Button>
-            <Button type="primary" onClick={() => { setStep(0); setCsv(null); setPreview(null); }}>
+            <Button
+              type="primary"
+              onClick={() => {
+                setStep(0);
+                setCsv(null);
+                setPreview(null);
+              }}
+            >
               继续导入
             </Button>
           </Space>

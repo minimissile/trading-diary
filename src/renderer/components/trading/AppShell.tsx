@@ -1,4 +1,13 @@
-import { BarChartOutlined, BellOutlined, CalendarOutlined, DownOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import {
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  BarChartOutlined,
+  BellOutlined,
+  CalendarOutlined,
+  DownOutlined,
+  PlusOutlined,
+  SearchOutlined,
+} from '@ant-design/icons';
 import { Badge, Button, Input } from 'antd';
 import { useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
@@ -6,6 +15,7 @@ import { useScrollRestoration } from '../../hooks/useScrollRestoration';
 import { useWorkspaceSnapshot } from '../../lib/queries';
 import { routePaths } from '../../router/paths';
 import { AppSidebar } from './AppSidebar';
+import { BackgroundPicker } from './BackgroundPicker';
 
 const routeByNavigationKey: Readonly<Record<string, string>> = {
   today: routePaths.home,
@@ -63,7 +73,6 @@ export function AppShell(): React.JSX.Element {
         activeKey={navigationKeyFromPath(location.pathname)}
         alertCount={alertCount}
         collapsed={collapsed}
-        onCollapse={() => setCollapsed((value) => !value)}
         onSelect={(key) => {
           const path = routeByNavigationKey[key];
           if (path) void navigate(path);
@@ -71,14 +80,27 @@ export function AppShell(): React.JSX.Element {
       />
       <div className="app-stage">
         <header className="command-topbar">
-          <div className="command-search">
-            <SearchOutlined aria-hidden="true" />
-            <Input
-              variant="borderless"
-              placeholder="搜索计划、回合、规则、标的…"
-              suffix={<kbd>Ctrl K</kbd>}
-              aria-label="全局搜索"
-            />
+          <div className="topbar-leading">
+            <button
+              className="sidebar-collapse sidebar-collapse--content"
+              type="button"
+              aria-label={collapsed ? '展开侧栏' : '折叠侧栏'}
+              title={collapsed ? '展开侧栏' : '折叠侧栏'}
+              aria-expanded={!collapsed}
+              aria-controls="app-sidebar"
+              onClick={() => setCollapsed((value) => !value)}
+            >
+              {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            </button>
+            <div className="command-search">
+              <SearchOutlined aria-hidden="true" />
+              <Input
+                variant="borderless"
+                placeholder="搜索计划、回合、规则、标的…"
+                suffix={<kbd>Ctrl K</kbd>}
+                aria-label="全局搜索"
+              />
+            </div>
           </div>
 
           <div className="market-context">
@@ -96,6 +118,7 @@ export function AppShell(): React.JSX.Element {
           </div>
 
           <div className="topbar-actions">
+            <BackgroundPicker />
             <Button
               className="new-plan-button"
               type="primary"
@@ -107,7 +130,11 @@ export function AppShell(): React.JSX.Element {
             >
               新建计划
             </Button>
-            <Button className="record-trade-button" icon={<CalendarOutlined />} onClick={() => void navigate(routePaths.journal, { state: { openExecution: true } })}>
+            <Button
+              className="record-trade-button"
+              icon={<CalendarOutlined />}
+              onClick={() => void navigate(routePaths.journal, { state: { openExecution: true } })}
+            >
               记录成交 <DownOutlined />
             </Button>
             <Badge count={alertCount} size="small" overflowCount={99}>

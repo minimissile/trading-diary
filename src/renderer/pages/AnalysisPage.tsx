@@ -91,7 +91,7 @@ export function AnalysisPage(): React.JSX.Element {
                 <p>无计划交易会单独进入改进清单。</p>
               </article>
               <article>
-                <Progress type="dashboard" percent={Math.round(stats.disciplinedRate)} size={140} strokeColor="#16845b" />
+                <Progress type="dashboard" percent={Math.round(stats.disciplinedRate)} size={140} strokeColor="#39d3c3" />
                 <strong>高纪律交易占比</strong>
                 <p>纪律评分达到 4 分及以上。</p>
               </article>

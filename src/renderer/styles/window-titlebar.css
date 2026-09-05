@@ -1,0 +1,42 @@
+/* Native window buttons remain above this draggable, background-aware strip. */
+:root {
+  --window-titlebar-height: 36px;
+}
+
+#root {
+  padding-top: var(--window-titlebar-height);
+}
+
+.window-titlebar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--window-titlebar-height);
+  padding-inline: 140px;
+  color: var(--yingji-muted);
+  background: rgb(12 24 49 / 78%);
+  backdrop-filter: blur(24px) saturate(125%);
+  font-size: 12px;
+  font-weight: 500;
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.window-titlebar span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+#root .trading-app {
+  height: calc(100vh - var(--window-titlebar-height));
+}
+
+#root .ant-app,
+#root .splash-app-root,
+#root .access-lock-content {
+  min-height: calc(100vh - var(--window-titlebar-height));
+}

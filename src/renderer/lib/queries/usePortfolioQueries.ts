@@ -92,6 +92,7 @@ export function useDividendsDashboardQuery(
   data: DividendsDashboardData | undefined;
   isLoading: boolean;
   isFetching: boolean;
+  isError: boolean;
   refetch: () => Promise<void>;
 } {
   const query = useQuery({
@@ -109,6 +110,7 @@ export function useDividendsDashboardQuery(
     data: query.data,
     isLoading: query.isLoading,
     isFetching: query.isFetching,
+    isError: query.isError,
     refetch: async () => {
       await query.refetch();
     },

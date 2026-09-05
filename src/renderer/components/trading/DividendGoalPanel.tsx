@@ -1,42 +1,82 @@
 import { Button, Tag } from 'antd';
 import { AimOutlined, EditOutlined } from '@ant-design/icons';
 import type { DividendGoalProgressView } from '../../../shared/portfolio/dividend-goal';
-import { ValueDisplay } from '../../lib/trading-format';
+import { AnimatedValueDisplay, ValueDisplay } from '../../lib/trading-format';
 
 interface DividendGoalPanelProps {
   progressList: DividendGoalProgressView[];
   allAccountsView: boolean;
   year: number;
+  animationKey: string;
   onEdit: () => void;
 }
 
-function GoalProgressItem({ progress }: { progress: DividendGoalProgressView }): React.JSX.Element {
+function GoalProgressItem({
+  progress,
+  animationKey,
+}: {
+  progress: DividendGoalProgressView;
+  animationKey: string;
+}): React.JSX.Element {
   const barWidth = progress.reached ? 100 : Math.min(progress.progressPercent, 100);
 
   return (
     <article className={`portfolio-dividend-goal-item${progress.reached ? ' portfolio-dividend-goal-item--reached' : ''}`}>
       <div className="portfolio-dividend-goal-item-head">
         <strong>{progress.kindLabel}</strong>
-        {progress.reached ? <Tag color="success">已达成</Tag> : null}
+        <span className="dividend-goal-status">
+          {progress.reached ? <Tag color="success">已达成</Tag> : null}
+          <AnimatedValueDisplay
+            as="strong"
+            kind="progressPercent"
+            value={progress.progressPercent}
+            cacheKey={`${animationKey}:${progress.kind}:percent`}
+          />
+        </span>
       </div>
       <div className="portfolio-dividend-goal-values">
         <span>
-          当前 <ValueDisplay kind="currency" value={progress.currentAmount} />
+          当前{' '}
+          <AnimatedValueDisplay
+            kind="currency"
+            value={progress.currentAmount}
+            cacheKey={`${animationKey}:${progress.kind}:current`}
+          />
         </span>
-        <ValueDisplay as="strong" kind="progressPercent" value={progress.progressPercent} />
         <span>
           目标 <ValueDisplay kind="currency" value={progress.targetAmount} />
         </span>
       </div>
-      <div className="portfolio-dividend-goal-bar" aria-hidden>
-        <i style={{ width: `${barWidth}%` }} />
+      <div
+        className="portfolio-dividend-goal-bar"
+        role="progressbar"
+        aria-label={progress.kindLabel}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.max(0, barWidth)}
+        aria-valuetext={`已完成 ${progress.progressPercent.toFixed(2)}%`}
+      >
+        <i className="dividend-progress-fill" style={{ width: `${barWidth}%` }} />
       </div>
       <p className="portfolio-dividend-goal-caption">
         {progress.reached ? (
-          <>已超出目标 <ValueDisplay kind="currency" value={Math.max(progress.currentAmount - progress.targetAmount, 0)} /></>
+          <>
+            已超出目标{' '}
+            <AnimatedValueDisplay
+              kind="currency"
+              value={Math.max(progress.currentAmount - progress.targetAmount, 0)}
+              cacheKey={`${animationKey}:${progress.kind}:excess`}
+            />
+          </>
         ) : (
           <>
-            还差 <ValueDisplay kind="currency" value={progress.remaining} /> 达成目标
+            还差{' '}
+            <AnimatedValueDisplay
+              kind="currency"
+              value={progress.remaining}
+              cacheKey={`${animationKey}:${progress.kind}:remaining`}
+            />{' '}
+            达成目标
           </>
         )}
       </p>
@@ -51,6 +91,7 @@ export function DividendGoalPanel({
   progressList,
   allAccountsView,
   year,
+  animationKey,
   onEdit,
 }: DividendGoalPanelProps): React.JSX.Element {
   if (progressList.length === 0) {
@@ -86,12 +127,9 @@ export function DividendGoalPanel({
         </Button>
       </div>
 
-      <div
-        className="portfolio-dividend-goal-items"
-        data-goal-count={progressList.length}
-      >
+      <div className="portfolio-dividend-goal-items" data-goal-count={progressList.length}>
         {progressList.map((progress) => (
-          <GoalProgressItem key={progress.kind} progress={progress} />
+          <GoalProgressItem key={`${animationKey}:${progress.kind}`} progress={progress} animationKey={animationKey} />
         ))}
       </div>
     </section>

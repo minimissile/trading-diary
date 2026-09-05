@@ -1,42 +1,31 @@
 import { useCallback, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import {
-  Alert,
-  App,
-  Button,
-  Calendar,
-  Dropdown,
-  Empty,
-  Segmented,
-  Skeleton,
-  Table,
-  Tag,
-  Tooltip,
-} from 'antd';
+import { Alert, App, Button, Calendar, Dropdown, Empty, Segmented, Skeleton, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { ReloadOutlined, CheckOutlined, CloseOutlined, MoreOutlined, SwapOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
-import type {
-  PortfolioDividendRecord,
-} from '../../shared/api.types';
+import {
+  InfoCircleOutlined,
+  ClockCircleOutlined,
+  ReloadOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  MoreOutlined,
+  SwapOutlined,
+  LeftOutlined,
+  RightOutlined,
+} from '@ant-design/icons';
+import type { DividendCalendarDay, PortfolioDividendRecord } from '../../shared/api.types';
 import { ALL_ACCOUNTS_ID, isAllAccountsId } from '../../shared/accounts/constants';
 import { formatAccountSelectLabel } from '../../shared/accounts/account-display';
 import { quantityPresetForKind } from '../../shared/format/display-presets';
 import { computeDividendGoalProgressList } from '../../shared/portfolio/dividend-goal';
-import {
-  invalidatePortfolio,
-  useAccountsQuery,
-  useDividendGoalQuery,
-  useDividendsDashboardQuery,
-} from '../lib/queries';
-import { ValueDisplay } from '../lib/trading-format';
+import { invalidatePortfolio, useAccountsQuery, useDividendGoalQuery, useDividendsDashboardQuery } from '../lib/queries';
+import { AnimatedValueDisplay, ValueDisplay } from '../lib/trading-format';
 import { AccountSelect } from '../components/trading/AccountSelect';
 import { DividendGoalModal } from '../components/trading/DividendGoalModal';
 import { DividendGoalPanel } from '../components/trading/DividendGoalPanel';
+import { DividendMilestoneWall } from '../components/trading/DividendMilestoneWall';
 import { DividendPayoutModeModal } from '../components/trading/DividendPayoutModeModal';
-import {
-  dividendPayoutModeLabel,
-  supportsDividendPayoutMode,
-} from '../../shared/portfolio/dividend-payout';
+import { dividendPayoutModeLabel, supportsDividendPayoutMode } from '../../shared/portfolio/dividend-payout';
 
 type DividendsTab = 'overview' | 'calendar' | 'dividends';
 
@@ -50,26 +39,27 @@ function currentMonth(): string {
  */
 export function DividendsPage(): React.JSX.Element {
   const { message } = App.useApp();
+  const [syncing, setSyncing] = useState(false);
   const [tab, setTab] = useState<DividendsTab>('overview');
   const [calendarMonth, setCalendarMonth] = useState(currentMonth());
   const [accountId, setAccountId] = useState<string>(ALL_ACCOUNTS_ID);
   const year = new Date().getFullYear();
-  const { data, isLoading: loading, isFetching: refreshing, refetch } = useDividendsDashboardQuery(
-    accountId,
-    year,
-    calendarMonth,
-  );
+  const {
+    data,
+    isLoading: loading,
+    isFetching: refreshing,
+    isError,
+    refetch,
+  } = useDividendsDashboardQuery(accountId, year, calendarMonth);
   const summary = data?.summary ?? null;
   const dividends = data?.dividends ?? [];
-  const calendarDays = data?.calendarDays ?? [];
+  const calendarDays = data?.calendarDays;
   const { accounts } = useAccountsQuery(false);
-  const accountLabels = useMemo(
-    () => new Map(accounts.map((item) => [item.id, formatAccountSelectLabel(item)])),
-    [accounts],
-  );
+  const accountLabels = useMemo(() => new Map(accounts.map((item) => [item.id, formatAccountSelectLabel(item)])), [accounts]);
   const { goalSettings, refetch: refetchGoal } = useDividendGoalQuery(accountId);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [payoutRecord, setPayoutRecord] = useState<PortfolioDividendRecord | null>(null);
+  const animationKey = `dividends:${accountId}:${year}`;
   const allAccountsView = isAllAccountsId(accountId);
 
   const goalProgressList = useMemo(
@@ -87,42 +77,48 @@ export function DividendsPage(): React.JSX.Element {
   }, []);
 
   const refreshDividends = async (): Promise<void> => {
+    if (syncing) return;
+    setSyncing(true);
     try {
       const result = await window.desktop.portfolio.refreshDividends(accountId);
       await refetch();
       void message.success(`已同步 ${result.synced} 条分红，其中 ${result.estimated} 条待确认`);
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '分红同步失败');
+    } finally {
+      setSyncing(false);
     }
   };
 
-  const confirmDividend = useCallback(async (id: string, confirmed: boolean): Promise<void> => {
-    try {
-      await window.desktop.portfolio.confirmDividend(id, confirmed, undefined, accountId, year);
-      await invalidatePortfolio(accountId, year);
-      await refetch();
-      void message.success(confirmed ? '分红已确认' : '分红已驳回');
-    } catch (reason) {
-      void message.error(reason instanceof Error ? reason.message : '操作失败');
-    }
-  }, [accountId, message, refetch, year]);
+  const confirmDividend = useCallback(
+    async (id: string, confirmed: boolean): Promise<void> => {
+      try {
+        await window.desktop.portfolio.confirmDividend(id, confirmed, undefined, accountId, year);
+        await invalidatePortfolio(accountId, year);
+        await refetch();
+        void message.success(confirmed ? '分红已确认' : '分红已驳回');
+      } catch (reason) {
+        void message.error(reason instanceof Error ? reason.message : '操作失败');
+      }
+    },
+    [accountId, message, refetch, year],
+  );
 
-  const dividendColumns = useMemo<ColumnsType<PortfolioDividendRecord>>(
-    () => {
-      const symbolColumn = {
-        title: '标的',
-        key: 'symbol',
-        width: 220,
-        render: (_: unknown, row: PortfolioDividendRecord) => (
-          <span className="portfolio-dividend-symbol-cell">
-            <strong>{row.name}</strong>
-            <br />
-            <small>{row.symbol}</small>
-          </span>
-        ),
-      } as const;
+  const dividendColumns = useMemo<ColumnsType<PortfolioDividendRecord>>(() => {
+    const symbolColumn = {
+      title: '标的',
+      key: 'symbol',
+      width: 220,
+      render: (_: unknown, row: PortfolioDividendRecord) => (
+        <span className="portfolio-dividend-symbol-cell">
+          <strong>{row.name}</strong>
+          <br />
+          <small>{row.symbol}</small>
+        </span>
+      ),
+    } as const;
 
-      return [
+    return [
       ...(allAccountsView
         ? [
             {
@@ -178,9 +174,9 @@ export function DividendsPage(): React.JSX.Element {
         width: 108,
         render: (mode: PortfolioDividendRecord['payoutMode'], row) =>
           supportsDividendPayoutMode(row.kind) ? (
-            <Tag color={mode === 'reinvest' ? 'purple' : 'default'}>{dividendPayoutModeLabel(mode)}</Tag>
+            <Tag className={`dividend-tag--${mode}`}> {dividendPayoutModeLabel(mode)}</Tag>
           ) : (
-            <Tag>{dividendPayoutModeLabel('cash')}</Tag>
+            <Tag className="dividend-tag--cash">{dividendPayoutModeLabel('cash')}</Tag>
           ),
       },
       {
@@ -188,9 +184,9 @@ export function DividendsPage(): React.JSX.Element {
         dataIndex: 'status',
         width: 88,
         render: (status: string) => {
-          if (status === 'confirmed') return <Tag color="green">已确认</Tag>;
-          if (status === 'estimated') return <Tag color="blue">待确认</Tag>;
-          return <Tag>已驳回</Tag>;
+          if (status === 'confirmed') return <Tag className="dividend-tag--confirmed">已确认</Tag>;
+          if (status === 'estimated') return <Tag className="dividend-tag--pending">待确认</Tag>;
+          return <Tag className="dividend-tag--rejected">已驳回</Tag>;
         },
       },
       {
@@ -231,20 +227,18 @@ export function DividendsPage(): React.JSX.Element {
           ];
           if (items.length === 0) return null;
           return (
-            <Dropdown trigger={['click']} menu={{ items }}>
-              <Button type="text" size="small" icon={<MoreOutlined />} aria-label="操作菜单" />
+            <Dropdown classNames={{ root: 'dividend-overlay dividend-menu' }} trigger={['click']} menu={{ items }}>
+              <Button className="dividend-row-action" size="small" icon={<MoreOutlined />} aria-label="操作菜单" />
             </Dropdown>
           );
         },
       },
     ];
-    },
-    [accountLabels, allAccountsView, confirmDividend],
-  );
+  }, [accountLabels, allAccountsView, confirmDividend]);
 
   const calendarCellMap = useMemo(() => {
     const map = new Map<string, DividendCalendarDay['items']>();
-    for (const day of calendarDays) {
+    for (const day of calendarDays ?? []) {
       map.set(day.date, day.items);
     }
     return map;
@@ -253,7 +247,7 @@ export function DividendsPage(): React.JSX.Element {
   const pendingCount = dividends.filter((item) => item.status === 'estimated').length;
 
   return (
-    <main className="workspace-page portfolio-page">
+    <main className="workspace-page portfolio-page dividends-page">
       <header className="page-header">
         <div>
           <p className="page-kicker">DIVIDENDS</p>
@@ -270,10 +264,12 @@ export function DividendsPage(): React.JSX.Element {
             onChange={setAccountId}
             includeAllOption
             className="portfolio-account-select"
+            popupClassName="dividend-overlay dividend-account-popup"
           />
           <Button
-            icon={<ReloadOutlined spin={refreshing} />}
-            loading={refreshing}
+            type="primary"
+            icon={<ReloadOutlined />}
+            loading={syncing || refreshing}
             onClick={() => void refreshDividends()}
           >
             同步分红
@@ -281,82 +277,86 @@ export function DividendsPage(): React.JSX.Element {
         </div>
       </header>
 
-      <Alert
-        className="watchlist-disclaimer"
-        type="info"
-        showIcon
-        title="股息来自公开 API 与用户录入，可能与券商对账单不一致"
-        description={
-          allAccountsView
-            ? '不构成投资建议。汇总视图合并全部账户，点亮墙仅反映已确认累计分红，不含预期分红。'
-            : '不构成投资建议。点亮墙仅反映已确认累计分红，不含预期分红。'
-        }
-      />
+      <details className="dividend-source-note">
+        <summary>
+          <InfoCircleOutlined aria-hidden="true" />
+          <span>统计口径：累计分红仅含已确认记录，预期分红单独展示</span>
+          <span className="dividend-source-toggle">查看说明</span>
+        </summary>
+        <p>
+          股息来自公开 API 与用户录入，可能与券商对账单不一致。{allAccountsView ? '当前汇总全部账户。' : ''}
+          点亮墙按当年已确认累计分红计算，不含预期分红；日均分红按日历天折算。不构成投资建议。
+        </p>
+      </details>
+
+      {isError ? (
+        <Alert
+          type="error"
+          showIcon
+          title="分红数据加载失败"
+          description="请检查连接后重试，已有数据会继续保留。"
+          action={
+            <Button onClick={() => void refetch()} loading={refreshing}>
+              重试
+            </Button>
+          }
+        />
+      ) : null}
 
       {loading && !summary ? (
         <Skeleton active paragraph={{ rows: 14 }} />
+      ) : !summary ? (
+        isError ? null : (
+          <Empty description="暂无分红统计" />
+        )
       ) : (
         <>
-          <section className="portfolio-metrics portfolio-metrics--four">
+          <section className="portfolio-metrics portfolio-metrics--four" key={animationKey}>
             <article className="portfolio-metric-card portfolio-metric-card--primary">
               <small>今年累计分红</small>
-              <ValueDisplay as="strong" kind="currency" value={summary?.ytdReceived ?? 0} />
+              <AnimatedValueDisplay
+                as="strong"
+                kind="currency"
+                value={summary?.ytdReceived ?? 0}
+                cacheKey={`${animationKey}:ytdReceived`}
+              />
               <span>已确认 · {summary?.year ?? new Date().getFullYear()}</span>
             </article>
             <article className="portfolio-metric-card">
               <small>预期分红</small>
-              <ValueDisplay as="strong" kind="currency" value={summary?.expectedDividend ?? 0} />
+              <AnimatedValueDisplay
+                as="strong"
+                kind="currency"
+                value={summary?.expectedDividend ?? 0}
+                cacheKey={`${animationKey}:expectedDividend`}
+              />
               <span>已公告待除权</span>
             </article>
             <article className="portfolio-metric-card">
               <small>日均分红</small>
-              <ValueDisplay as="strong" kind="currency" value={summary?.dailyAverage ?? 0} />
+              <AnimatedValueDisplay
+                as="strong"
+                kind="currency"
+                value={summary?.dailyAverage ?? 0}
+                cacheKey={`${animationKey}:dailyAverage`}
+              />
               <span>按日历天折算</span>
             </article>
             <article className="portfolio-metric-card">
               <small>持仓市值</small>
-              <ValueDisplay as="strong" kind="currency" value={summary?.totalMarketValue ?? 0} />
+              <AnimatedValueDisplay
+                as="strong"
+                kind="currency"
+                value={summary?.totalMarketValue ?? 0}
+                cacheKey={`${animationKey}:totalMarketValue`}
+              />
               <span>
-                成本 <ValueDisplay kind="currency" value={summary?.totalCost ?? 0} />
+                成本 <AnimatedValueDisplay kind="currency" value={summary?.totalCost ?? 0} cacheKey={`${animationKey}:cost`} />
               </span>
             </article>
           </section>
 
-          <DividendGoalPanel
-            progressList={goalProgressList}
-            allAccountsView={allAccountsView}
-            year={summary?.year ?? new Date().getFullYear()}
-            onEdit={() => setGoalModalOpen(true)}
-          />
-
-          {tab === 'overview' ? (
-            <section className="portfolio-milestones">
-              <div className="portfolio-milestones-head">
-                <h2>分红点亮墙</h2>
-                <span>
-                  已点亮 {summary?.litMilestoneCount ?? 0} / {summary?.milestones.length ?? 0}
-                </span>
-              </div>
-              <div className="portfolio-milestone-grid">
-                {(summary?.milestones ?? []).map((milestone) => (
-                  <Tooltip key={milestone.id} title={milestone.caption}>
-                    <article className={milestone.lit ? 'portfolio-milestone lit' : 'portfolio-milestone'}>
-                      <span className="portfolio-milestone-emoji">{milestone.emoji}</span>
-                      <strong>{milestone.name}</strong>
-                      <small><ValueDisplay kind="currency" value={milestone.threshold} /></small>
-                      {!milestone.lit ? (
-                        <div className="portfolio-milestone-progress">
-                          <i style={{ width: `${Math.round(milestone.progress * 100)}%` }} />
-                        </div>
-                      ) : null}
-                    </article>
-                  </Tooltip>
-                ))}
-              </div>
-            </section>
-          ) : null}
-
-          <div className="page-toolbar">
+          <div className="page-toolbar dividend-view-toolbar">
             <Segmented<DividendsTab>
               options={[
                 { label: '总览', value: 'overview' },
@@ -366,23 +366,60 @@ export function DividendsPage(): React.JSX.Element {
               value={tab}
               onChange={setTab}
             />
+            <span className="dividend-update-time">
+              <ClockCircleOutlined aria-hidden="true" />
+              {syncing || refreshing
+                ? '正在更新…'
+                : summary.lastRefreshedAt
+                  ? `上次同步 ${dayjs(summary.lastRefreshedAt).format('MM-DD HH:mm')}`
+                  : '尚未同步'}
+            </span>
           </div>
 
+          {tab === 'overview' ? (
+            <>
+              <DividendGoalPanel
+                progressList={goalProgressList}
+                animationKey={animationKey}
+                allAccountsView={allAccountsView}
+                year={summary?.year ?? new Date().getFullYear()}
+                onEdit={() => setGoalModalOpen(true)}
+              />
+
+              <DividendMilestoneWall
+                key={animationKey}
+                milestones={summary.milestones}
+                received={summary.ytdReceived}
+                animationKey={animationKey}
+              />
+            </>
+          ) : null}
+
           {tab === 'overview' && dividends.length > 0 ? (
-            <Table<PortfolioDividendRecord>
-              className="watchlist-table"
-              columns={dividendColumns}
-              dataSource={dividends.slice(0, 8)}
-              pagination={false}
-              rowKey="id"
-              size="small"
-              scroll={{ x: 1080 }}
-            />
+            <section className="dividend-recent-records">
+              <div className="dividend-section-heading">
+                <h2>最近分红</h2>
+                <Button type="text" onClick={() => setTab('dividends')}>
+                  查看全部 <RightOutlined />
+                </Button>
+              </div>
+              <Table<PortfolioDividendRecord>
+                className="watchlist-table"
+                columns={dividendColumns}
+                dataSource={dividends.slice(0, 8)}
+                pagination={false}
+                rowKey="id"
+                size="small"
+                scroll={{ x: 1080 }}
+              />
+            </section>
           ) : null}
 
           {tab === 'overview' && dividends.length === 0 ? (
             <Empty description="今年还没有分红记录，可先同步分红或录入持仓">
-              <Button onClick={() => void refreshDividends()}>同步分红</Button>
+              <Button loading={syncing || refreshing} onClick={() => void refreshDividends()}>
+                同步分红
+              </Button>
             </Empty>
           ) : null}
 
@@ -402,7 +439,9 @@ export function DividendsPage(): React.JSX.Element {
                         icon={<LeftOutlined />}
                         onClick={() => changeCalendarMonth(value.clone().subtract(1, 'month'))}
                       />
-                      <strong>{value.year()}年{value.month() + 1}月</strong>
+                      <strong>
+                        {value.year()}年{value.month() + 1}月
+                      </strong>
                       <Button
                         type="text"
                         size="small"
@@ -427,8 +466,7 @@ export function DividendsPage(): React.JSX.Element {
                     <ul className="portfolio-calendar-cell portfolio-dividend-calendar-cell">
                       {items.slice(0, 2).map((item, index) => (
                         <li key={`${item.accountId ?? 'all'}-${item.symbol}-${item.status}-${index}`}>
-                          {item.name}{' '}
-                          <ValueDisplay kind="currency" value={item.cashAmount} />
+                          {item.name} <ValueDisplay kind="currency" value={item.cashAmount} />
                         </li>
                       ))}
                       {items.length > 2 ? <li>+{items.length - 2} 条</li> : null}
@@ -442,7 +480,9 @@ export function DividendsPage(): React.JSX.Element {
           {tab === 'dividends' ? (
             dividends.length === 0 ? (
               <Empty description="今年还没有分红记录，可先同步分红或录入持仓">
-                <Button onClick={() => void refreshDividends()}>同步分红</Button>
+                <Button loading={syncing || refreshing} onClick={() => void refreshDividends()}>
+                  同步分红
+                </Button>
               </Empty>
             ) : (
               <Table<PortfolioDividendRecord>
@@ -462,7 +502,7 @@ export function DividendsPage(): React.JSX.Element {
       <DividendGoalModal
         open={goalModalOpen}
         accountId={accountId}
-        settings={goalSettings}
+        settings={goalSettings ?? null}
         onClose={() => setGoalModalOpen(false)}
         onSaved={() => {
           void refetchGoal();

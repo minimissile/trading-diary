@@ -4,7 +4,7 @@
  * 必须使用 ditto 复制 .app（Node cpSync 会破坏 Framework 符号链接导致 icudtl.dat 找不到）。
  */
 import { execFileSync, execSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { devLog, devWarn } from './dev-quiet.mjs';
@@ -56,8 +56,7 @@ const currentVersion = readElectronVersion();
 const previousVersion = existsSync(versionMarker) ? readFileSync(versionMarker, 'utf8').trim() : '';
 const electronExec = path.join(targetApp, 'Contents/MacOS', EXECUTABLE_NAME);
 
-const needsRefresh =
-  !existsSync(targetApp) || previousVersion !== currentVersion || !existsSync(electronExec);
+const needsRefresh = !existsSync(targetApp) || previousVersion !== currentVersion || !existsSync(electronExec);
 
 mkdirSync(devDist, { recursive: true });
 
@@ -68,6 +67,12 @@ if (needsRefresh) {
 }
 
 patchInfoPlist(plistPath);
+
+// 每次启动同步，确保替换项目图标后，缓存的开发应用也使用最新图标。
+const appIcon = path.join(root, 'resources/icon.icns');
+if (existsSync(appIcon)) {
+  copyFileSync(appIcon, path.join(targetApp, 'Contents/Resources/electron.icns'));
+}
 
 devLog(`[dev-electron] 开发态程序坞名称：${APP_NAME}`);
 devLog(`[dev-electron] 可执行文件：${electronExec}`);

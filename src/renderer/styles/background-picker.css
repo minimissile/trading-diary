@@ -1,0 +1,223 @@
+[data-background='aurora'] {
+  --workspace-background:
+    radial-gradient(ellipse 65% 32% at 12% 22%, #4369b0 0%, transparent 72%),
+    radial-gradient(ellipse 48% 65% at 92% 86%, #663e75 0%, transparent 70%),
+    linear-gradient(135deg, #080f29 18%, #253b6b 45%, #0a1731 70%, #281c3f);
+}
+[data-background='ocean'] {
+  --workspace-background:
+    radial-gradient(ellipse 80% 40% at 85% 10%, #247e8a, transparent 70%),
+    radial-gradient(ellipse 45% 60% at 5% 90%, #24517e, transparent 75%), linear-gradient(145deg, #081e36, #153c59 48%, #061126);
+}
+[data-background='dusk'] {
+  --workspace-background:
+    radial-gradient(ellipse 70% 42% at 90% 18%, #a26b74, transparent 72%),
+    linear-gradient(155deg, transparent 45%, #3a3559 45.5%, #171e3d 72%), linear-gradient(25deg, #182743, #655574 62%, #302742);
+}
+[data-background='forest'] {
+  --workspace-background:
+    radial-gradient(ellipse 60% 45% at 28% 12%, #5c8588, transparent 70%),
+    linear-gradient(145deg, transparent 40%, #1b424a 40.5%, transparent 75%),
+    linear-gradient(30deg, #081e2b 25%, #305960 60%, #102635);
+}
+[data-background='slate'] {
+  --workspace-background:
+    linear-gradient(130deg, transparent 28%, #70809355 28.2%, transparent 54%),
+    linear-gradient(145deg, transparent 52%, #111f37 52.2%), linear-gradient(40deg, #101c32, #43556d 65%, #162338);
+}
+[data-background='plain'] {
+  --workspace-background: linear-gradient(145deg, #0b1630, #071126);
+}
+body[data-background] {
+  background: var(--workspace-background);
+  background-attachment: fixed;
+}
+body[data-background]::before,
+body[data-background]::after {
+  display: none;
+}
+body[data-background] .trading-app {
+  /* A continuous frosted sheet also softens the image between cards. */
+  background: linear-gradient(
+    145deg,
+    rgb(194 215 245 / calc(0.05 * var(--workspace-frost, 0.6875))),
+    rgb(9 20 49 / calc(0.12 * var(--workspace-frost, 0.6875)))
+  );
+  backdrop-filter: var(--workspace-backdrop, blur(11px) saturate(110%));
+}
+body[data-background] .app-stage {
+  background: linear-gradient(
+    155deg,
+    rgb(10 23 57 / calc(0.04 * var(--workspace-frost, 0.6875))),
+    rgb(7 18 47 / calc(0.12 * var(--workspace-frost, 0.6875)))
+  );
+}
+body[data-background] .app-sidebar {
+  background: var(--workspace-panel-glass);
+}
+.background-trigger {
+  flex-shrink: 0;
+}
+.background-picker {
+  width: min(360px, calc(100vw - 64px));
+  padding: 6px;
+}
+.background-picker-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 18px;
+}
+.background-picker-heading > span {
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--yingji-text);
+}
+.background-picker small {
+  color: var(--yingji-muted);
+  font-size: 12px;
+}
+.background-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.background-option {
+  min-width: 0;
+  padding: 5px 5px 9px;
+  text-align: left;
+  color: var(--yingji-text);
+  border: 1px solid var(--yingji-border);
+  border-radius: 12px;
+  background: rgb(10 23 50 / 40%);
+  cursor: pointer;
+}
+.background-option:hover {
+  border-color: var(--yingji-border-strong);
+  background: rgb(45 64 107 / 45%);
+}
+.background-option[aria-pressed='true'] {
+  border-color: var(--yingji-primary);
+  box-shadow: 0 0 0 1px var(--yingji-primary);
+}
+.background-option:focus-visible {
+  outline: 2px solid var(--yingji-text);
+  outline-offset: 3px;
+}
+.background-option strong,
+.background-option small {
+  display: block;
+  margin: 6px 5px 0;
+}
+.background-option strong {
+  font-size: 13px;
+  font-weight: 550;
+}
+.background-option small {
+  margin-top: 2px;
+  font-size: 11px;
+}
+.background-swatch {
+  position: relative;
+  display: block;
+  height: 70px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--workspace-background);
+}
+.background-swatch-glass {
+  position: absolute;
+  inset: 17px 22px -8px;
+  border: 1px solid rgb(220 231 255 / 24%);
+  border-radius: 8px;
+  background: rgb(12 25 51 / 30%);
+  backdrop-filter: blur(5px);
+  box-shadow: 0 6px 16px #050b2333;
+}
+.background-selected {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--yingji-primary);
+  color: white;
+  font-size: 11px;
+}
+.background-transparency {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  font-size: 13px;
+}
+.background-transparency > span {
+  color: var(--yingji-muted);
+  font-variant-numeric: tabular-nums;
+}
+.background-picker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--yingji-border);
+  padding-top: 10px;
+  margin-top: 14px;
+}
+
+[data-background='moonlake'] {
+  --workspace-background: url('/backgrounds/moonlake.webp');
+}
+[data-background='silk'] {
+  --workspace-background: url('/backgrounds/silk.webp');
+}
+[data-background='shore'] {
+  --workspace-background: url('/backgrounds/shore.webp');
+}
+[data-background='custom'] {
+  --workspace-background: var(--workspace-custom-image);
+}
+body[data-background],
+.background-swatch {
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+.background-picker {
+  max-height: calc(100vh - 150px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.background-picker .ant-segmented {
+  margin-bottom: 14px;
+}
+.background-upload {
+  margin-top: 14px;
+}
+.background-upload-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+.background-option:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+/* Cards add a second, denser glass layer over the globally softened canvas. */
+body[data-background] {
+  --workspace-panel-glass:
+    linear-gradient(135deg, rgb(220 233 255 / 9%), rgb(91 124 180 / 3%) 45%, rgb(7 18 40 / 12%)),
+    rgb(13 26 53 / calc(0.18 + var(--workspace-opacity, 0.45) * 0.6));
+  --yingji-panel-shadow: inset 0 1px 0 rgb(231 240 255 / 14%), inset 0 -1px 0 rgb(4 12 28 / 16%), 0 12px 32px rgb(0 5 20 / 22%);
+}
+body[data-background] .command-topbar,
+body[data-background] .page-toolbar {
+  background: var(--workspace-panel-glass);
+}
+body[data-background] .ant-table-wrapper {
+  background: rgb(13 25 56 / 18%);
+}

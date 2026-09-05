@@ -1,0 +1,936 @@
+/* Dividend-page reference treatment. Tokens stay local until other pages adopt it. */
+.trading-app:has(.dividends-page),
+.workspace-page.dividends-page,
+.dividend-overlay {
+  --dividend-canvas: #0e181f;
+  --dividend-panel: #16242d;
+  --dividend-inset: #111d25;
+  --dividend-text: #f3f8f9;
+  --dividend-secondary: #bdcdd1;
+  --dividend-muted: #9db0b7;
+  --dividend-line: #344953;
+  --dividend-accent: #78d3d8;
+  --dividend-primary: #116976;
+  --dividend-primary-hover: #147c89;
+  --dividend-secondary-accent: #e3bb73;
+  --dividend-line-strong: #58727d;
+  --dividend-shadow: inset 0 1px 0 rgb(255 255 255 / 3%), 0 2px 3px rgb(0 0 0 / 18%), 0 8px 18px rgb(0 0 0 / 14%);
+  --dividend-success: #83dfba;
+  --workspace-panel-glass: var(--dividend-panel);
+  --yingji-panel-shadow: var(--dividend-shadow);
+  --yingji-text: var(--dividend-text);
+  --yingji-muted: var(--dividend-secondary);
+  --yingji-subtle: var(--dividend-muted);
+  --td-color-ink: var(--dividend-text);
+  --td-color-ink-secondary: var(--dividend-secondary);
+  --td-color-ink-tertiary: var(--dividend-muted);
+  --td-color-line: var(--dividend-line);
+  --td-color-line-strong: var(--dividend-line-strong);
+  --yingji-primary: var(--dividend-primary);
+  --yingji-violet: var(--dividend-secondary-accent);
+  --td-color-accent: var(--dividend-accent);
+}
+
+.workspace-page.dividends-page {
+  min-height: 100%;
+  padding: 24px 32px 36px;
+  color: var(--dividend-text);
+  background: var(--dividend-canvas);
+}
+
+.dividends-page .page-header {
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.dividends-page .page-header h1 {
+  font-size: 30px;
+  line-height: 42px;
+  letter-spacing: 0;
+}
+
+.dividends-page .page-intro {
+  margin-top: 4px;
+  color: var(--dividend-secondary);
+  font-size: 13px;
+  line-height: 22px;
+}
+
+.dividends-page .ant-btn {
+  height: 36px;
+  padding-inline: 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 550;
+  box-shadow: none;
+}
+
+.dividends-page .ant-btn-default {
+  border-color: var(--dividend-line-strong);
+  color: var(--dividend-text);
+  background: var(--dividend-inset);
+}
+
+.dividends-page .ant-btn-primary {
+  border-color: #2c8c96;
+  background: var(--dividend-primary);
+}
+
+.dividends-page .ant-btn-primary:not(:disabled):hover {
+  border-color: #6ccbd2;
+  background: var(--dividend-primary-hover);
+}
+
+.dividends-page .ant-btn-text {
+  color: var(--dividend-secondary);
+}
+
+.dividends-page .ant-btn:not(:disabled):focus-visible,
+.dividend-source-note summary:focus-visible,
+.dividend-milestone:focus-visible {
+  outline: 2px solid var(--dividend-accent);
+  outline-offset: 3px;
+}
+
+.dividend-source-note {
+  margin-bottom: 14px;
+  color: var(--dividend-secondary);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.dividend-source-note summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.dividend-source-note summary::-webkit-details-marker {
+  display: none;
+}
+
+.dividend-source-note summary > .anticon {
+  color: var(--dividend-accent);
+  font-size: 14px;
+}
+
+.dividend-source-note .dividend-source-toggle {
+  flex-shrink: 0;
+  margin-left: 8px;
+  color: var(--dividend-accent);
+  text-underline-offset: 3px;
+}
+
+.dividend-source-note summary:hover .dividend-source-toggle,
+.dividend-source-note[open] .dividend-source-toggle {
+  text-decoration: underline;
+}
+
+.dividend-source-note p {
+  max-width: 1000px;
+  margin: 8px 0 0 22px;
+  padding: 12px 16px;
+  border-left: 2px solid #3b4d6c;
+  color: var(--dividend-secondary);
+  background: var(--dividend-panel);
+  line-height: 22px;
+}
+
+.dividends-page .portfolio-metrics,
+.dividends-page .portfolio-dividend-goal,
+.dividends-page .dividend-milestones,
+.dividends-page .dividend-recent-records,
+.dividends-page .portfolio-calendar-wrap {
+  margin-bottom: 14px;
+  border: 1px solid var(--dividend-line);
+  border-radius: 16px;
+  background: var(--dividend-panel);
+  box-shadow: var(--dividend-shadow);
+  backdrop-filter: none;
+}
+
+.dividends-page .portfolio-metrics:has(> :nth-child(n)) {
+  grid-template-columns: 1.5fr repeat(3, minmax(0, 1fr));
+}
+
+.dividends-page .portfolio-metric-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  min-height: 128px;
+  padding: 20px 24px;
+  border: 0;
+  border-right: 1px solid var(--dividend-line);
+  background: transparent;
+  grid-column: auto;
+}
+
+.dividends-page .portfolio-metric-card:last-child {
+  border-right: 0;
+}
+
+.dividends-page .portfolio-metric-card--primary {
+  background: linear-gradient(110deg, #193b43, #1a2b35);
+}
+
+.dividends-page .portfolio-metric-card > small {
+  color: var(--dividend-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.dividends-page .portfolio-metric-card > strong {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 650;
+  line-height: 36px;
+  letter-spacing: -0.025em;
+}
+
+.dividends-page .portfolio-metric-card--primary > strong {
+  font-size: 40px;
+  line-height: 44px;
+}
+
+.dividends-page .portfolio-metric-card > span {
+  color: var(--dividend-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.workspace-page.dividends-page .dividend-view-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 2px 0 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.dividends-page .ant-segmented {
+  padding: 4px;
+  border: 1px solid var(--dividend-line);
+  border-radius: 8px;
+  color: var(--dividend-secondary);
+  background: #111d25;
+}
+
+.dividends-page .ant-segmented-item-label {
+  min-height: 32px;
+  padding-inline: 18px;
+  line-height: 32px;
+}
+
+.dividends-page .ant-segmented-item-selected {
+  color: var(--dividend-text);
+  background: var(--dividend-primary);
+  box-shadow: none;
+}
+
+.dividend-update-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--dividend-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dividends-page .portfolio-dividend-goal,
+.dividend-milestones,
+.dividend-recent-records {
+  padding: 18px 20px;
+}
+
+.dividend-section-heading,
+.dividends-page .portfolio-dividend-goal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.dividend-section-heading h2,
+.dividends-page .portfolio-dividend-goal-head h2 {
+  margin: 0;
+  color: var(--dividend-text);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 26px;
+}
+
+.dividend-section-heading p,
+.dividends-page .portfolio-dividend-goal-head p {
+  margin: 4px 0 0;
+  color: var(--dividend-muted);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.dividends-page .portfolio-dividend-goal-items {
+  gap: 24px;
+}
+
+.dividends-page .portfolio-dividend-goal-item {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.dividends-page .portfolio-dividend-goal-item + .portfolio-dividend-goal-item {
+  padding-left: 24px;
+  border-left: 1px solid var(--dividend-line);
+}
+
+.dividends-page .portfolio-dividend-goal-item-head {
+  margin-bottom: 12px;
+}
+
+.dividends-page .portfolio-dividend-goal-item-head > strong {
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.dividend-goal-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dividend-goal-status > strong {
+  color: var(--dividend-accent);
+  font-size: 20px;
+  font-weight: 650;
+  line-height: 28px;
+}
+
+.dividends-page .portfolio-dividend-goal-values {
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  color: var(--dividend-secondary);
+  font-size: 12px;
+}
+
+.dividends-page .portfolio-dividend-goal-values .td-value {
+  color: var(--dividend-text);
+}
+
+.dividends-page .portfolio-dividend-goal-bar {
+  height: 6px;
+  margin-top: 12px;
+  background: #31434c;
+}
+
+.dividends-page .portfolio-dividend-goal-bar i {
+  background: var(--dividend-accent);
+}
+
+.dividends-page .portfolio-dividend-goal-item--reached .portfolio-dividend-goal-bar i {
+  background: var(--dividend-success);
+}
+
+.dividends-page .portfolio-dividend-goal-item--reached .dividend-goal-status > strong {
+  color: var(--dividend-success);
+}
+
+.dividends-page .portfolio-dividend-goal-caption {
+  margin-top: 8px;
+  color: var(--dividend-muted);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.dividend-milestone-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: var(--dividend-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dividend-milestone-count .anticon,
+.dividend-milestone-count b {
+  color: var(--dividend-success);
+}
+
+.dividend-next-milestone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  border: 1px solid #635137;
+  border-radius: 6px;
+  color: var(--dividend-secondary);
+  background: #30291e;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.dividend-next-milestone > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dividend-next-milestone strong,
+.dividend-next-milestone .td-value {
+  color: var(--dividend-text);
+  font-weight: 600;
+}
+
+.dividend-next-milestone .anticon {
+  color: var(--dividend-accent);
+}
+
+.dividend-next-milestone--complete {
+  justify-content: flex-start;
+}
+
+.dividend-milestone-grid {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dividend-milestone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 100px;
+  padding: 10px 8px;
+  border: 1px dashed #3a4c55;
+  border-radius: 8px;
+  background: var(--dividend-inset);
+}
+
+.dividend-milestone-emoji {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  font-size: 26px;
+  line-height: 1;
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+
+.dividend-milestone.is-lit .dividend-milestone-emoji {
+  filter: none;
+  opacity: 1;
+}
+
+.dividend-milestone > strong {
+  color: var(--dividend-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.dividend-milestone > small {
+  color: var(--dividend-muted);
+  font-size: 12px;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dividend-milestone.is-lit {
+  border-style: solid;
+  border-color: #2c8b68;
+  background: #14372d;
+  box-shadow: inset 0 1px 0 rgb(115 228 179 / 7%);
+}
+
+.dividend-milestone.is-lit > strong {
+  color: #d6efe6;
+}
+
+.dividend-milestone.is-next {
+  border-style: solid;
+  border-color: #af874a;
+  background: #29271f;
+}
+
+.dividend-milestone.is-next > strong {
+  color: #f0cf96;
+}
+
+.dividend-milestone-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: var(--dividend-success);
+  font-size: 10px;
+}
+
+.dividend-milestone-next-label {
+  position: absolute;
+  top: -7px;
+  right: 8px;
+  padding: 0 5px;
+  border-radius: 4px;
+  color: #211b10;
+  background: var(--dividend-secondary-accent);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dividend-recent-records .dividend-section-heading {
+  margin-bottom: 12px;
+}
+
+.dividends-page .watchlist-table .ant-table,
+.dividends-page .watchlist-table .ant-table-cell,
+.dividends-page .watchlist-table .ant-table-thead > tr > th {
+  border-color: var(--dividend-line);
+  color: var(--dividend-secondary);
+  background: var(--dividend-panel);
+  box-shadow: none;
+}
+
+.dividends-page .watchlist-table .ant-table-thead > tr > th {
+  padding-block: 10px;
+  color: var(--dividend-muted);
+  background: var(--dividend-inset);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.dividends-page .watchlist-table .ant-table-tbody > tr > td {
+  padding-block: 10px;
+  font-size: 13px;
+}
+
+.dividends-page .watchlist-table .ant-table-tbody > tr:hover > td {
+  background: #203640;
+}
+
+.dividends-page .portfolio-dividend-symbol-cell strong,
+.dividends-page .portfolio-dividend-amount-cell > .td-value {
+  color: var(--dividend-text);
+  font-weight: 550;
+}
+
+.dividends-page .portfolio-dividend-symbol-cell small,
+.dividends-page .portfolio-dividend-amount-cell small {
+  display: inline-block;
+  margin-top: 2px;
+  color: var(--dividend-muted);
+  font-size: 12px;
+}
+
+.dividends-page .ant-tag {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dividends-page .ant-tag.dividend-tag--confirmed,
+.dividends-page .ant-tag-success {
+  border-color: #489674;
+  color: #9aefc5;
+  background: #153f30;
+}
+
+.dividends-page .ant-tag.dividend-tag--pending {
+  border-color: #9b7939;
+  color: #ffda92;
+  background: #40321a;
+}
+
+.dividends-page .ant-tag.dividend-tag--reinvest {
+  border-color: #398c98;
+  color: #95eaf0;
+  background: #153942;
+}
+
+.dividends-page .ant-tag.dividend-tag--cash {
+  border-color: #7f7157;
+  color: #f0d7ac;
+  background: #332d22;
+}
+
+.dividends-page .ant-tag.dividend-tag--rejected {
+  border-color: #9a6868;
+  color: #f0b0ac;
+  background: #3a272b;
+}
+
+.dividends-page .ant-empty-description {
+  color: var(--dividend-secondary);
+}
+
+@media (max-width: 1400px) {
+  .workspace-page.dividends-page {
+    padding-inline: 24px;
+  }
+  .dividends-page .portfolio-metric-card {
+    padding-inline: 20px;
+  }
+  .dividend-milestone-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 920px) {
+  .dividends-page .portfolio-metrics:has(> :nth-child(n)) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dividends-page .portfolio-metric-card:nth-child(2) {
+    border-right: 0;
+  }
+  .dividends-page .portfolio-metric-card:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--dividend-line);
+  }
+  .dividends-page .portfolio-dividend-goal-items[data-goal-count='2'] {
+    grid-template-columns: 1fr;
+  }
+  .dividends-page .portfolio-dividend-goal-item + .portfolio-dividend-goal-item {
+    padding: 16px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--dividend-line);
+  }
+}
+
+@media (max-width: 640px) {
+  .workspace-page.dividends-page {
+    padding: 20px 16px;
+  }
+  .dividends-page .dividend-view-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .dividend-section-heading,
+  .dividend-next-milestone {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .dividend-milestone-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .dividends-page .portfolio-dividend-goal,
+  .dividend-milestones,
+  .dividend-recent-records {
+    padding: 18px 16px;
+  }
+  .dividends-page .portfolio-metric-card {
+    padding: 18px 16px;
+  }
+  .dividends-page .portfolio-metric-card--primary > strong {
+    font-size: 32px;
+  }
+  .dividends-page .ant-segmented-item-label {
+    padding-inline: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dividends-page .portfolio-dividend-goal-bar i {
+    transition: none;
+  }
+}
+
+/* Crisp page controls and their portalled popovers. */
+.dividends-page .ant-segmented-item,
+.dividends-page .ant-segmented-thumb {
+  border-radius: 5px;
+}
+
+.dividends-page .ant-segmented-item-selected {
+  color: #fff;
+  outline: 1px solid #50a6af;
+  outline-offset: -1px;
+  font-weight: 650;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 18%);
+}
+
+.dividends-page .ant-segmented-thumb {
+  background: var(--dividend-primary);
+}
+
+.dividends-page .account-select.ant-select,
+.dividends-page .account-select .ant-select-selector {
+  border-color: var(--dividend-line-strong) !important;
+  border-radius: 6px !important;
+  color: var(--dividend-text);
+  background: var(--dividend-inset);
+}
+
+.dividends-page .account-select.ant-select:hover,
+.dividends-page .account-select.ant-select-focused,
+.dividends-page .account-select:hover .ant-select-selector {
+  border-color: var(--dividend-accent) !important;
+}
+
+.dividends-page .account-select-icon,
+.dividend-account-popup .account-select-icon {
+  border: 0;
+  border-radius: 0;
+  color: var(--dividend-accent);
+  background: transparent;
+  box-shadow: none;
+}
+
+.dividend-overlay.ant-select-dropdown,
+.dividend-overlay .ant-dropdown-menu {
+  padding: 6px;
+  border: 1px solid var(--dividend-line-strong);
+  border-radius: 8px;
+  color: var(--dividend-text);
+  background: var(--dividend-panel);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 24%);
+}
+
+.dividend-overlay .ant-select-item,
+.dividend-overlay .ant-dropdown-menu-item {
+  border-radius: 4px;
+  color: var(--dividend-secondary);
+}
+
+.dividend-overlay .ant-select-item-option-selected:not(.ant-select-item-option-disabled),
+.dividend-overlay .ant-select-item-option-active:not(.ant-select-item-option-disabled),
+.dividend-overlay .ant-dropdown-menu-item:hover {
+  color: var(--dividend-text);
+  background: #21434a;
+}
+
+.dividends-page .watchlist-table .dividend-row-action.ant-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 32px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--dividend-line-strong);
+  border-radius: 4px;
+  color: #d5e4e7;
+  background: #1b2e38;
+}
+
+.dividends-page .watchlist-table .dividend-row-action.ant-btn:hover {
+  border-color: var(--dividend-accent);
+  color: #a2f0f2;
+  background: #22464d;
+}
+
+.dividends-page .ant-table-wrapper,
+.dividends-page .ant-table-container,
+.dividends-page .ant-table,
+.dividends-page .ant-table-content,
+.dividends-page .ant-table-thead > tr:first-child > th,
+.dividends-page .ant-table-tbody > tr:last-child > td {
+  border-radius: 0 !important;
+}
+
+.dividends-page .ant-input,
+.dividends-page .ant-input-affix-wrapper,
+.dividends-page .ant-input-number,
+.dividend-overlay .ant-input,
+.dividend-overlay .ant-input-affix-wrapper,
+.dividend-overlay .ant-input-number {
+  border-color: var(--dividend-line-strong);
+  border-radius: 0;
+  color: var(--dividend-text);
+  background: var(--dividend-inset);
+}
+
+.dividend-overlay .ant-input-number-focused,
+.dividend-overlay .ant-input-number:hover {
+  border-color: var(--dividend-accent) !important;
+  box-shadow: 0 0 0 2px rgb(69 184 194 / 12%) !important;
+}
+
+.dividend-overlay .ant-modal-content {
+  border: 1px solid var(--dividend-line-strong);
+  border-radius: 12px;
+  color: var(--dividend-text);
+  background: var(--dividend-panel);
+  box-shadow:
+    0 4px 6px rgb(0 0 0 / 18%),
+    0 16px 32px rgb(0 0 0 / 22%);
+}
+
+.dividend-overlay .ant-modal-header,
+.dividend-overlay .ant-modal-footer {
+  background: transparent;
+}
+
+.dividend-overlay .ant-modal-title,
+.dividend-overlay .ant-form-item-label > label {
+  color: var(--dividend-text);
+}
+
+.dividend-overlay .ant-btn {
+  height: 36px;
+  border-color: var(--dividend-line-strong);
+  border-radius: 6px;
+  color: var(--dividend-text);
+  background: var(--dividend-inset);
+}
+
+.dividend-overlay .ant-btn-primary {
+  border-color: #2c8c96;
+  color: #fff;
+  background: var(--dividend-primary);
+}
+
+.dividend-overlay .ant-btn-primary:not(:disabled):hover {
+  border-color: var(--dividend-accent);
+  color: #fff;
+  background: var(--dividend-primary-hover);
+}
+
+.dividend-overlay .ant-btn-dangerous {
+  color: #ffa69e;
+}
+
+.dividend-tooltip .ant-tooltip-inner {
+  border: 1px solid #526872;
+  border-radius: 6px;
+  background: #182830;
+}
+
+.dividend-next-milestone .anticon,
+.dividend-next-milestone .td-value {
+  color: var(--dividend-secondary-accent);
+}
+
+.dividend-milestone-progress {
+  width: 100%;
+  height: 4px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #2d3b42;
+}
+
+.dividend-milestone-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #85989d;
+}
+
+.dividend-milestone.is-next .dividend-milestone-progress i {
+  background: var(--dividend-secondary-accent);
+}
+
+.dividends-page .dividend-progress-fill {
+  transform-origin: left center;
+  animation: dividend-progress-enter 800ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: width 800ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes dividend-progress-enter {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dividends-page .dividend-progress-fill {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Keep the sample page's navigation and top bar in the same color family. */
+.trading-app:has(.dividends-page) .app-sidebar {
+  border-color: var(--dividend-line);
+  background: linear-gradient(180deg, rgb(27 46 57 / 94%), rgb(14 28 37 / 94%));
+}
+
+.trading-app:has(.dividends-page) .primary-nav button,
+.trading-app:has(.dividends-page) .sidebar-footer-link {
+  border-radius: 8px;
+}
+
+.trading-app:has(.dividends-page) .primary-nav button.active {
+  border-color: #498f99;
+  background: #175462;
+  box-shadow:
+    inset 0 1px 0 rgb(164 238 240 / 8%),
+    0 2px 4px rgb(0 0 0 / 14%);
+}
+
+.trading-app:has(.dividends-page) .primary-nav button:hover {
+  transform: none;
+}
+
+.trading-app:has(.dividends-page) .app-stage {
+  grid-template-rows: 72px minmax(0, 1fr);
+}
+
+.trading-app:has(.dividends-page) .command-topbar {
+  height: 72px;
+  border-color: var(--dividend-line);
+  background: rgb(19 34 44 / 94%);
+}
+
+.trading-app:has(.dividends-page) .command-search,
+.trading-app:has(.dividends-page) .topbar-chip,
+.trading-app:has(.dividends-page) .sidebar-collapse--content,
+.trading-app:has(.dividends-page) .topbar-actions .ant-btn {
+  border-radius: 6px;
+}
+
+.trading-app:has(.dividends-page) .command-search,
+.trading-app:has(.dividends-page) .topbar-chip {
+  height: 36px;
+  border-color: #46616d;
+  background: #142631;
+}
+
+.trading-app:has(.dividends-page) .topbar-actions .ant-btn {
+  height: 36px;
+}
+
+.trading-app:has(.dividends-page) .new-plan-button.ant-btn {
+  border-color: #3c919c;
+  background: var(--dividend-primary);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 16%);
+}
+
+.trading-app:has(.dividends-page) .record-trade-button.ant-btn {
+  border-color: #77613e !important;
+  color: #f0d8ad !important;
+  background: #302a20 !important;
+  box-shadow: none;
+}
+
+.trading-app:has(.dividends-page) .topbar-icon-button.ant-btn {
+  width: 36px;
+  border-radius: 6px !important;
+  background: transparent !important;
+}
+
+.trading-app:has(.dividends-page) .topbar-icon-button.ant-btn:hover {
+  border-color: var(--dividend-line-strong);
+  background: #21434a !important;
+}
