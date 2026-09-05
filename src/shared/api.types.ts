@@ -437,6 +437,9 @@ export interface DesktopApi {
     snapshot: () => Promise<WorkspaceSnapshot>;
     onChanged: (listener: () => void) => () => void;
   };
+  notifications: {
+    onReminder: (listener: (event: ReminderNotificationEvent) => void) => () => void;
+  };
   plans: {
     list: () => Promise<TradingPlan[]>;
     create: (input: CreateTradingPlanInput) => Promise<TradingPlan>;
@@ -513,7 +516,10 @@ export interface DesktopApi {
       beforeTimestamp?: number,
     ) => Promise<KLineListResult>;
   };
-  watchlist: {
+  longhubang: import('./longhubang/types').LonghubangApi;
+  stockStrategy: import('./strategy/types').StockStrategyApi;
+  quantResearch: import('./quant-research/types').QuantResearchApi;
+  watchlist: import('./watchlist/personal').PersonalWatchlistApi & {
     listPools: () => Promise<WatchlistPoolMeta[]>;
     getPoolSnapshot: (poolId: WatchlistPoolId) => Promise<WatchlistPoolSnapshot>;
   };
@@ -660,4 +666,11 @@ export interface DesktopApi {
     listEvents: (limit?: number) => Promise<LofArbitrageAlertEvent[]>;
     setEventAction: (id: string, action: 'acknowledged' | 'dismissed') => Promise<LofArbitrageAlertEvent>;
   };
+}
+
+export type ReminderNotificationKind = 'trade-alert' | 'sip-due' | 'lof-arbitrage';
+
+export interface ReminderNotificationEvent {
+  kind: ReminderNotificationKind;
+  count: number;
 }

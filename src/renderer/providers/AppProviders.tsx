@@ -5,6 +5,7 @@ import zhCN from 'antd/locale/zh_CN';
 import { queryClient } from '../lib/query-client';
 import { QueryWorkspaceSync } from '../lib/queries';
 import { appTheme } from '../theme';
+import { ReminderSoundListener } from '../components/ReminderSoundListener';
 
 const waveConfig = {
   disabled: true,
@@ -18,6 +19,7 @@ export function AppProviders({ children }: PropsWithChildren): React.JSX.Element
   return (
     <QueryClientProvider client={queryClient}>
       <QueryWorkspaceSync />
+      <ReminderSoundListener />
       <ConfigProvider
         csp={cspConfig}
         iconPrefixCls="anticon"

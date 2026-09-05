@@ -9,6 +9,8 @@ interface AccountSelectProps {
   value?: string;
   onChange?: (accountId: string) => void;
   includeArchived?: boolean;
+  /** 限定可选账户；空数组表示无可选账户。 */
+  accountIds?: readonly string[];
   /** 是否在列表顶部加入「全部账户汇总」选项。 */
   includeAllOption?: boolean;
   disabled?: boolean;
@@ -23,6 +25,7 @@ export function AccountSelect({
   value,
   onChange,
   includeArchived = false,
+  accountIds,
   includeAllOption = false,
   disabled,
   className,
@@ -57,7 +60,7 @@ export function AccountSelect({
       }}
       options={[
         ...(includeAllOption ? [{ value: ALL_ACCOUNTS_ID, label: '全部账户汇总' }] : []),
-        ...accounts.map((account) => ({
+        ...accounts.filter((account) => !accountIds || accountIds.includes(account.id)).map((account) => ({
           value: account.id,
           label: formatAccountSelectLabel(account),
           disabled: account.isArchived,

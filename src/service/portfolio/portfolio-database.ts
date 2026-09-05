@@ -275,6 +275,10 @@ export class PortfolioDatabase {
     const fees = input.fees ?? existing.fees;
     const tradeAt = input.tradeAt ?? existing.tradeAt;
     const note = input.note !== undefined ? input.note.trim() : existing.note;
+    const tradeChanged = side !== existing.side || quantity !== existing.quantity || price !== existing.price
+      || fees !== existing.fees || Date.parse(tradeAt) !== Date.parse(existing.tradeAt);
+    const chartSnapshot = input.chartSnapshot === undefined
+      ? (tradeChanged ? null : existing.chartSnapshot ?? null) : input.chartSnapshot;
 
     if (quantity <= 0) throw new Error('成交数量必须大于 0');
     if (price <= 0) throw new Error('成交价格必须大于 0');
@@ -296,7 +300,7 @@ export class PortfolioDatabase {
           side = ?, quantity_micros = ?, price_micros = ?, fees_cents = ?, trade_at = ?, note = ?, chart_snapshot = ?
          WHERE id = ?`,
       )
-      .run(side, quantityMicros, toScaledInteger(price, PRICE_SCALE), toScaledInteger(fees, MONEY_SCALE), tradeAt, note, input.chartSnapshot === undefined ? (existing.chartSnapshot ?? null) : input.chartSnapshot, id);
+      .run(side, quantityMicros, toScaledInteger(price, PRICE_SCALE), toScaledInteger(fees, MONEY_SCALE), tradeAt, note, chartSnapshot, id);
 
     return this.getLedgerEntry(id);
   }

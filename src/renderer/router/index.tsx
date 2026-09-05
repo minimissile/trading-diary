@@ -1,4 +1,6 @@
 import { HashRouter, Navigate, Route, Routes } from 'react-router';
+import { lazy, Suspense } from 'react';
+import { Skeleton } from 'antd';
 import { AppShell } from '../components/trading/AppShell';
 import { AlertsPage } from '../pages/AlertsPage';
 import { AnalysisPage } from '../pages/AnalysisPage';
@@ -12,6 +14,8 @@ import { PositionHistoryPage } from '../pages/PositionHistoryPage';
 import { PnlCalendarPage } from '../pages/PnlCalendarPage';
 import { AccountsPage } from '../pages/AccountsPage';
 import { WatchlistPage } from '../pages/WatchlistPage';
+import { StockStrategyPage } from '../pages/StockStrategyPage';
+import { DragonTigerPage } from '../pages/DragonTigerPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { PlansPage } from '../pages/PlansPage';
 import { SipPage } from '../pages/SipPage';
@@ -23,6 +27,8 @@ import { SymbolChartPage } from '../pages/SymbolChartPage';
 import { UiComponentsPage } from '../pages/UiComponentsPage';
 import { routePaths } from './paths';
 
+const QuantResearchPage = lazy(() => import('../features/quant-research/QuantResearchPage'));
+
 export function AppRouter(): React.JSX.Element {
   return (
     <HashRouter>
@@ -32,6 +38,16 @@ export function AppRouter(): React.JSX.Element {
           <Route path={routePaths.home} element={<HomePage />} />
           <Route path={routePaths.plans} element={<PlansPage />} />
           <Route path={routePaths.watchlist} element={<WatchlistPage />} />
+          <Route path={routePaths.stockStrategy} element={<StockStrategyPage />} />
+          <Route
+            path={routePaths.quantResearch}
+            element={
+              <Suspense fallback={<Skeleton active />}>
+                <QuantResearchPage />
+              </Suspense>
+            }
+          />
+          <Route path={routePaths.dragonTiger} element={<DragonTigerPage />} />
           <Route path={routePaths.positions} element={<PositionsPage />} />
           <Route path={routePaths.positionHistory} element={<PositionHistoryPage />} />
           <Route path={routePaths.positionPnlCalendar} element={<PnlCalendarPage />} />

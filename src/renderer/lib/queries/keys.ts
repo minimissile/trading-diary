@@ -36,6 +36,9 @@ export const queryKeys = {
   },
   watchlist: {
     all: ['watchlist'] as const,
+    personal: () => [...queryKeys.watchlist.all, 'personal'] as const,
+    logs: (id: string) => [...queryKeys.watchlist.all, 'logs', id] as const,
+    quotes: (symbols: string[]) => [...queryKeys.watchlist.all, 'quotes', ...symbols] as const,
     pools: () => [...queryKeys.watchlist.all, 'pools'] as const,
     poolSnapshot: (poolId: string) => [...queryKeys.watchlist.all, 'pool', poolId] as const,
   },

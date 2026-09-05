@@ -70,6 +70,10 @@ import type {
   VerifyAccessLockResult,
 } from './security/access-lock.types';
 import type { WatchlistPoolId } from './watchlist/types';
+import type { PersonalWatchlistMethods } from './watchlist/personal';
+import type { LonghubangMethods } from './longhubang/types';
+import type { StockStrategyMethods } from './strategy/types';
+import type { QuantResearchMethods } from './quant-research/types';
 import type {
   CreatePortfolioLedgerInput,
   DividendCalendarDay,
@@ -126,7 +130,8 @@ import type {
 } from './sip/import-types';
 import type { BackupExportInput, BackupExportResult, BackupImportInput, BackupImportResult } from './backup/types';
 
-export interface ServiceContract {
+export interface ServiceContract
+  extends PersonalWatchlistMethods, LonghubangMethods, StockStrategyMethods, QuantResearchMethods {
   'system.health': {
     params: Record<string, never>;
     result: HealthResult;

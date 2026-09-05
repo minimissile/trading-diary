@@ -4,6 +4,14 @@ import type { AlertEvent } from '../../shared/alerts/event-types';
 import type { LofArbitrageAlertEvent } from '../../shared/lof-arbitrage/types';
 import type { FundSipOccurrenceView } from '../../shared/sip/types';
 
+type ReminderNotificationKind = 'trade-alert' | 'sip-due' | 'lof-arbitrage';
+
+function notifyRenderer(window: BrowserWindow, kind: ReminderNotificationKind, count: number): void {
+  if (window.isDestroyed()) return;
+  window.webContents.send(ipcChannels.reminderTriggered, { kind, count });
+  window.webContents.send(ipcChannels.workspaceChanged);
+}
+
 export function notifyTriggeredAlerts(window: BrowserWindow, events: readonly AlertEvent[]): void {
   if (events.length === 0) return;
 
@@ -12,6 +20,7 @@ export function notifyTriggeredAlerts(window: BrowserWindow, events: readonly Al
       const notification = new Notification({
         title: `${event.symbol} · 提醒已触发`,
         body: `${event.title}｜触发价 ${event.triggerPrice}，目标价 ${event.targetPrice}`,
+        silent: true,
       });
       notification.on('click', () => {
         if (window.isMinimized()) window.restore();
@@ -22,9 +31,7 @@ export function notifyTriggeredAlerts(window: BrowserWindow, events: readonly Al
     }
   }
 
-  if (!window.isDestroyed()) {
-    window.webContents.send(ipcChannels.workspaceChanged);
-  }
+  notifyRenderer(window, 'trade-alert', events.length);
 }
 
 export function notifyDueSipOccurrences(window: BrowserWindow, occurrences: readonly FundSipOccurrenceView[]): void {
@@ -35,6 +42,7 @@ export function notifyDueSipOccurrences(window: BrowserWindow, occurrences: read
       const notification = new Notification({
         title: `${occurrence.symbol} · 定投待确认`,
         body: `${occurrence.planName}｜计划扣款 ¥${occurrence.plannedAmount.toFixed(2)} · ${occurrence.scheduledDate}`,
+        silent: true,
       });
       notification.on('click', () => {
         if (window.isMinimized()) window.restore();
@@ -45,15 +53,10 @@ export function notifyDueSipOccurrences(window: BrowserWindow, occurrences: read
     }
   }
 
-  if (!window.isDestroyed()) {
-    window.webContents.send(ipcChannels.workspaceChanged);
-  }
+  notifyRenderer(window, 'sip-due', occurrences.length);
 }
 
-export function notifyLofArbitrageAlerts(
-  window: BrowserWindow,
-  events: readonly LofArbitrageAlertEvent[],
-): void {
+export function notifyLofArbitrageAlerts(window: BrowserWindow, events: readonly LofArbitrageAlertEvent[]): void {
   if (events.length === 0) return;
 
   if (Notification.isSupported()) {
@@ -62,6 +65,7 @@ export function notifyLofArbitrageAlerts(
       const notification = new Notification({
         title: `${event.symbol} · LOF 套利提醒`,
         body: `${event.title}｜溢价率 ${premiumText}${event.recommendedPathLabel ? ` · ${event.recommendedPathLabel}` : ''}`,
+        silent: true,
       });
       notification.on('click', () => {
         if (window.isMinimized()) window.restore();
@@ -72,7 +76,5 @@ export function notifyLofArbitrageAlerts(
     }
   }
 
-  if (!window.isDestroyed()) {
-    window.webContents.send(ipcChannels.workspaceChanged);
-  }
+  notifyRenderer(window, 'lof-arbitrage', events.length);
 }

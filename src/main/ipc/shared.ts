@@ -5,6 +5,7 @@ import { ipcChannels } from '../../shared/ipc-channels';
 /** 仅用于 webContents.send 的通道，不是 ipcMain.handle 目标。 */
 export const IPC_PUSH_CHANNELS = new Set<string>([
   ipcChannels.workspaceChanged,
+  ipcChannels.reminderTriggered,
   ipcChannels.updateState,
   ipcChannels.llmStreamEvent,
 ]);

@@ -7,6 +7,9 @@ import { registerTradeSnapshotHandlers } from './handlers/trade-snapshot.handler
 import { registerAccountsHandlers } from './handlers/accounts.handlers';
 import { registerLofArbitrageHandlers } from './handlers/lof-arbitrage.handlers';
 import { registerMarketHandlers } from './handlers/market.handlers';
+import { registerLonghubangHandlers } from './handlers/longhubang.handlers';
+import { registerStockStrategyHandlers } from './handlers/stock-strategy.handlers';
+import { registerQuantResearchHandlers } from './handlers/quant-research.handlers';
 import { registerPortfolioHandlers } from './handlers/portfolio.handlers';
 import { registerSettingsHandlers } from './handlers/settings.handlers';
 import { registerSipHandlers } from './handlers/sip.handlers';
@@ -24,6 +27,9 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
   registerWorkspaceHandlers(context);
   registerSettingsHandlers(context);
   registerMarketHandlers(context);
+  registerLonghubangHandlers(context);
+  registerStockStrategyHandlers(context);
+  registerQuantResearchHandlers(context);
   registerPortfolioHandlers(context);
   registerTradeSnapshotHandlers(context);
   registerAccountsHandlers(context);

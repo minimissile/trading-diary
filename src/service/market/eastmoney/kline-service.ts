@@ -1,3 +1,5 @@
+import { parseInstrumentPositionKey } from '../../../shared/market/instrument-id';
+import type { InstrumentInfo } from '../../../shared/market/types';
 import type { KLineAdjust, KLineBar, KLineListResult, KLinePeriod } from '../../../shared/market/types';
 import { MarketNotFoundError, MarketProviderError } from '../../../shared/market/errors';
 import { canUseKlineFallback, listKlinesFromFallback } from '../kline-fallback-service';
@@ -5,8 +7,8 @@ import { formatEastMoneyKLineEnd, sliceKLineBars } from '../kline-utils';
 import { eastMoneyFetchJson } from './client';
 import { EASTMONEY_KLINE_ORIGINS, EASTMONEY_QUOTE_REFERER, eastMoneyKlineUrl } from './endpoints';
 import { eastMoneyFetchText, parseEastMoneyJsonp } from './client';
-import { resolveInstrument } from './search-service';
-import { toSecid } from './symbols';
+import { resolveInstrument, resolveEastMoneyByVenue } from './search-service';
+import { toSecid, classifyExchangeCode } from './symbols';
 
 export { formatEastMoneyKLineEnd, sliceKLineBars } from '../kline-utils';
 
@@ -73,7 +75,22 @@ export async function listKlines(
   limit = DEFAULT_KLINE_LIMIT,
   beforeTimestamp?: number,
 ): Promise<KLineListResult> {
-  const instrument = await resolveInstrument(symbolInput);
+  // Explicit venue keys keep same-code exchange securities and OTC funds separate.
+  const ref = parseInstrumentPositionKey(symbolInput);
+  let instrument: InstrumentInfo;
+  if (!ref) {
+    instrument = await resolveInstrument(symbolInput);
+  } else if (ref.venue === 'HK' || ref.venue === 'US') {
+    instrument = await resolveEastMoneyByVenue(ref.venue, ref.symbol);
+  } else {
+    const exchange = ref.venue === 'OTC' ? null : ref.venue;
+    instrument = {
+      symbol: ref.symbol, name: ref.symbol, venue: ref.venue, quoteCurrency: 'CNY',
+      kind: exchange ? classifyExchangeCode(ref.symbol) : 'otc_fund', market: exchange,
+      secid: exchange ? `${exchange === 'SH' ? '1' : '0'}.${ref.symbol}` : null,
+      f10Code: exchange ? `${exchange}${ref.symbol}` : null, securityTypeName: null, source: 'eastmoney',
+    };
+  }
   const clampedLimit = Math.min(Math.max(limit, 1), 1023);
 
   if (instrument.kind === 'otc_fund') {

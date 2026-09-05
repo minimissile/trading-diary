@@ -437,6 +437,42 @@ body[data-background] .workspace-page:is(.import-page, .settings-page) {
 .settings-page .settings-panel h2 {
   font-size: 20px;
 }
+.notification-sound-settings {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+.notification-sound-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 72px;
+  padding: 14px 16px;
+  border: 1px solid var(--ui-line);
+  background: var(--ui-inset);
+}
+.notification-sound-row > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+.notification-sound-row strong {
+  color: var(--ui-text);
+  font-size: 14px;
+}
+.notification-sound-row span {
+  color: var(--ui-secondary-text);
+  font-size: 12px;
+}
+.notification-sound-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+.notification-sound-actions .ant-select {
+  width: 220px;
+}
 @media (max-width: 780px) {
   .workspace-page:is(.settings-page, .import-page) {
     padding: 20px 16px;
@@ -448,6 +484,14 @@ body[data-background] .workspace-page:is(.import-page, .settings-page) {
     border-left: 0;
     border-top: 1px solid var(--ui-line);
     padding: 16px 0 0;
+  }
+  .notification-sound-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .notification-sound-actions .ant-select {
+    width: min(220px, 100%);
   }
 }
 .workspace-page.sip-page,

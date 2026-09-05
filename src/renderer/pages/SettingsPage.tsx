@@ -1,5 +1,6 @@
+import { SoundOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, App, Button, Checkbox, Descriptions, Input, InputNumber, Modal, Space, Switch, Tag } from 'antd';
+import { Alert, App, Button, Checkbox, Descriptions, Input, InputNumber, Modal, Select, Space, Switch, Tag } from 'antd';
 import { Link } from 'react-router';
 import type {
   AssetStats,
@@ -25,6 +26,13 @@ import {
 } from '../lib/license-client';
 import { routePaths } from '../router/paths';
 import { TRIAL_DAYS } from '../../shared/license/features';
+import {
+  getReminderSoundSettings,
+  playReminderSound,
+  reminderSoundOptions,
+  saveReminderSoundSettings,
+  type ReminderSoundSettings,
+} from '../lib/reminder-sound';
 
 export function SettingsPage(): React.JSX.Element {
   const { message } = App.useApp();
@@ -57,6 +65,7 @@ export function SettingsPage(): React.JSX.Element {
   const [changeAccessPassword, setChangeAccessPassword] = useState('');
   const [confirmChangeAccessPassword, setConfirmChangeAccessPassword] = useState('');
   const [disableAccessLockOpen, setDisableAccessLockOpen] = useState(false);
+  const [reminderSoundSettings, setReminderSoundSettings] = useState<ReminderSoundSettings>(getReminderSoundSettings);
   const statusLoadSeq = useRef(0);
 
   const refreshRuntime = useCallback(async (): Promise<void> => {
@@ -371,6 +380,24 @@ export function SettingsPage(): React.JSX.Element {
     }
   };
 
+  const updateReminderSoundSettings = (next: ReminderSoundSettings, successMessage?: string): void => {
+    try {
+      saveReminderSoundSettings(next);
+      setReminderSoundSettings(next);
+      if (successMessage) void message.success(successMessage);
+    } catch {
+      void message.error('提示音设置保存失败');
+    }
+  };
+
+  const previewReminderSound = async (): Promise<void> => {
+    try {
+      await playReminderSound(reminderSoundSettings.sound);
+    } catch {
+      void message.error('提示音播放失败，请检查系统音量或音频权限');
+    }
+  };
+
   return (
     <main className="workspace-page settings-page">
       <header className="page-header">
@@ -386,6 +413,7 @@ export function SettingsPage(): React.JSX.Element {
         {[
           ['license', '授权'],
           ['security', '访问密码'],
+          ['notifications', '提醒声音'],
           ['runtime', '运行状态'],
           ['backup', '备份恢复'],
           ['ai', 'AI 配置'],
@@ -581,6 +609,54 @@ export function SettingsPage(): React.JSX.Element {
             </>
           )}
         </Space>
+      </section>
+
+      <section id="settings-notifications" className="settings-panel notification-sound-panel">
+        <div className="section-heading">
+          <div>
+            <span className="section-label">提醒</span>
+            <h2>声音提醒</h2>
+          </div>
+          <Tag color={reminderSoundSettings.enabled ? 'green' : 'default'}>
+            {reminderSoundSettings.enabled ? '已开启' : '已关闭'}
+          </Tag>
+        </div>
+        <p className="page-intro">
+          新的价格提醒、定投待确认或 LOF 监控消息出现时播放提示音。关闭声音不会影响系统通知和提醒记录。
+        </p>
+        <div className="notification-sound-settings">
+          <div className="notification-sound-row">
+            <div>
+              <strong>播放提示音</strong>
+              <span>仅在产生新的提醒消息时播放，不会在应用启动时重复播放。</span>
+            </div>
+            <Switch
+              checked={reminderSoundSettings.enabled}
+              checkedChildren="开"
+              unCheckedChildren="关"
+              onChange={(enabled) =>
+                updateReminderSoundSettings({ ...reminderSoundSettings, enabled }, enabled ? '声音提醒已开启' : '声音提醒已关闭')
+              }
+            />
+          </div>
+          <div className="notification-sound-row">
+            <div>
+              <strong>提示音</strong>
+              <span>{reminderSoundOptions.find((option) => option.value === reminderSoundSettings.sound)?.description}</span>
+            </div>
+            <div className="notification-sound-actions">
+              <Select
+                aria-label="选择提示音"
+                value={reminderSoundSettings.sound}
+                options={reminderSoundOptions.map(({ value, label }) => ({ value, label }))}
+                onChange={(sound) => updateReminderSoundSettings({ ...reminderSoundSettings, sound })}
+              />
+              <Button icon={<SoundOutlined />} onClick={() => void previewReminderSound()}>
+                试听
+              </Button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section id="settings-runtime" className="settings-panel">

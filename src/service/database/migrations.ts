@@ -728,4 +728,79 @@ export const migrations: readonly Migration[] = [
     name: 'ledger_chart_snapshot',
     sql: `ALTER TABLE portfolio_ledger ADD COLUMN chart_snapshot TEXT;`,
   },
+  {
+    version: 26,
+    name: 'personal_watchlist_tracking',
+    sql: `
+      CREATE TABLE personal_watchlist (
+        id TEXT PRIMARY KEY,
+        symbol TEXT NOT NULL,
+        name TEXT NOT NULL,
+        venue TEXT NOT NULL,
+        quote_currency TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        starred INTEGER NOT NULL DEFAULT 0 CHECK (starred IN (0, 1)),
+        position INTEGER NOT NULL,
+        tags_json TEXT NOT NULL DEFAULT '[]',
+        waiting_for TEXT NOT NULL DEFAULT '',
+        invalidation TEXT NOT NULL DEFAULT '',
+        added_price_micros INTEGER CHECK (added_price_micros > 0),
+        added_price_at TEXT,
+        reminder_id TEXT REFERENCES alert_rules(id),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        removed_at TEXT,
+        UNIQUE (venue, symbol)
+      ) STRICT;
+      CREATE TABLE watchlist_groups (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE
+      ) STRICT;
+      CREATE TABLE watchlist_memberships (
+        item_id TEXT NOT NULL REFERENCES personal_watchlist(id) ON DELETE CASCADE,
+        group_id TEXT NOT NULL REFERENCES watchlist_groups(id) ON DELETE CASCADE,
+        PRIMARY KEY (item_id, group_id)
+      ) STRICT;
+      CREATE TABLE watchlist_tracking_logs (
+        id TEXT PRIMARY KEY,
+        item_id TEXT NOT NULL REFERENCES personal_watchlist(id) ON DELETE CASCADE,
+        record_date TEXT NOT NULL,
+        review TEXT NOT NULL,
+        feeling TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        CHECK (length(trim(review)) > 0 OR length(trim(feeling)) > 0)
+      ) STRICT;
+      CREATE INDEX watchlist_tracking_date_idx ON watchlist_tracking_logs(item_id, record_date DESC, created_at DESC);
+    `,
+  },
+  {
+    version: 27,
+    name: 'longhubang_query_cache',
+    sql: `
+      CREATE TABLE lhb_query_cache (
+        cache_key TEXT PRIMARY KEY,
+        payload_json TEXT NOT NULL CHECK (json_valid(payload_json)),
+        fetched_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL
+      ) STRICT;
+    `,
+  },
+  {
+    version: 28,
+    name: 'quant_research_module',
+    sql: `
+      CREATE TABLE quant_research_settings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        payload_json TEXT NOT NULL CHECK (json_valid(payload_json))
+      ) STRICT;
+      CREATE TABLE quant_research_runs (
+        id TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL,
+        summary_json TEXT NOT NULL CHECK (json_valid(summary_json)),
+        payload_json TEXT NOT NULL CHECK (json_valid(payload_json))
+      ) STRICT;
+      CREATE INDEX quant_research_runs_created_idx ON quant_research_runs(created_at DESC);
+    `,
+  },
 ];

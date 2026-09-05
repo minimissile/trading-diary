@@ -9,6 +9,9 @@ import { debugRunStream, previewPrompt } from './llm/debug-service';
 import { createLlmRunner, type LlmRunner } from './llm/llm-runner';
 import { generateReviewAiDraft, generateReviewAiDraftStream } from './reviews/review-ai-service';
 import { marketService } from './market/market-service';
+import { LonghubangService } from './longhubang/longhubang-service';
+import { StockStrategyService } from './strategy/strategy-service';
+import { QuantResearchService } from './quant-research/quant-service';
 import { watchlistService } from './watchlist/watchlist-service';
 import { createPortfolioService, type PortfolioService } from './portfolio/portfolio-service';
 import { AccountService } from './accounts/account-service';
@@ -58,6 +61,21 @@ const llmDebugRunParamsSchema = z
   .strict();
 
 export class AppService {
+  private quantResearchService: QuantResearchService | null = null;
+
+  private getQuantResearchService(): QuantResearchService {
+    this.quantResearchService ??= new QuantResearchService(this.database.quantResearch, () =>
+      this.database.watchlist.list().filter((item) => item.kind === 'stock' && (item.venue === 'SH' || item.venue === 'SZ')),
+    );
+    return this.quantResearchService;
+  }
+
+  private stockStrategyService: StockStrategyService | null = null;
+
+  private getStockStrategyService(): StockStrategyService {
+    this.stockStrategyService ??= new StockStrategyService(this.dataDir, () => this.database.watchlist.list());
+    return this.stockStrategyService;
+  }
   private readonly startedAt = new Date().toISOString();
   private readonly dataDir: string;
   private readonly database: AppDatabase;
@@ -73,6 +91,7 @@ export class AppService {
   private readonly sipAiImportService: SipAiImportService;
   private readonly ledgerAiImportService: LedgerAiImportService;
   private readonly lofArbitrageService: LofArbitrageService;
+  private readonly longhubangService: LonghubangService;
   private readonly accessLockStore: AccessLockStore;
 
   constructor(dataDir: string, appVersion: string) {
@@ -95,6 +114,7 @@ export class AppService {
       this.llmRunner,
     );
     this.lofArbitrageService = createLofArbitrageService(this.database);
+    this.longhubangService = new LonghubangService(this.database.longhubang);
     this.accessLockStore = new AccessLockStore(dataDir);
   }
 
@@ -104,6 +124,28 @@ export class AppService {
 
   async handle(request: ServiceRequest): Promise<unknown> {
     switch (request.method) {
+      case 'quantResearch.state':
+        return this.getQuantResearchService().getState();
+      case 'quantResearch.save':
+        return this.getQuantResearchService().saveSettings(request.params);
+      case 'quantResearch.scan':
+        return this.getQuantResearchService().scan(request.params);
+      case 'quantResearch.run':
+        return this.getQuantResearchService().getRun(request.params.id);
+      case 'stockStrategy.state':
+        return this.getStockStrategyService().getState();
+      case 'stockStrategy.save':
+        return this.getStockStrategyService().saveSettings(request.params);
+      case 'stockStrategy.screen':
+        return this.getStockStrategyService().screen(request.params);
+      case 'stockStrategy.backtest':
+        return this.getStockStrategyService().backtest(request.params);
+      case 'longhubang.status':
+        return this.longhubangService.getStatus(request.params.refresh);
+      case 'longhubang.query':
+        return this.longhubangService.query(request.params);
+      case 'longhubang.detail':
+        return this.longhubangService.getDetail(request.params);
       case 'system.health':
         return {
           servicePid: process.pid,
@@ -222,6 +264,36 @@ export class AppService {
         );
       case 'watchlist.listPools':
         return watchlistService.listPools();
+      case 'watchlist.listPersonal':
+        return { items: this.database.watchlist.list(), groups: this.database.watchlist.listGroups() };
+      case 'watchlist.add': {
+        const instrument = await marketService.resolve(request.params.symbol);
+        const existing = this.database.watchlist.find(instrument.symbol, instrument.venue);
+        if (existing) return { item: existing, alreadyExists: true };
+        const quotes = await marketService.getQuotes([instrument]).catch(() => []);
+        return this.database.watchlist.add(instrument, quotes[0] ?? null, request.params);
+      }
+      case 'watchlist.update':
+        return this.database.watchlist.update(request.params.id, request.params.changes);
+      case 'watchlist.remove':
+        return this.database.watchlist.remove(request.params.id);
+      case 'watchlist.move':
+        return this.database.watchlist.move(request.params.id, request.params.direction);
+      case 'watchlist.saveGroup':
+        return this.database.watchlist.saveGroup(request.params);
+      case 'watchlist.removeGroup':
+        return this.database.watchlist.removeGroup(request.params.id);
+      case 'watchlist.listLogs':
+        return this.database.watchlist.listLogs(request.params.itemId);
+      case 'watchlist.saveLog':
+        return this.database.watchlist.saveLog(request.params);
+      case 'watchlist.removeLog':
+        return this.database.watchlist.removeLog(request.params.id, request.params.itemId);
+      case 'watchlist.setReminder':
+        if (request.params.reminder && !this.database.watchlist.get(request.params.id).reminder) {
+          this.licenseService.assertCanCreateAlert(this.database.countTradeAlerts());
+        }
+        return this.database.watchlist.setReminder(request.params);
       case 'watchlist.getPoolSnapshot':
         this.licenseService.assertWatchlistPoolAllowed(request.params.poolId);
         return watchlistService.getPoolSnapshot(request.params.poolId);

@@ -13,7 +13,7 @@ import {
   PictureOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import type { InstrumentKind } from '../../shared/market/types';
 import type { PortfolioPositionView } from '../../shared/portfolio/types';
 import { ALL_ACCOUNTS_ID } from '../../shared/accounts/constants';
@@ -145,6 +145,7 @@ function statsCacheSuffix(category: AssetCategory, stockSubKind: StockSubKind): 
 export function PositionsPage(): React.JSX.Element {
   const { message, modal } = App.useApp();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const year = new Date().getFullYear();
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [aiImportOpen, setAiImportOpen] = useState(false);
@@ -154,7 +155,7 @@ export function PositionsPage(): React.JSX.Element {
   const [editingPosition, setEditingPosition] = useState<PortfolioPositionView | null>(null);
   const [sellingPosition, setSellingPosition] = useState<PortfolioPositionView | null>(null);
   const [deletingSymbol, setDeletingSymbol] = useState<string | null>(null);
-  const [symbolQuery, setSymbolQuery] = useState('');
+  const [symbolQuery, setSymbolQuery] = useState(() => searchParams.get('symbol') ?? '');
 
   const { summary, positions, isLoading, isFetching, refetch, invalidate } = usePortfolioDashboard(accountId, year);
 

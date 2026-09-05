@@ -405,7 +405,7 @@ export function HomePage(): React.JSX.Element {
           </div>
           <div className="watch-footer">
             <button type="button" onClick={() => void navigate(routePaths.watchlist)}>
-              打开自选观察池 <RightOutlined />
+              打开自选股 <RightOutlined />
             </button>
             <button type="button" onClick={() => setNewPlanOpen(true)}>
               新建计划 <PlusOutlined />

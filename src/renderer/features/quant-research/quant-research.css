@@ -1,0 +1,225 @@
+.quant-research-page {
+  display: grid;
+  gap: 20px;
+  padding: 28px;
+  color: var(--ui-text);
+}
+.quant-research-heading,
+.quant-research-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.quant-research-heading h1 {
+  font-size: 30px;
+  margin: 6px 0;
+}
+.quant-research-heading p,
+.quant-research-section-heading p {
+  color: var(--ui-muted);
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+.quant-research-kicker {
+  color: var(--ui-accent);
+  font-size: 12px;
+}
+.quant-research-panel {
+  min-width: 0;
+  padding: 22px;
+  background: var(--workspace-panel-glass, var(--ui-panel));
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-panel-radius);
+  box-shadow: var(--ui-panel-shadow);
+}
+.quant-research-section-heading h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.quant-research-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.quant-research-form {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.6fr) repeat(4, minmax(100px, 1fr));
+  gap: 14px;
+  margin-top: 22px;
+}
+.quant-research-form .ant-form-item {
+  margin-bottom: 12px;
+}
+.quant-research-form .ant-input-number {
+  width: 100%;
+}
+.quant-research-symbols {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--ui-secondary-text);
+  margin: 4px 0 18px;
+}
+.quant-research-rule-groups {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 18px;
+  margin: 8px 0 16px;
+}
+.quant-research-rule-groups fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--ui-line);
+}
+.quant-research-rule-groups legend {
+  width: auto;
+  margin: 0;
+  padding: 0 6px;
+  font-size: 12px;
+  color: var(--ui-muted);
+}
+.quant-research-rule-groups .ant-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+.quant-research-caption,
+.quant-research-loading {
+  font-size: 12px;
+  color: var(--ui-muted);
+  margin: 12px 0;
+  line-height: 1.8;
+}
+.quant-research-loading {
+  color: var(--ui-accent);
+}
+.quant-research-panel > .ant-alert {
+  margin: 12px 0;
+}
+.quant-research-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin: 24px 0;
+}
+.quant-research-metrics > div {
+  display: grid;
+  gap: 8px;
+  border-right: 1px solid var(--ui-line);
+}
+.quant-research-metrics > div:last-child {
+  border: 0;
+}
+.quant-research-metrics span {
+  font-size: 12px;
+  color: var(--ui-muted);
+}
+.quant-research-metrics strong {
+  font-size: 25px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.quant-research-result-context {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+.quant-research-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 14px;
+}
+.quant-research-filters .ant-input-search {
+  max-width: 300px;
+}
+.quant-research-filters .ant-select {
+  width: 160px;
+  flex-shrink: 0;
+}
+.quant-research-filters > span:last-child {
+  font-size: 12px;
+  color: var(--ui-muted);
+  white-space: nowrap;
+}
+.quant-research-stock {
+  display: grid;
+  gap: 3px;
+}
+.quant-research-stock small {
+  color: var(--ui-muted);
+  font-variant-numeric: tabular-nums;
+}
+.quant-research-details {
+  border-top: 1px solid var(--ui-line);
+  margin-top: 18px;
+  padding-top: 14px;
+  font-size: 12px;
+  color: var(--ui-muted);
+}
+.quant-research-details summary {
+  color: var(--ui-secondary-text);
+  cursor: pointer;
+}
+.quant-research-details p {
+  overflow-wrap: anywhere;
+  line-height: 1.8;
+}
+.quant-research-definitions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 28px;
+}
+.quant-research-definitions article {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--ui-line);
+}
+.quant-research-definitions strong {
+  font-size: 14px;
+}
+.quant-research-definitions article p {
+  font-size: 13px;
+  color: var(--ui-muted);
+  line-height: 1.8;
+  margin-bottom: 0;
+}
+.quant-research-definitions > p {
+  grid-column: 1 / -1;
+}
+@media (max-width: 1180px) {
+  .quant-research-section-heading {
+    flex-wrap: wrap;
+  }
+  .quant-research-form {
+    grid-template-columns: repeat(3, minmax(100px, 1fr));
+  }
+  .quant-research-rule-groups {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .quant-research-page {
+    padding: 16px;
+  }
+  .quant-research-panel {
+    padding: 16px;
+  }
+  .quant-research-form,
+  .quant-research-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .quant-research-metrics strong {
+    font-size: 21px;
+  }
+  .quant-research-filters {
+    flex-wrap: wrap;
+  }
+  .quant-research-definitions {
+    grid-template-columns: 1fr;
+  }
+}

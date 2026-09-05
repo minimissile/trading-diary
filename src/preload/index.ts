@@ -1,5 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { DesktopApi, LlmDebugRunResult, LlmStreamPayload, ReviewAiDraftResult, UpdateState } from '../shared/api.types';
+import type {
+  DesktopApi,
+  LlmDebugRunResult,
+  LlmStreamPayload,
+  ReminderNotificationEvent,
+  ReviewAiDraftResult,
+  UpdateState,
+} from '../shared/api.types';
 import { ipcChannels } from '../shared/ipc-channels';
 
 function startLlmStream<T>(
@@ -71,6 +78,13 @@ const desktopApi: DesktopApi = {
       return () => ipcRenderer.removeListener(ipcChannels.workspaceChanged, handler);
     },
   },
+  notifications: {
+    onReminder: (listener) => {
+      const handler = (_event: Electron.IpcRendererEvent, payload: ReminderNotificationEvent): void => listener(payload);
+      ipcRenderer.on(ipcChannels.reminderTriggered, handler);
+      return () => ipcRenderer.removeListener(ipcChannels.reminderTriggered, handler);
+    },
+  },
   plans: {
     list: () => ipcRenderer.invoke(ipcChannels.listPlans),
     create: (input) => ipcRenderer.invoke(ipcChannels.createPlan, input),
@@ -89,9 +103,7 @@ const desktopApi: DesktopApi = {
     create: (input) => ipcRenderer.invoke(ipcChannels.createReview, input),
     generateAiDraft: (input) => ipcRenderer.invoke(ipcChannels.generateReviewAiDraft, input),
     generateAiDraftStream: (input, listeners) =>
-      Promise.resolve(
-        startLlmStream<ReviewAiDraftResult>(ipcChannels.startReviewAiDraftStream, { payload: input }, listeners),
-      ),
+      Promise.resolve(startLlmStream<ReviewAiDraftResult>(ipcChannels.startReviewAiDraftStream, { payload: input }, listeners)),
   },
   settings: {
     getLlmStatus: () => ipcRenderer.invoke(ipcChannels.getLlmStatus),
@@ -111,9 +123,7 @@ const desktopApi: DesktopApi = {
   llm: {
     previewPrompt: (promptId, variables) => ipcRenderer.invoke(ipcChannels.previewLlmPrompt, { promptId, variables }),
     debugRunStream: (promptId, variables, listeners) =>
-      Promise.resolve(
-        startLlmStream<LlmDebugRunResult>(ipcChannels.startLlmDebugStream, { promptId, variables }, listeners),
-      ),
+      Promise.resolve(startLlmStream<LlmDebugRunResult>(ipcChannels.startLlmDebugStream, { promptId, variables }, listeners)),
   },
   updater: {
     getState: () => ipcRenderer.invoke(ipcChannels.getUpdateState),
@@ -130,6 +140,23 @@ const desktopApi: DesktopApi = {
       return () => ipcRenderer.removeListener(ipcChannels.updateState, handler);
     },
   },
+  longhubang: {
+    getStatus: (refresh) => ipcRenderer.invoke(ipcChannels.longhubangStatus, { refresh }),
+    query: (input) => ipcRenderer.invoke(ipcChannels.longhubangQuery, input),
+    getDetail: (input) => ipcRenderer.invoke(ipcChannels.longhubangDetail, input),
+  },
+  stockStrategy: {
+    getState: () => ipcRenderer.invoke(ipcChannels.stockStrategyState),
+    saveSettings: (input) => ipcRenderer.invoke(ipcChannels.stockStrategySave, input),
+    screen: (input) => ipcRenderer.invoke(ipcChannels.stockStrategyScreen, input),
+    backtest: (input) => ipcRenderer.invoke(ipcChannels.stockStrategyBacktest, input),
+  },
+  quantResearch: {
+    getState: () => ipcRenderer.invoke(ipcChannels.quantResearchState),
+    saveSettings: (input) => ipcRenderer.invoke(ipcChannels.quantResearchSave, input),
+    scan: (input) => ipcRenderer.invoke(ipcChannels.quantResearchScan, input),
+    getRun: (id) => ipcRenderer.invoke(ipcChannels.quantResearchRun, { id }),
+  },
   market: {
     resolve: (symbol) => ipcRenderer.invoke(ipcChannels.marketResolve, { symbol }),
     search: (query, limit, marketScopes, assetKind) =>
@@ -137,13 +164,23 @@ const desktopApi: DesktopApi = {
     getQuote: (symbol) => ipcRenderer.invoke(ipcChannels.marketGetQuote, { symbol }),
     getQuotes: (symbols) => ipcRenderer.invoke(ipcChannels.marketGetQuotes, { symbols }),
     getSnapshot: (symbol) => ipcRenderer.invoke(ipcChannels.marketGetSnapshot, { symbol }),
-    listDividends: (symbol, page, pageSize) =>
-      ipcRenderer.invoke(ipcChannels.marketListDividends, { symbol, page, pageSize }),
+    listDividends: (symbol, page, pageSize) => ipcRenderer.invoke(ipcChannels.marketListDividends, { symbol, page, pageSize }),
     listNews: (symbol, pageSize) => ipcRenderer.invoke(ipcChannels.marketListNews, { symbol, pageSize }),
     listKlines: (symbol, period, adjust, limit, beforeTimestamp) =>
       ipcRenderer.invoke(ipcChannels.marketListKlines, { symbol, period, adjust, limit, beforeTimestamp }),
   },
   watchlist: {
+    listPersonal: () => ipcRenderer.invoke(ipcChannels.watchlistListPersonal),
+    add: (input) => ipcRenderer.invoke(ipcChannels.watchlistAdd, input),
+    update: (id, changes) => ipcRenderer.invoke(ipcChannels.watchlistUpdate, { id, changes }),
+    remove: (id) => ipcRenderer.invoke(ipcChannels.watchlistRemove, { id }),
+    move: (id, direction) => ipcRenderer.invoke(ipcChannels.watchlistMove, { id, direction }),
+    saveGroup: (input) => ipcRenderer.invoke(ipcChannels.watchlistSaveGroup, input),
+    removeGroup: (id) => ipcRenderer.invoke(ipcChannels.watchlistRemoveGroup, { id }),
+    listLogs: (itemId) => ipcRenderer.invoke(ipcChannels.watchlistListLogs, { itemId }),
+    saveLog: (input) => ipcRenderer.invoke(ipcChannels.watchlistSaveLog, input),
+    removeLog: (id, itemId) => ipcRenderer.invoke(ipcChannels.watchlistRemoveLog, { id, itemId }),
+    setReminder: (input) => ipcRenderer.invoke(ipcChannels.watchlistSetReminder, input),
     listPools: () => ipcRenderer.invoke(ipcChannels.watchlistListPools),
     getPoolSnapshot: (poolId) => ipcRenderer.invoke(ipcChannels.watchlistGetPoolSnapshot, { poolId }),
   },
@@ -156,33 +193,24 @@ const desktopApi: DesktopApi = {
   portfolio: {
     listPositions: (accountId) => ipcRenderer.invoke(ipcChannels.portfolioListPositions, { accountId }),
     getSummary: (accountId, year) => ipcRenderer.invoke(ipcChannels.portfolioGetSummary, { accountId, year }),
-    getDividendCalendar: (accountId, month) =>
-      ipcRenderer.invoke(ipcChannels.portfolioGetDividendCalendar, { accountId, month }),
+    getDividendCalendar: (accountId, month) => ipcRenderer.invoke(ipcChannels.portfolioGetDividendCalendar, { accountId, month }),
     listDividends: (accountId, year, statuses) =>
       ipcRenderer.invoke(ipcChannels.portfolioListDividends, { accountId, year, statuses }),
     addLedgerEntry: (input) => ipcRenderer.invoke(ipcChannels.portfolioAddLedgerEntry, input),
-    listLedgerEntries: (accountId, symbol) =>
-      ipcRenderer.invoke(ipcChannels.portfolioListLedgerEntries, { accountId, symbol }),
-    getRealizedHistory: (accountId, year) =>
-      ipcRenderer.invoke(ipcChannels.portfolioGetRealizedHistory, { accountId, year }),
-    getPnlCalendar: (accountId, month) =>
-      ipcRenderer.invoke(ipcChannels.portfolioGetPnlCalendar, { accountId, month }),
-    syncPnlCalendarBars: (accountId) =>
-      ipcRenderer.invoke(ipcChannels.portfolioSyncPnlCalendarBars, { accountId }),
-    syncPnlCalendarBar: (accountId, symbol) =>
-      ipcRenderer.invoke(ipcChannels.portfolioSyncPnlCalendarBar, { accountId, symbol }),
+    listLedgerEntries: (accountId, symbol) => ipcRenderer.invoke(ipcChannels.portfolioListLedgerEntries, { accountId, symbol }),
+    getRealizedHistory: (accountId, year) => ipcRenderer.invoke(ipcChannels.portfolioGetRealizedHistory, { accountId, year }),
+    getPnlCalendar: (accountId, month) => ipcRenderer.invoke(ipcChannels.portfolioGetPnlCalendar, { accountId, month }),
+    syncPnlCalendarBars: (accountId) => ipcRenderer.invoke(ipcChannels.portfolioSyncPnlCalendarBars, { accountId }),
+    syncPnlCalendarBar: (accountId, symbol) => ipcRenderer.invoke(ipcChannels.portfolioSyncPnlCalendarBar, { accountId, symbol }),
     updateLedgerEntry: (id, input) => ipcRenderer.invoke(ipcChannels.portfolioUpdateLedgerEntry, { id, input }),
     deleteLedgerEntry: (id) => ipcRenderer.invoke(ipcChannels.portfolioDeleteLedgerEntry, { id }),
-    deletePosition: (accountId, symbol) =>
-      ipcRenderer.invoke(ipcChannels.portfolioDeletePosition, { accountId, symbol }),
+    deletePosition: (accountId, symbol) => ipcRenderer.invoke(ipcChannels.portfolioDeletePosition, { accountId, symbol }),
     confirmDividend: (id, confirmed, cashAmount, accountId, year) =>
       ipcRenderer.invoke(ipcChannels.portfolioConfirmDividend, { id, confirmed, cashAmount, accountId, year }),
-    refreshDividends: (accountId, symbol) =>
-      ipcRenderer.invoke(ipcChannels.portfolioRefreshDividends, { accountId, symbol }),
+    refreshDividends: (accountId, symbol) => ipcRenderer.invoke(ipcChannels.portfolioRefreshDividends, { accountId, symbol }),
     syncMarketQuotes: (accountId) => ipcRenderer.invoke(ipcChannels.portfolioSyncMarketQuotes, { accountId }),
     getDividendGoal: (accountId) => ipcRenderer.invoke(ipcChannels.portfolioGetDividendGoal, { accountId }),
-    saveDividendGoal: (accountId, settings) =>
-      ipcRenderer.invoke(ipcChannels.portfolioSaveDividendGoal, { accountId, settings }),
+    saveDividendGoal: (accountId, settings) => ipcRenderer.invoke(ipcChannels.portfolioSaveDividendGoal, { accountId, settings }),
     getDividendPayoutDefault: (accountId, symbol) =>
       ipcRenderer.invoke(ipcChannels.portfolioGetDividendPayoutDefault, { accountId, symbol }),
     setDividendPayoutMode: (id, payoutMode, setDefault, accountId, year) =>
@@ -194,8 +222,7 @@ const desktopApi: DesktopApi = {
         year,
       }),
     selectLedgerImportScreenshots: () => ipcRenderer.invoke(ipcChannels.portfolioSelectLedgerImportScreenshots),
-    saveLedgerImportPasteImages: (images) =>
-      ipcRenderer.invoke(ipcChannels.portfolioSaveLedgerImportPasteImages, { images }),
+    saveLedgerImportPasteImages: (images) => ipcRenderer.invoke(ipcChannels.portfolioSaveLedgerImportPasteImages, { images }),
     readLedgerImportImagePreviews: (sourcePaths) =>
       ipcRenderer.invoke(ipcChannels.portfolioReadLedgerImportImagePreviews, { sourcePaths }),
     recognizeLedgerImportScreenshots: (sourcePaths, importAssetKind) =>
@@ -255,10 +282,8 @@ const desktopApi: DesktopApi = {
     schedulePause: (id, fromDate) => ipcRenderer.invoke(ipcChannels.sipSchedulePause, { id, fromDate }),
     cancelScheduledPause: (id) => ipcRenderer.invoke(ipcChannels.sipCancelScheduledPause, { id }),
     previewSchedule: (input) => ipcRenderer.invoke(ipcChannels.sipPreviewSchedule, input),
-    listOccurrences: (planId, from, to) =>
-      ipcRenderer.invoke(ipcChannels.sipListOccurrences, { planId, from, to }),
-    listOccurrenceViews: (planId, from, to) =>
-      ipcRenderer.invoke(ipcChannels.sipListOccurrenceViews, { planId, from, to }),
+    listOccurrences: (planId, from, to) => ipcRenderer.invoke(ipcChannels.sipListOccurrences, { planId, from, to }),
+    listOccurrenceViews: (planId, from, to) => ipcRenderer.invoke(ipcChannels.sipListOccurrenceViews, { planId, from, to }),
     confirmOccurrence: (input) => ipcRenderer.invoke(ipcChannels.sipConfirmOccurrence, input),
     skipOccurrence: (id, reason) => ipcRenderer.invoke(ipcChannels.sipSkipOccurrence, { id, reason }),
     getSummary: () => ipcRenderer.invoke(ipcChannels.sipGetSummary),
@@ -267,14 +292,12 @@ const desktopApi: DesktopApi = {
     getPositionMeta: (accountId) => ipcRenderer.invoke(ipcChannels.sipGetPositionMeta, { accountId }),
     getReviewTemplate: (planId) => ipcRenderer.invoke(ipcChannels.sipGetReviewTemplate, { planId }),
     getPlanPositionLink: (planId) => ipcRenderer.invoke(ipcChannels.sipGetPlanPositionLink, { planId }),
-    listPlansBySymbol: (accountId, symbol) =>
-      ipcRenderer.invoke(ipcChannels.sipListPlansBySymbol, { accountId, symbol }),
+    listPlansBySymbol: (accountId, symbol) => ipcRenderer.invoke(ipcChannels.sipListPlansBySymbol, { accountId, symbol }),
     parseImportCsv: (sourcePath) => ipcRenderer.invoke(ipcChannels.sipParseImportCsv, { sourcePath }),
     previewImport: (input) => ipcRenderer.invoke(ipcChannels.sipPreviewImport, input),
     commitImport: (input) => ipcRenderer.invoke(ipcChannels.sipCommitImport, input),
     selectImportScreenshot: () => ipcRenderer.invoke(ipcChannels.sipSelectImportScreenshot),
-    recognizeImportScreenshot: (sourcePath) =>
-      ipcRenderer.invoke(ipcChannels.sipRecognizeImportScreenshot, { sourcePath }),
+    recognizeImportScreenshot: (sourcePath) => ipcRenderer.invoke(ipcChannels.sipRecognizeImportScreenshot, { sourcePath }),
     previewAiImport: (input) => ipcRenderer.invoke(ipcChannels.sipPreviewAiImport, input),
     commitAiImport: (input) => ipcRenderer.invoke(ipcChannels.sipCommitAiImport, input),
   },

@@ -28,6 +28,9 @@ import { PlaybookDatabase } from '../playbook/playbook-database';
 import { AlertEventDatabase } from '../alerts/alert-event-database';
 import { SipDatabase } from '../sip/sip-database';
 import { LofArbitrageDatabase } from '../lof-arbitrage/lof-arbitrage-database';
+import { WatchlistDatabase } from '../watchlist/watchlist-database';
+import { LonghubangDatabase } from '../longhubang/longhubang-database';
+import { QuantResearchDatabase } from '../quant-research/quant-database';
 
 const PRICE_SCALE = 10_000;
 const QUANTITY_SCALE = 10_000;
@@ -142,6 +145,9 @@ export class AppDatabase {
   readonly alertEvents: AlertEventDatabase;
   readonly sip: SipDatabase;
   readonly lofArbitrage: LofArbitrageDatabase;
+  readonly watchlist: WatchlistDatabase;
+  readonly longhubang: LonghubangDatabase;
+  readonly quantResearch: QuantResearchDatabase;
   private readonly db: DatabaseSync;
 
   constructor(filePath: string) {
@@ -176,6 +182,9 @@ export class AppDatabase {
     this.alertEvents = new AlertEventDatabase(this.db);
     this.sip = new SipDatabase(this.db);
     this.lofArbitrage = new LofArbitrageDatabase(this.db);
+    this.watchlist = new WatchlistDatabase(this.db);
+    this.longhubang = new LonghubangDatabase(this.db);
+    this.quantResearch = new QuantResearchDatabase(this.db);
     if (this.schemaVersion() >= 3) {
       this.portfolio.ensureDefaultAccount();
     }

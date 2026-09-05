@@ -1,0 +1,40 @@
+{
+  "testedAt": "2026-09-05T16:40:04.472Z",
+  "results": [
+    {
+      "day": {
+        "startDate": "2026-09-04",
+        "endDate": "2026-09-04"
+      },
+      "bonds": 1,
+      "all": 66,
+      "institutionPositive": 13,
+      "quarter": {
+        "total": 499,
+        "summary": {
+          "securities": 499,
+          "tradingDays": 58
+        },
+        "top": [
+          {
+            "code": "920122",
+            "count": 37,
+            "events": 46
+          },
+          {
+            "code": "920753",
+            "count": 36,
+            "events": 45
+          },
+          {
+            "code": "000017",
+            "count": 30,
+            "events": 48
+          }
+        ]
+      },
+      "historical": 1,
+      "bondSeats": 10
+    }
+  ]
+}

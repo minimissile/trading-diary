@@ -55,6 +55,8 @@ export function ensureTradeMarkerOverlayRegistered(): void {
           },
           styles: {
             color: '#ffffff',
+            backgroundColor: style.color,
+            borderSize: 0,
             size: 10,
             weight: '700',
             family: 'Helvetica Neue',

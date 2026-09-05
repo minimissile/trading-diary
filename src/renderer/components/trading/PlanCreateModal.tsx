@@ -18,11 +18,12 @@ interface PlanFormValues {
 
 interface PlanCreateModalProps {
   open: boolean;
+  initialValues?: Partial<PlanFormValues>;
   onClose: () => void;
   onSaved: (plan: TradingPlan) => void;
 }
 
-export function PlanCreateModal({ open, onClose, onSaved }: PlanCreateModalProps): React.JSX.Element {
+export function PlanCreateModal({ open, onClose, onSaved, initialValues }: PlanCreateModalProps): React.JSX.Element {
   const [form] = Form.useForm<PlanFormValues>();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +75,7 @@ export function PlanCreateModal({ open, onClose, onSaved }: PlanCreateModalProps
       {error ? <Alert className="dialog-alert" type="error" title={error} showIcon /> : null}
       <Form
         form={form}
-        initialValues={{ activateNow: true, direction: 'long', riskAmount: 1000 }}
+        initialValues={{ activateNow: true, direction: 'long', riskAmount: 1000, ...initialValues }}
         layout="vertical"
         preserve={false}
       >
