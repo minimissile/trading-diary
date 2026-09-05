@@ -209,6 +209,23 @@
   align-items: center;
 }
 
+.about-page .settings-panel > .section-heading {
+  margin-bottom: 16px;
+}
+
+.about-page .settings-panel > .section-heading h2 {
+  margin-bottom: 0;
+}
+
+.about-page .settings-panel > .page-intro {
+  margin: 0 0 20px;
+  line-height: 1.75;
+}
+
+.about-page .settings-panel > .page-intro:last-child {
+  margin-bottom: 0;
+}
+
 .about-header-meta {
   display: flex;
   flex-wrap: wrap;
@@ -307,11 +324,12 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
-  margin-top: 4px;
+  margin-top: 0;
 }
 
 .about-security-card {
   display: grid;
+  align-content: start;
   gap: 10px;
   padding: 16px;
   border: 1px solid var(--td-color-line);

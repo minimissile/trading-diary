@@ -105,40 +105,179 @@ body[data-background] .workspace-page:is(.playbook-page, .accounts-page, .analys
 .playbook-page .playbook-rule-card-header small {
   color: var(--ui-accent);
 }
+.accounts-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr;
+  gap: 24px;
+  align-items: center;
+  padding: 24px;
+  margin-bottom: 24px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-panel-radius);
+  background: var(--workspace-panel-glass, var(--ui-panel));
+  box-shadow: var(--ui-panel-shadow);
+}
+.accounts-summary span {
+  color: var(--ui-secondary-text);
+  font-size: 13px;
+}
+.accounts-summary-primary > strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--ui-accent);
+  font-size: 40px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.accounts-summary-primary small {
+  color: var(--ui-muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+.accounts-summary p {
+  margin: 8px 0 0;
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+.accounts-summary-types {
+  display: grid;
+  gap: 16px;
+  padding: 0 24px;
+  border-inline: 1px solid var(--ui-line);
+}
+.accounts-summary-types > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+.accounts-summary-types strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+.accounts-summary-default {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.accounts-summary-default .anticon {
+  margin-right: 6px;
+  color: var(--ui-secondary);
+}
+.accounts-summary-default > strong {
+  display: block;
+  margin-top: 12px;
+  font-size: 18px;
+}
+.accounts-list-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.accounts-list-heading > span,
+.account-card-records {
+  color: var(--ui-muted);
+  font-size: 12px;
+}
 .accounts-page .accounts-grid {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 .accounts-page .account-card {
-  padding: 20px 24px;
+  padding: 24px;
+  min-width: 0;
+}
+.accounts-page .account-card--default {
+  border-color: var(--ui-primary);
+}
+.accounts-page .account-card--archived {
+  opacity: 1;
+  border-style: dashed;
 }
 .accounts-page .account-card-head {
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--ui-line);
+  padding: 0;
+  margin: 0 0 24px;
+  border: 0;
+}
+.accounts-page .account-card-name-row {
+  align-items: center;
+}
+.accounts-page .account-card-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .accounts-page .account-card-meta {
-  grid-template-columns: 1.3fr repeat(3, minmax(0, 1fr));
-  margin-bottom: 0;
-  gap: 0;
+  background: transparent;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  gap: 20px 12px;
 }
 .accounts-page .account-card-meta-item {
+  padding: 0;
   border: 0;
-  border-right: 1px solid var(--ui-line);
   border-radius: 0;
   background: transparent;
 }
-.accounts-page .account-card-meta-item:last-child {
-  border-right: 0;
+.accounts-page .account-card-meta-item--highlight {
+  grid-column: 1 / -1;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--ui-line);
 }
 .accounts-page .account-card-meta-item dd {
-  font-size: 22px;
+  font-size: 18px;
 }
 .accounts-page .account-card-meta-item--highlight dd {
-  font-size: 28px;
+  margin-top: 6px;
+  color: var(--ui-text);
+  font-size: 34px;
+  line-height: 1.25;
 }
 .accounts-page .account-card-meta-item dt,
 .accounts-page .account-card-title p {
   color: var(--ui-muted);
+  font-size: 12px;
+}
+.account-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--ui-line);
+}
+.accounts-page .account-card-actions {
+  gap: 8px;
+}
+.accounts-empty {
+  margin: 0;
+  padding: 48px 24px;
+  border: 1px dashed var(--ui-line);
+  border-radius: var(--ui-panel-radius);
+  background: var(--workspace-panel-glass, var(--ui-panel));
+}
+@media (max-width: 1150px) {
+  .accounts-page .accounts-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 800px) {
+  .accounts-summary {
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .accounts-summary-types {
+    border-right: 0;
+    padding-right: 0;
+  }
+  .accounts-summary-default {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--ui-line);
+    padding-top: 16px;
+  }
+  .accounts-page .library-search-controls {
+    width: 100%;
+  }
 }
 .analysis-section-heading span {
   color: var(--ui-muted);
@@ -377,6 +516,18 @@ body[data-background] :is(.workspace-page.sip-page, .page-stack.lof-page) {
   margin-top: 12px;
   background: var(--ui-panel);
 }
+.page-stack.lof-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.lof-page > .page-header {
+  margin-bottom: 0;
+}
+.lof-page .page-subtitle {
+  margin: 8px 0 0;
+  line-height: 1.75;
+}
 .lof-workspace {
   padding: 20px 24px;
 }
@@ -398,6 +549,19 @@ body[data-background] :is(.workspace-page.sip-page, .page-stack.lof-page) {
 }
 .lof-workspace > .ant-segmented {
   margin-bottom: 16px;
+}
+.lof-workspace > .panel-card {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--ui-line);
+}
+.lof-workspace > .panel-card h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 22px;
+}
+.lof-workspace > .panel-card .ant-tag {
+  margin: 0;
 }
 .command-dashboard {
   background: var(--ui-canvas);

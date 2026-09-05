@@ -49,7 +49,8 @@ export async function resolveInstrumentMulti(raw: string): Promise<InstrumentInf
   return enrichEastMoneyInstrument(info);
 }
 
-export async function searchInstrumentsMulti(query: string, scopes: readonly string[], limit = 10): Promise<MarketSearchHit[]> {
+export async function searchInstrumentsMulti(query: string, scopes: readonly string[], limit = 10, assetKind?: 'stock' | 'fund'): Promise<MarketSearchHit[]> {
+  if (assetKind === 'fund') return searchInstrumentsScoped(query, ['CN_A'], limit, assetKind);
   const includeCn = scopes.includes('CN_A');
   const includeHk = scopes.includes('HK');
   const includeUs = scopes.includes('US');
@@ -58,7 +59,7 @@ export async function searchInstrumentsMulti(query: string, scopes: readonly str
   const tasks: Array<Promise<MarketSearchHit[]>> = [];
 
   if (includeCn || includeHk || includeUs) {
-    tasks.push(searchInstrumentsScoped(query, scopes, perSource));
+    tasks.push(searchInstrumentsScoped(query, scopes, limit, assetKind));
   }
 
   const yahooVenues: InstrumentVenue[] = [];

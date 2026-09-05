@@ -3,6 +3,7 @@ import type { BrowserWindow } from 'electron';
 import { ipcChannels } from '../../shared/ipc-channels';
 import type { ServiceHost } from '../service-host';
 import type { UpdateManager } from '../updater/update-manager';
+import { registerTradeSnapshotHandlers } from './handlers/trade-snapshot.handlers';
 import { registerAccountsHandlers } from './handlers/accounts.handlers';
 import { registerLofArbitrageHandlers } from './handlers/lof-arbitrage.handlers';
 import { registerMarketHandlers } from './handlers/market.handlers';
@@ -24,6 +25,7 @@ export function registerIpcHandlers(window: BrowserWindow, service: ServiceHost,
   registerSettingsHandlers(context);
   registerMarketHandlers(context);
   registerPortfolioHandlers(context);
+  registerTradeSnapshotHandlers(context);
   registerAccountsHandlers(context);
   registerSipHandlers(context);
   registerLofArbitrageHandlers(context);

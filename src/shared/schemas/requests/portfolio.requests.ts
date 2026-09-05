@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { chartSnapshotSchema } from '../../chart/trade-snapshot';
 import { nonNegativeNumberSchema, positiveNumberSchema, symbolSchema, instrumentVenueSchema } from '../primitives';
 
 const ledgerAiExtractedRecordSchema = z
@@ -111,6 +112,7 @@ export const portfolioServiceRequests = [
         tradeAt: z.string().trim().min(1).max(40),
         planId: z.uuid().nullable().optional(),
         note: z.string().trim().max(500).optional(),
+        chartSnapshot: chartSnapshotSchema,
         source: z.enum(['manual', 'csv', 'plan', 'sip', 'ai_import']).optional(),
         sipOccurrenceId: z.uuid().nullable().optional(),
         cashOutflow: nonNegativeNumberSchema.nullable().optional(),
@@ -164,6 +166,7 @@ export const portfolioServiceRequests = [
             fees: nonNegativeNumberSchema.optional(),
             tradeAt: z.string().trim().min(1).max(40).optional(),
             note: z.string().trim().max(500).optional(),
+        chartSnapshot: chartSnapshotSchema,
           })
           .strict(),
       })

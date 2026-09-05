@@ -1,4 +1,8 @@
 export const ipcChannels = {
+  tradeSnapshotCancel: 'desktop:trade-snapshot:cancel',
+  tradeSnapshotOpen: 'desktop:trade-snapshot:open',
+  tradeSnapshotPayload: 'desktop:trade-snapshot:payload',
+  tradeSnapshotReady: 'desktop:trade-snapshot:ready',
   health: 'desktop:health',
   openExternal: 'desktop:system:open-external',
   assetStats: 'desktop:assets:stats',

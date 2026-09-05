@@ -499,7 +499,7 @@ export interface DesktopApi {
   };
   market: {
     resolve: (symbol: string) => Promise<InstrumentInfo>;
-    search: (query: string, limit?: number, marketScopes?: string[]) => Promise<MarketSearchHit[]>;
+    search: (query: string, limit?: number, marketScopes?: string[], assetKind?: 'stock' | 'fund') => Promise<MarketSearchHit[]>;
     getQuote: (symbol: string) => Promise<MarketQuote>;
     getQuotes: (symbols: string[]) => Promise<MarketQuote[]>;
     getSnapshot: (symbol: string) => Promise<MarketSnapshotView>;
@@ -516,6 +516,12 @@ export interface DesktopApi {
   watchlist: {
     listPools: () => Promise<WatchlistPoolMeta[]>;
     getPoolSnapshot: (poolId: WatchlistPoolId) => Promise<WatchlistPoolSnapshot>;
+  };
+  tradeSnapshot: {
+    cancel: () => Promise<void>;
+    open: (input: import('./chart/trade-snapshot').TradeSnapshotInput) => Promise<string>;
+    payload: () => Promise<import('./chart/trade-snapshot').TradeSnapshotPayload>;
+    ready: (error?: string) => Promise<void>;
   };
   portfolio: {
     listPositions: (accountId?: string) => Promise<PortfolioPositionView[]>;

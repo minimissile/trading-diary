@@ -1,4 +1,24 @@
 /* Shared UI skin. Base tokens come from theme-config.json; page layouts stay local. */
+/* Ant Design's built-in empty illustrations need distinct tones on graphite panels. */
+.ant-empty-image > svg:is([viewBox='0 0 184 152'], [viewBox='0 0 64 41']) ellipse {
+  fill: var(--ui-line);
+}
+.ant-empty-image > svg[viewBox='0 0 184 152'] > g > g > path:nth-of-type(1) {
+  fill: var(--ui-muted);
+}
+.ant-empty-image > svg[viewBox='0 0 184 152'] > g > g > path:nth-of-type(2) {
+  fill: var(--ui-line-strong);
+}
+.ant-empty-image > svg[viewBox='0 0 184 152'] > g > g > path:nth-of-type(3),
+.ant-empty-image > svg[viewBox='0 0 184 152'] > g > path {
+  fill: var(--ui-muted);
+}
+.ant-empty-image > svg[viewBox='0 0 64 41'] > g > g {
+  stroke: var(--ui-muted);
+}
+.ant-empty-image > svg[viewBox='0 0 64 41'] > g > g > path[fill] {
+  fill: var(--ui-line-strong);
+}
 .ant-btn {
   box-shadow: none;
 }

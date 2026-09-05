@@ -27,6 +27,7 @@ import './styles/watchlist.css';
 import './styles/alerts.css';
 import './styles/library-pages.css';
 import './styles/dividends.css';
+import { TradeSnapshotPage } from './pages/TradeSnapshotPage';
 import { APP_NAME } from '../shared/brand';
 
 dayjs.locale('zh-cn');
@@ -63,7 +64,7 @@ function AppTree(): React.JSX.Element {
 }
 
 createRoot(root).render(
-  IS_RENDERER_DEV ? (
+  window.location.hash === '#/trade-snapshot' ? <TradeSnapshotPage /> : IS_RENDERER_DEV ? (
     <AppTree />
   ) : (
     <StrictMode>

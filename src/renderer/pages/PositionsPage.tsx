@@ -225,8 +225,8 @@ export function PositionsPage(): React.JSX.Element {
         align: 'right',
         render: (kind: InstrumentKind, row) => (
           <span className="portfolio-kind-tags">
-            <Tag>{kindLabels[kind] ?? kind}</Tag>
             {row.fundProfile?.operationModeLabel ? <Tag color="orange">{row.fundProfile.operationModeLabel}</Tag> : null}
+            <Tag>{kindLabels[kind] ?? kind}</Tag>
           </span>
         ),
       },

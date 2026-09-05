@@ -132,8 +132,8 @@ const desktopApi: DesktopApi = {
   },
   market: {
     resolve: (symbol) => ipcRenderer.invoke(ipcChannels.marketResolve, { symbol }),
-    search: (query, limit, marketScopes) =>
-      ipcRenderer.invoke(ipcChannels.marketSearch, { query, limit, marketScopes }),
+    search: (query, limit, marketScopes, assetKind) =>
+      ipcRenderer.invoke(ipcChannels.marketSearch, { query, limit, marketScopes, assetKind }),
     getQuote: (symbol) => ipcRenderer.invoke(ipcChannels.marketGetQuote, { symbol }),
     getQuotes: (symbols) => ipcRenderer.invoke(ipcChannels.marketGetQuotes, { symbols }),
     getSnapshot: (symbol) => ipcRenderer.invoke(ipcChannels.marketGetSnapshot, { symbol }),
@@ -146,6 +146,12 @@ const desktopApi: DesktopApi = {
   watchlist: {
     listPools: () => ipcRenderer.invoke(ipcChannels.watchlistListPools),
     getPoolSnapshot: (poolId) => ipcRenderer.invoke(ipcChannels.watchlistGetPoolSnapshot, { poolId }),
+  },
+  tradeSnapshot: {
+    cancel: () => ipcRenderer.invoke(ipcChannels.tradeSnapshotCancel),
+    open: (input) => ipcRenderer.invoke(ipcChannels.tradeSnapshotOpen, input),
+    payload: () => ipcRenderer.invoke(ipcChannels.tradeSnapshotPayload),
+    ready: (error) => ipcRenderer.invoke(ipcChannels.tradeSnapshotReady, error),
   },
   portfolio: {
     listPositions: (accountId) => ipcRenderer.invoke(ipcChannels.portfolioListPositions, { accountId }),

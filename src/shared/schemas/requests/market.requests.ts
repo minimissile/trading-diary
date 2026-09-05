@@ -14,6 +14,7 @@ export const marketServiceRequests = [
         query: z.string().trim().min(1).max(32),
         limit: z.number().int().min(1).max(20).optional(),
         marketScopes: z.array(z.enum(['CN_A', 'HK', 'US'])).optional(),
+        assetKind: z.enum(['stock', 'fund']).optional(),
       })
       .strict(),
   }),

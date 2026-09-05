@@ -54,6 +54,7 @@ interface PortfolioLedgerRow {
   source: PortfolioLedgerSource;
   sip_occurrence_id: string | null;
   cash_outflow_cents: number | null;
+  chart_snapshot: string | null;
   created_at: string;
 }
 
@@ -240,8 +241,8 @@ export class PortfolioDatabase {
       .prepare(
         `INSERT INTO portfolio_ledger (
           id, account_id, symbol, venue, kind, side, quantity_micros, price_micros, fees_cents,
-          trade_at, plan_id, note, source, sip_occurrence_id, cash_outflow_cents, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          trade_at, plan_id, note, source, sip_occurrence_id, cash_outflow_cents, created_at, chart_snapshot
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         id,
@@ -260,6 +261,7 @@ export class PortfolioDatabase {
         input.sipOccurrenceId ?? null,
         input.cashOutflow !== null && input.cashOutflow !== undefined ? toScaledInteger(input.cashOutflow, MONEY_SCALE) : null,
         now,
+        input.chartSnapshot ?? null,
       );
 
     return this.getLedgerEntry(id);
@@ -291,10 +293,10 @@ export class PortfolioDatabase {
     this.db
       .prepare(
         `UPDATE portfolio_ledger SET
-          side = ?, quantity_micros = ?, price_micros = ?, fees_cents = ?, trade_at = ?, note = ?
+          side = ?, quantity_micros = ?, price_micros = ?, fees_cents = ?, trade_at = ?, note = ?, chart_snapshot = ?
          WHERE id = ?`,
       )
-      .run(side, quantityMicros, toScaledInteger(price, PRICE_SCALE), toScaledInteger(fees, MONEY_SCALE), tradeAt, note, id);
+      .run(side, quantityMicros, toScaledInteger(price, PRICE_SCALE), toScaledInteger(fees, MONEY_SCALE), tradeAt, note, input.chartSnapshot === undefined ? (existing.chartSnapshot ?? null) : input.chartSnapshot, id);
 
     return this.getLedgerEntry(id);
   }
@@ -522,6 +524,7 @@ export class PortfolioDatabase {
       tradeAt: row.trade_at,
       planId: row.plan_id,
       note: row.note,
+      chartSnapshot: row.chart_snapshot ?? null,
       source: row.source,
       sipOccurrenceId: row.sip_occurrence_id ?? null,
       cashOutflow:

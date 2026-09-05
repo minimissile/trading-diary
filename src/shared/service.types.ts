@@ -244,7 +244,7 @@ export interface ServiceContract {
     result: InstrumentInfo;
   };
   'market.search': {
-    params: { query: string; limit?: number; marketScopes?: Array<'CN_A' | 'HK' | 'US'> };
+    params: { query: string; limit?: number; marketScopes?: Array<'CN_A' | 'HK' | 'US'>; assetKind?: 'stock' | 'fund' };
     result: MarketSearchHit[];
   };
   'market.getQuote': {

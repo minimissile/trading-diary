@@ -6,6 +6,8 @@ export function useWorkspaceSnapshot(): {
   snapshot: WorkspaceSnapshot | undefined;
   isLoading: boolean;
   triggeredAlertCount: number;
+  isError: boolean;
+  refetch: () => Promise<unknown>;
 } {
   const query = useQuery({
     queryKey: queryKeys.workspace.snapshot(),
@@ -13,6 +15,8 @@ export function useWorkspaceSnapshot(): {
   });
   return {
     snapshot: query.data,
+    isError: query.isError,
+    refetch: query.refetch,
     isLoading: query.isLoading,
     triggeredAlertCount: query.data?.triggeredAlertCount ?? 0,
   };

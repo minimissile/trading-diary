@@ -46,11 +46,6 @@
   line-height: 1.6;
 }
 
-.watchlist-table .ant-table {
-  border: 1px solid var(--td-color-line);
-  border-radius: var(--td-radius-control);
-}
-
 .watchlist-table .ant-table-cell {
   padding-inline: 14px;
 }

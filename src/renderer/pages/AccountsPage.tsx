@@ -9,7 +9,7 @@ import { AccountFormModal } from '../components/trading/AccountFormModal';
 import { BrokerAvatar } from '../components/trading/BrokerAvatar';
 import { invalidateAccounts, useAccountsPageQuery } from '../lib/queries';
 
-import { EditOutlined, DeleteOutlined, PlusOutlined, StarFilled, StarOutlined, SearchOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, PlusOutlined, StarOutlined, SearchOutlined } from '@ant-design/icons';
 import type { TradingAccountSummary } from '../../shared/api.types';
 
 const kindLabels = {
@@ -22,6 +22,8 @@ export function AccountsPage(): React.JSX.Element {
   const [showArchived, setShowArchived] = useState(false);
   const { accounts, feeProfiles, isLoading: loading, refetch } = useAccountsPageQuery(showArchived);
   const [query, setQuery] = useState('');
+  const activeAccounts = accounts.filter((account) => !account.isArchived);
+  const defaultAccount = activeAccounts.find((account) => account.isDefault);
   const visibleAccounts = accounts.filter((account) =>
     `${getBrokerLabel(account.broker)} ${getAccountAlias(account)}`.toLowerCase().includes(query.trim().toLowerCase()),
   );
@@ -74,20 +76,45 @@ export function AccountsPage(): React.JSX.Element {
         </div>
       </header>
 
-      <section className="library-intro accounts-overview">
-        <div>
-          <h2>账户与持仓归属</h2>
-          <p>账户设置用于成交归属和费用计算，默认账户用于快捷录入。</p>
+      <section className="accounts-summary" aria-label="账户概览">
+        <div className="accounts-summary-primary">
+          <span>使用中的账户</span>
+          <strong>
+            {loading ? '—' : activeAccounts.length}
+            <small> 个</small>
+          </strong>
+          <p>集中管理持仓归属与交易费用</p>
         </div>
-        <strong>
-          {loading ? '—' : accounts.length}
-          <small> 个账户</small>
-        </strong>
+        <div className="accounts-summary-types">
+          <div>
+            <span>股票账户</span>
+            <strong>{loading ? '—' : activeAccounts.filter((account) => account.accountKind === 'securities').length}</strong>
+          </div>
+          <div>
+            <span>基金账户</span>
+            <strong>{loading ? '—' : activeAccounts.filter((account) => account.accountKind === 'fund').length}</strong>
+          </div>
+        </div>
+        <div className="accounts-summary-default">
+          <span>
+            <StarOutlined /> 默认录入账户
+          </span>
+          <strong>
+            {loading
+              ? '—'
+              : defaultAccount
+                ? getAccountAlias(defaultAccount) || getBrokerLabel(defaultAccount.broker)
+                : '暂未设置'}
+          </strong>
+          <p>{defaultAccount ? `${getBrokerLabel(defaultAccount.broker)} · 用于快捷录入成交` : '可在账户卡片中设置默认账户'}</p>
+        </div>
       </section>
       <div className="library-toolbar">
-        <h2>账户列表</h2>
+        <div className="accounts-list-heading">
+          <h2>账户列表</h2>
+          <span>{loading ? '加载中' : `${visibleAccounts.length} 个账户`}</span>
+        </div>
         <div className="library-search-controls">
-          {' '}
           <label className="accounts-toolbar-filter">
             <span>显示已归档</span>
             <Switch checked={showArchived} onChange={setShowArchived} />
@@ -105,16 +132,20 @@ export function AccountsPage(): React.JSX.Element {
       {loading ? (
         <Skeleton active paragraph={{ rows: 10 }} />
       ) : visibleAccounts.length === 0 ? (
-        <Empty description={query.trim() ? '未找到匹配账户' : '还没有账户，创建第一个交易账户'}>
-          <Button
-            type="primary"
-            onClick={() => {
-              setEditing(null);
-              setModalOpen(true);
-            }}
-          >
-            新建账户
-          </Button>
+        <Empty className="accounts-empty" description={query.trim() ? '未找到匹配账户' : '还没有账户，创建第一个交易账户'}>
+          {query.trim() ? (
+            <Button onClick={() => setQuery('')}>清除搜索</Button>
+          ) : (
+            <Button
+              type="primary"
+              onClick={() => {
+                setEditing(null);
+                setModalOpen(true);
+              }}
+            >
+              新建账户
+            </Button>
+          )}
         </Empty>
       ) : (
         <section className="accounts-grid">
@@ -178,7 +209,9 @@ function AccountCard({ account, onEdit, onSetDefault, onArchive, onDelete }: Acc
   const brokerLabel = getBrokerLabel(account.broker);
 
   return (
-    <article className={`account-card${account.isArchived ? ' account-card--archived' : ''}`}>
+    <article
+      className={`account-card${account.isArchived ? ' account-card--archived' : ''}${account.isDefault ? ' account-card--default' : ''}`}
+    >
       <header className="account-card-head">
         <div className="account-card-title">
           <div className="account-card-name-row">
@@ -186,7 +219,11 @@ function AccountCard({ account, onEdit, onSetDefault, onArchive, onDelete }: Acc
             <div>
               <div className="account-card-name-line">
                 <h2>{brokerLabel}</h2>
-                {account.isDefault ? <Tag color="blue">默认</Tag> : null}
+                {account.isDefault ? (
+                  <Tag color="processing" icon={<StarOutlined />}>
+                    默认账户
+                  </Tag>
+                ) : null}
                 {account.isArchived ? <Tag>已归档</Tag> : null}
               </div>
               <p>
@@ -196,9 +233,36 @@ function AccountCard({ account, onEdit, onSetDefault, onArchive, onDelete }: Acc
             </div>
           </div>
         </div>
+      </header>
+
+      <dl className="account-card-meta">
+        <div className="account-card-meta-item account-card-meta-item--highlight">
+          <dt>持仓市值</dt>
+          <dd>
+            <ValueDisplay kind="currency" value={account.totalMarketValue} />
+          </dd>
+        </div>
+        <div className="account-card-meta-item">
+          <dt>持仓成本</dt>
+          <dd>
+            <ValueDisplay kind="currency" value={account.totalCost} />
+          </dd>
+        </div>
+        <div className="account-card-meta-item">
+          <dt>浮动盈亏</dt>
+          <dd>
+            <ValueDisplay kind="pnl" value={account.unrealizedPnl} />
+          </dd>
+        </div>
+        <div className="account-card-meta-item">
+          <dt>持仓标的</dt>
+          <dd>{account.positionCount}</dd>
+        </div>
+      </dl>
+      <footer className="account-card-footer">
+        <span className="account-card-records">{account.ledgerCount} 条流水记录</span>
         {!account.isArchived ? (
           <div className="account-card-actions">
-            {account.isDefault ? <StarFilled className="account-card-default-icon" aria-label="默认账户" /> : null}
             <Button icon={<EditOutlined />} onClick={onEdit}>
               编辑
             </Button>
@@ -243,32 +307,7 @@ function AccountCard({ account, onEdit, onSetDefault, onArchive, onDelete }: Acc
             </Button>
           </div>
         )}
-      </header>
-
-      <dl className="account-card-meta">
-        <div className="account-card-meta-item account-card-meta-item--highlight">
-          <dt>持仓市值</dt>
-          <dd>
-            <ValueDisplay kind="currency" value={account.totalMarketValue} />
-          </dd>
-        </div>
-        <div className="account-card-meta-item">
-          <dt>持仓成本</dt>
-          <dd>
-            <ValueDisplay kind="currency" value={account.totalCost} />
-          </dd>
-        </div>
-        <div className="account-card-meta-item">
-          <dt>浮动盈亏</dt>
-          <dd>
-            <ValueDisplay kind="pnl" value={account.unrealizedPnl} />
-          </dd>
-        </div>
-        <div className="account-card-meta-item">
-          <dt>持仓标的</dt>
-          <dd>{account.positionCount}</dd>
-        </div>
-      </dl>
+      </footer>
     </article>
   );
 }

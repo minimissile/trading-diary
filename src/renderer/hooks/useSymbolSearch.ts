@@ -14,7 +14,7 @@ export interface UseSymbolSearchResult {
 }
 
 /** Debounce input and discard pending/stale results on clear, scope change or unmount. */
-export function useSymbolSearch(limit = 8, marketScopes: readonly string[] = ['CN_A']): UseSymbolSearchResult {
+export function useSymbolSearch(limit = 8, marketScopes: readonly string[] = ['CN_A'], assetKind?: 'stock' | 'fund'): UseSymbolSearchResult {
   const [options, setOptions] = useState<MarketSearchHit[]>([]);
   const [loading, setLoading] = useState(false);
   const requestSeq = useRef(0);
@@ -27,7 +27,7 @@ export function useSymbolSearch(limit = 8, marketScopes: readonly string[] = ['C
     if (timer.current !== null) clearTimeout(timer.current);
     timer.current = null;
   }, []);
-  useEffect(() => cancel, [cancel, scopesKey, limit]);
+  useEffect(() => cancel, [cancel, scopesKey, limit, assetKind]);
 
   const clear = useCallback(() => {
     cancel();
@@ -51,8 +51,8 @@ export function useSymbolSearch(limit = 8, marketScopes: readonly string[] = ['C
         lastRun.current = Date.now();
         void queryClient
           .fetchQuery({
-            queryKey: queryKeys.market.search(trimmed, limit, scopesKey),
-            queryFn: () => window.desktop.market.search(trimmed, limit, scopesKey.split(',').filter(Boolean)),
+            queryKey: [...queryKeys.market.search(trimmed, limit, scopesKey), assetKind ?? 'all'],
+            queryFn: () => window.desktop.market.search(trimmed, limit, scopesKey.split(',').filter(Boolean), assetKind),
             staleTime: 60_000,
           })
           .then((hits) => {
@@ -66,7 +66,7 @@ export function useSymbolSearch(limit = 8, marketScopes: readonly string[] = ['C
           });
       }, delay);
     },
-    [cancel, clear, limit, scopesKey],
+    [cancel, clear, limit, scopesKey, assetKind],
   );
 
   return { options, loading, search, clear };

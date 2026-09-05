@@ -910,17 +910,98 @@
   border-bottom: 0;
 }
 
-.dividends-page .portfolio-calendar-wrap .ant-picker-cell .ant-picker-calendar-date {
-  border-radius: 4px;
-  border-color: var(--dividend-line) !important;
-  background: var(--dividend-inset) !important;
+.dividends-page .portfolio-dividend-calendar-wrap .ant-picker-content {
+  table-layout: fixed;
 }
-
-.dividends-page .portfolio-calendar-wrap .ant-picker-cell:hover .ant-picker-calendar-date,
-.dividends-page .portfolio-calendar-wrap .ant-picker-cell-selected .ant-picker-calendar-date,
-.dividends-page .portfolio-calendar-wrap .ant-picker-cell-today .ant-picker-calendar-date {
-  border-color: var(--dividend-accent) !important;
-  background: #21434a !important;
+.dividends-page .portfolio-dividend-calendar-wrap .ant-picker-cell .ant-picker-calendar-date {
+  height: 116px;
+  margin: 4px;
+  padding: 8px;
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+}
+.dividends-page .portfolio-dividend-calendar-wrap .ant-picker-calendar-date-value {
+  text-align: left;
+  font-size: 13px;
+  line-height: 22px;
+}
+.dividends-page .portfolio-dividend-calendar-wrap .ant-picker-calendar-date-content {
+  height: 72px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+.dividends-page .portfolio-dividend-calendar-wrap .ant-picker-cell:not(.ant-picker-cell-in-view) .ant-picker-calendar-date {
+  opacity: 0.4;
+}
+.dividends-page
+  .portfolio-dividend-calendar-wrap
+  .ant-picker-cell
+  .ant-picker-calendar-date:has(.portfolio-dividend-calendar-cell) {
+  border-color: var(--ui-primary);
+  background: var(--td-color-accent-soft);
+}
+.dividends-page .portfolio-dividend-calendar-wrap .ant-picker-cell:hover .ant-picker-calendar-date,
+.dividends-page .portfolio-dividend-calendar-wrap .ant-picker-cell-selected .ant-picker-calendar-date {
+  border-color: var(--ui-accent);
+}
+.dividends-page .portfolio-dividend-calendar-wrap .ant-picker-cell-today .ant-picker-calendar-date-value {
+  color: var(--ui-accent);
+  font-weight: 700;
+}
+.dividends-page .portfolio-dividend-calendar-cell {
+  display: grid;
+  gap: 5px;
+}
+.dividends-page .portfolio-dividend-calendar-cell li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 19px;
+  color: var(--ui-secondary-text);
+}
+.dividend-calendar-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.dividends-page .portfolio-dividend-calendar-cell .td-value {
+  flex-shrink: 0;
+  color: var(--ui-accent);
+  font-weight: 650;
+}
+.dividends-page .portfolio-dividend-calendar-cell .dividend-calendar-more {
+  font-size: 11px;
+  color: var(--ui-muted);
+}
+.dividend-calendar-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dividend-calendar-legend i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ui-accent);
+}
+@media (max-width: 900px) {
+  .dividends-page .portfolio-dividend-calendar-wrap .ant-picker-cell .ant-picker-calendar-date {
+    margin: 2px;
+    padding: 5px;
+    height: 144px;
+  }
+  .dividends-page .portfolio-dividend-calendar-wrap .ant-picker-calendar-date-content {
+    height: 104px;
+  }
+  .dividends-page .portfolio-dividend-calendar-cell li {
+    display: grid;
+    gap: 0;
+  }
 }
 
 /* Let the shared wallpaper and frost controls show through the teal sample. */

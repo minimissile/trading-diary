@@ -1,12 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { App, Button, Checkbox, Form, Input, InputNumber, Modal, Radio, Segmented } from 'antd';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { App, Button, Form, Image, Input, InputNumber, Modal, Radio, Segmented } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { useNavigate } from 'react-router';
 import type { InstrumentInfo, MarketQuote, TradingAccountSummary } from '../../../shared/api.types';
 import type { PortfolioLedgerEntry } from '../../../shared/portfolio/types';
 import { LEDGER_IMPORT_ASSET_KIND_LABELS, type LedgerAiImportAssetKind } from '../../../shared/portfolio/ledger-import-types';
-import { routePaths } from '../../router/paths';
-import type { JournalReviewDraft } from '../../router/journal-state';
+import { CameraOutlined } from '@ant-design/icons';
+import { tradeSnapshotKey, type TradeSnapshotInput } from '../../../shared/chart/trade-snapshot';
 import { SymbolSearchInput } from './SymbolSearchInput';
 import { AccountSelect } from './AccountSelect';
 import { LedgerTradeContextPanel } from './LedgerTradeContextPanel';
@@ -31,7 +30,6 @@ interface FormValues {
   fees: number;
   tradeAt: Dayjs;
   note?: string;
-  reviewAfterSave?: boolean;
 }
 
 export function PortfolioLedgerModal(props: PortfolioLedgerModalProps): React.JSX.Element {
@@ -46,9 +44,22 @@ function PortfolioLedgerModalContent({
   editingEntry = null,
 }: PortfolioLedgerModalProps): React.JSX.Element {
   const { message } = App.useApp();
-  const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
   const [saving, setSaving] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+  const activeRef = useRef(true);
+  const [snapshot, setSnapshot] = useState<{ key: string; dataUrl: string } | null>(() => {
+    if (!editingEntry?.chartSnapshot) return null;
+    return { dataUrl: editingEntry.chartSnapshot, key: tradeSnapshotKey({ ...editingEntry,
+      name: editingEntry.symbol, side: editingEntry.side === 'sell' ? 'sell' : 'buy' }) };
+  });
+  useEffect(() => {
+    activeRef.current = true;
+    return () => {
+      activeRef.current = false;
+      void window.desktop.tradeSnapshot.cancel().catch(() => undefined);
+    };
+  }, []);
   const [estimating, setEstimating] = useState(false);
   const [resolved, setResolved] = useState<InstrumentInfo | null>(null);
   const [resolving, setResolving] = useState(false);
@@ -66,6 +77,18 @@ function PortfolioLedgerModalContent({
     return ['CN_A'];
   }, [accounts, accountId]);
 
+  const selectedAccountKind = accounts.find((item) => item.id === accountId)?.accountKind;
+  useEffect(() => {
+    if (!open || editingEntry || !selectedAccountKind) return;
+    // Synchronize Ant Design's external form store and its resolved account with the quote editor.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLedgerAssetKind(selectedAccountKind === 'fund' ? 'fund' : 'stock');
+    form.setFieldValue('symbol', undefined);
+    setResolved(null);
+    setQuote(null);
+    setResolving(false);
+  }, [accountId, selectedAccountKind, open, editingEntry, form]);
+
   const symbolPlaceholder =
     marketScopes.includes('HK') || marketScopes.includes('US')
       ? '如 00700、06060、AAPL（搜公司名，非券商名）'
@@ -75,6 +98,40 @@ function PortfolioLedgerModalContent({
   const price = Form.useWatch('price', form);
   const quantity = Form.useWatch('quantity', form);
   const tradeAt = Form.useWatch('tradeAt', form);
+  const symbolValue = Form.useWatch('symbol', form);
+  const fees = Form.useWatch('fees', form);
+
+  const snapshotInput = (values: FormValues): TradeSnapshotInput => ({
+    accountId: values.accountId, symbol: values.symbol.trim().toUpperCase(),
+    name: resolved?.name ?? editingEntry?.symbol ?? values.symbol,
+    venue: editingEntry?.venue ?? (ledgerAssetKind === 'fund' ? 'OTC' : resolved!.venue),
+    kind: editingEntry?.kind ?? (ledgerAssetKind === 'fund' ? 'otc_fund' : resolved!.kind),
+    side: values.side, quantity: values.quantity, price: values.price, fees: values.fees ?? 0,
+    tradeAt: tradeAtToIso(values.tradeAt), editingId: editingEntry?.id,
+  });
+  const snapshotReady = Boolean(accountId && symbolValue && (editingEntry || (resolved?.symbol === symbolValue.trim().toUpperCase() && !resolving))
+    && (side === 'buy' || side === 'sell') && price > 0 && quantity > 0 && (fees ?? 0) >= 0 && tradeAt?.isValid());
+  const currentSnapshotKey = snapshotReady ? tradeSnapshotKey(snapshotInput(form.getFieldsValue())) : null;
+  const attachedSnapshot = snapshot?.key === currentSnapshotKey ? snapshot?.dataUrl : null;
+
+  const captureSnapshot = async (): Promise<void> => {
+    let values: FormValues;
+    try { values = await form.validateFields(); } catch { return; }
+    if (!snapshotReady) return;
+    const input = snapshotInput(values);
+    const key = tradeSnapshotKey(input);
+    setCapturing(true);
+    try {
+      const dataUrl = await window.desktop.tradeSnapshot.open(input);
+      if (!activeRef.current) return;
+      setSnapshot({ key, dataUrl });
+      void message.success('交易 K 线快照已回填，保存流水时一并保存');
+    } catch (reason) {
+      if (activeRef.current) void message.error(reason instanceof Error ? reason.message : '快照生成失败');
+    } finally {
+      if (activeRef.current) setCapturing(false);
+    }
+  };
 
   const loadQuote = useCallback(async (symbol: string): Promise<void> => {
     setQuoteLoading(true);
@@ -87,20 +144,6 @@ function PortfolioLedgerModalContent({
       setQuoteLoading(false);
     }
   }, []);
-
-  const syncLedgerAssetKindFromSymbol = useCallback(
-    async (symbol: string, currentAccountId?: string): Promise<void> => {
-      if (!currentAccountId || editingEntry) return;
-      try {
-        const entries = await window.desktop.portfolio.listLedgerEntries(currentAccountId, symbol);
-        if (entries.length === 0) return;
-        setLedgerAssetKind(entries[0]?.kind === 'otc_fund' ? 'fund' : 'stock');
-      } catch {
-        // 忽略查询失败，保留用户选择
-      }
-    },
-    [editingEntry],
-  );
 
   useEffect(() => {
     if (!open) return;
@@ -126,7 +169,6 @@ function PortfolioLedgerModalContent({
         fees: editingEntry.fees,
         tradeAt: parseTradeAt(editingEntry.tradeAt),
         note: editingEntry.note,
-        reviewAfterSave: false,
       });
       void window.desktop.market
         .resolve(editingEntry.symbol)
@@ -145,25 +187,18 @@ function PortfolioLedgerModalContent({
       side: 'buy',
       fees: 0,
       tradeAt: defaultTradeAt(),
-      reviewAfterSave: false,
     });
   }, [defaultAccountId, editingEntry, form, loadQuote, open]);
-
-  useEffect(() => {
-    if (!open || editingEntry) return;
-    form.setFieldValue('reviewAfterSave', side === 'sell');
-  }, [editingEntry, form, open, side]);
 
   const submit = async (): Promise<void> => {
     const values = await form.validateFields();
     const symbol = values.symbol.trim().toUpperCase();
+    if (!editingEntry && (!resolved || resolved.symbol !== symbol || resolving)) {
+      void message.warning('请先选择当前交易渠道下的有效标的');
+      return;
+    }
     setSaving(true);
     try {
-      let reviewDraft: JournalReviewDraft | null = null;
-      if (values.reviewAfterSave) {
-        reviewDraft = await buildReviewDraft(values, symbol, resolved?.name);
-      }
-
       if (editingEntry) {
         await window.desktop.portfolio.updateLedgerEntry(editingEntry.id, {
           side: values.side,
@@ -172,11 +207,12 @@ function PortfolioLedgerModalContent({
           fees: values.fees ?? 0,
           tradeAt: tradeAtToIso(values.tradeAt),
           note: values.note?.trim(),
+          chartSnapshot: attachedSnapshot ?? null,
         });
         void message.success('流水已更新');
       } else {
         const kind = ledgerAssetKind === 'fund' ? 'otc_fund' : resolved?.kind;
-        const venue = ledgerAssetKind === 'fund' ? ('OTC' as const) : undefined;
+        const venue = ledgerAssetKind === 'fund' ? ('OTC' as const) : resolved?.venue;
         await window.desktop.portfolio.addLedgerEntry({
           accountId: values.accountId,
           symbol,
@@ -188,6 +224,7 @@ function PortfolioLedgerModalContent({
           fees: values.fees ?? 0,
           tradeAt: tradeAtToIso(values.tradeAt),
           note: values.note?.trim(),
+          chartSnapshot: attachedSnapshot ?? null,
           source: 'manual',
         });
         void message.success(values.side === 'buy' ? '买入记录已保存' : '卖出记录已保存');
@@ -196,52 +233,11 @@ function PortfolioLedgerModalContent({
       onSaved();
       onClose();
 
-      if (!editingEntry && reviewDraft) {
-        void navigate(routePaths.journal, {
-          state: {
-            openReview: true,
-            reviewDraft,
-          },
-        });
-      }
     } catch (reason) {
       void message.error(reason instanceof Error ? reason.message : '保存失败');
     } finally {
       setSaving(false);
     }
-  };
-
-  const buildReviewDraft = async (values: FormValues, symbol: string, name?: string): Promise<JournalReviewDraft> => {
-    const displayName = name ?? symbol;
-    const tradeLabel = values.side === 'sell' ? '卖出' : '买入';
-
-    if (values.side === 'sell') {
-      const positions = await window.desktop.portfolio.listPositions(values.accountId);
-      const position = positions.find((item) => item.symbol === symbol);
-      return {
-        symbol,
-        title: `${displayName} · ${tradeLabel}复盘`,
-        direction: 'long',
-        planned: false,
-        entryPrice: position?.avgCost ?? values.price,
-        exitPrice: values.price,
-        quantity: values.quantity,
-        fees: values.fees ?? 0,
-        tradeAt: tradeAtToIso(values.tradeAt),
-      };
-    }
-
-    return {
-      symbol,
-      title: `${displayName} · ${tradeLabel}复盘`,
-      direction: 'long',
-      planned: false,
-      entryPrice: values.price,
-      exitPrice: quote?.price ?? values.price,
-      quantity: values.quantity,
-      fees: values.fees ?? 0,
-      tradeAt: tradeAtToIso(values.tradeAt),
-    };
   };
 
   const estimateFees = async (): Promise<void> => {
@@ -291,6 +287,7 @@ function PortfolioLedgerModalContent({
       okText="保存"
       cancelText="取消"
       confirmLoading={saving}
+      okButtonProps={{ disabled: capturing }}
       onCancel={onClose}
       onOk={() => void submit()}
       destroyOnHidden
@@ -306,7 +303,13 @@ function PortfolioLedgerModalContent({
             <Form.Item label="交易渠道">
               <Segmented
                 value={ledgerAssetKind}
-                onChange={(value) => setLedgerAssetKind(value as LedgerAiImportAssetKind)}
+                onChange={(value) => {
+                  setLedgerAssetKind(value as LedgerAiImportAssetKind);
+                  form.setFieldValue('symbol', undefined);
+                  setResolved(null);
+                  setQuote(null);
+                  setResolving(false);
+                }}
                 options={[
                   { label: LEDGER_IMPORT_ASSET_KIND_LABELS.stock, value: 'stock' },
                   { label: LEDGER_IMPORT_ASSET_KIND_LABELS.fund, value: 'fund' },
@@ -315,7 +318,7 @@ function PortfolioLedgerModalContent({
             </Form.Item>
             <p className="ledger-ai-import-hint ledger-ai-import-hint--compact">
               {ledgerAssetKind === 'fund'
-                ? '蚂蚁、天天基金等场外申购/定投请选「场外基金」。同一基金代码若已存在场外持仓，会自动归入该持仓。'
+                ? '蚂蚁、天天基金等场外申购/定投请选「场外基金」。搜索仅显示场外基金。'
                 : '券商 App 场内买卖（含 LOF、ETF）请选「股票（含场内基金）」。'}
             </p>
           </>
@@ -330,7 +333,9 @@ function PortfolioLedgerModalContent({
         >
           <SymbolSearchInput
             placeholder={symbolPlaceholder}
+            key={`${accountId}:${ledgerAssetKind}`}
             marketScopes={marketScopes}
+            assetKind={ledgerAssetKind}
             disabled={Boolean(editingEntry)}
             onResolveStart={() => {
               setResolving(true);
@@ -340,11 +345,10 @@ function PortfolioLedgerModalContent({
               setResolving(false);
               setResolved(instrument);
               if (instrument) {
-                void syncLedgerAssetKindFromSymbol(instrument.symbol, accountId);
                 void loadQuote(instrument.symbol);
               } else {
                 setQuote(null);
-                void message.warning('未识别该代码，保存时将再次尝试解析');
+                void message.warning('未找到当前交易渠道下的标的，请从搜索结果选择');
               }
             }}
           />
@@ -407,13 +411,17 @@ function PortfolioLedgerModalContent({
           </Form.Item>
         </div>
 
-        <Form.Item name="reviewAfterSave" valuePropName="checked" hidden={Boolean(editingEntry)}>
-          <Checkbox>
-            保存后去复盘
-            <span className="ledger-review-hint">
-              {side === 'sell' ? '（默认带入成本价与卖出价）' : '（带入买入价，退出价参考现价）'}
-            </span>
-          </Checkbox>
+        <Form.Item label="交易 K 线快照">
+          <div className="ledger-chart-snapshot">
+            <div className="ledger-chart-snapshot-actions">
+              <Button icon={<CameraOutlined />} loading={capturing} disabled={!snapshotReady || saving} onClick={() => void captureSnapshot()}>
+                {attachedSnapshot ? '重新生成快照' : '交易 K 线快照'}
+              </Button>
+              <span>{snapshotReady ? '加载历史买卖点及本次交易后自动截图' : '请先填写账户、标的、方向、数量、成交价和成交时间'}</span>
+            </div>
+            {attachedSnapshot ? <Image src={attachedSnapshot} alt="本笔交易的 K 线快照" /> : null}
+            {snapshot && !attachedSnapshot ? <span>交易信息已变更，请重新生成快照。</span> : null}
+          </div>
         </Form.Item>
 
         <Form.Item label="备注" name="note">

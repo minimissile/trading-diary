@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { Alert, App, Button, Calendar, Dropdown, Empty, Segmented, Skeleton, Table, Tag } from 'antd';
+import { Alert, App, Button, Calendar, Dropdown, Empty, Segmented, Skeleton, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   InfoCircleOutlined,
@@ -426,7 +426,7 @@ export function DividendsPage(): React.JSX.Element {
           {tab === 'calendar' ? (
             <div className="portfolio-calendar-wrap portfolio-dividend-calendar-wrap">
               <Calendar
-                fullscreen={false}
+                fullscreen
                 mode="month"
                 value={dayjs(`${calendarMonth}-01`)}
                 headerRender={({ value }) => (
@@ -450,7 +450,9 @@ export function DividendsPage(): React.JSX.Element {
                         onClick={() => changeCalendarMonth(value.clone().add(1, 'month'))}
                       />
                     </div>
-                    <span>除权日分红</span>
+                    <span className="dividend-calendar-legend">
+                      <i /> 除权日分红
+                    </span>
                   </div>
                 )}
                 onPanelChange={(value, mode) => {
@@ -463,14 +465,27 @@ export function DividendsPage(): React.JSX.Element {
                   const items = calendarCellMap.get(key);
                   if (!items?.length) return null;
                   return (
-                    <ul className="portfolio-calendar-cell portfolio-dividend-calendar-cell">
-                      {items.slice(0, 2).map((item, index) => (
-                        <li key={`${item.accountId ?? 'all'}-${item.symbol}-${item.status}-${index}`}>
-                          {item.name} <ValueDisplay kind="currency" value={item.cashAmount} />
-                        </li>
-                      ))}
-                      {items.length > 2 ? <li>+{items.length - 2} 条</li> : null}
-                    </ul>
+                    <Tooltip
+                      title={
+                        <div>
+                          {items.map((item, index) => (
+                            <div key={index}>
+                              {item.name} · <ValueDisplay kind="currency" value={item.cashAmount} />
+                            </div>
+                          ))}
+                        </div>
+                      }
+                    >
+                      <ul className="portfolio-calendar-cell portfolio-dividend-calendar-cell">
+                        {items.slice(0, 2).map((item, index) => (
+                          <li key={`${item.accountId ?? 'all'}-${item.symbol}-${item.status}-${index}`}>
+                            <span className="dividend-calendar-name">{item.name}</span>
+                            <ValueDisplay kind="currency" value={item.cashAmount} />
+                          </li>
+                        ))}
+                        {items.length > 2 ? <li className="dividend-calendar-more">另有 {items.length - 2} 笔分红</li> : null}
+                      </ul>
+                    </Tooltip>
                   );
                 }}
               />

@@ -196,6 +196,7 @@ export class AppService {
           request.params.query,
           request.params.limit,
           request.params.marketScopes,
+          request.params.assetKind,
         );
       case 'market.getQuote':
         return marketService.getQuote(request.params.symbol);

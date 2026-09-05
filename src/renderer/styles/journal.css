@@ -79,6 +79,7 @@
   padding: 0;
   border: 0;
   background: transparent;
+  box-shadow: none;
 }
 .workspace-page.journal-page .review-notes > div:last-child {
   position: relative;

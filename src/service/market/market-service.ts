@@ -29,8 +29,8 @@ export class MarketService {
     return resolveInstrumentMulti(symbol);
   }
 
-  search(query: string, limit?: number, marketScopes?: readonly string[]): Promise<MarketSearchHit[]> {
-    return searchInstrumentsMulti(query, marketScopes ?? ['CN_A'], limit);
+  search(query: string, limit?: number, marketScopes?: readonly string[], assetKind?: 'stock' | 'fund'): Promise<MarketSearchHit[]> {
+    return searchInstrumentsMulti(query, marketScopes ?? ['CN_A'], limit, assetKind);
   }
 
   async getQuote(symbol: string): Promise<MarketQuote> {

@@ -101,9 +101,11 @@ export async function searchInstrumentsScoped(
   query: string,
   scopes: readonly string[],
   limit = 10,
+  assetKind?: 'stock' | 'fund',
 ): Promise<MarketSearchHit[]> {
   const keyword = query.trim();
   if (keyword.length === 0) return [];
+  if (assetKind === 'fund') return searchOtcFundHits(keyword, limit);
 
   const url = new URL('https://search-codetable.eastmoney.com/codetable/search/web');
   url.searchParams.set('client', 'web');
@@ -121,6 +123,7 @@ export async function searchInstrumentsScoped(
     if (!isSearchableCodeTableRow(row)) continue;
     const venue = venueFromCodeTableRow(row);
     if (!venue || !isVenueAllowedByScopes(scopes, venue)) continue;
+    if (assetKind === 'stock' && venue === 'OTC') continue;
 
     const symbol =
       venue === 'HK'
@@ -135,6 +138,7 @@ export async function searchInstrumentsScoped(
         : mapped === 'unknown'
           ? await inferKindFromQuote(symbol, row.securityTypeName)
           : mapped;
+    if (assetKind === 'stock' && kind === 'otc_fund') continue;
     hits.push(
       enrichEastMoneySearchHit(
         {
@@ -150,7 +154,7 @@ export async function searchInstrumentsScoped(
     if (hits.length >= limit) break;
   }
 
-  if (!scopes.includes('CN_A')) return hits;
+  if (assetKind === 'stock' || !scopes.includes('CN_A')) return hits;
 
   try {
     const fundHits = await searchOtcFundHits(keyword, limit);

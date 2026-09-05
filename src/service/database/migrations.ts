@@ -723,4 +723,9 @@ export const migrations: readonly Migration[] = [
       CREATE INDEX lof_arbitrage_events_triggered_idx ON lof_arbitrage_events(triggered_at DESC);
     `,
   },
+  {
+    version: 25,
+    name: 'ledger_chart_snapshot',
+    sql: `ALTER TABLE portfolio_ledger ADD COLUMN chart_snapshot TEXT;`,
+  },
 ];
