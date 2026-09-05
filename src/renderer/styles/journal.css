@@ -68,9 +68,12 @@
 .workspace-page.journal-page .review-notes {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  gap: 20px;
+  gap: 24px;
   border: 0;
+  margin-bottom: 0;
   padding-top: 0;
+  background: transparent;
+  box-shadow: none;
 }
 .workspace-page.journal-page .review-notes > div {
   padding: 0;
@@ -78,11 +81,22 @@
   background: transparent;
 }
 .workspace-page.journal-page .review-notes > div:last-child {
-  border-left: 2px solid var(--ui-secondary);
-  padding-left: 16px;
+  position: relative;
+  align-self: start;
+  padding-left: 20px;
+}
+.workspace-page.journal-page .review-notes > div:last-child::before {
+  position: absolute;
+  inset: 4px auto 4px 0;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--ui-secondary);
+  content: '';
 }
 .journal-page .review-notes > div > span {
+  display: block;
   font-size: 12px;
+  line-height: 20px;
   color: var(--ui-muted);
 }
 .journal-page .review-notes > div:last-child > span {
@@ -91,7 +105,7 @@
 .workspace-page.journal-page .review-notes p {
   font-size: 13px;
   line-height: 1.75;
-  margin: 6px 0 0;
+  margin: 10px 0 0;
   overflow-wrap: anywhere;
 }
 .journal-executions {

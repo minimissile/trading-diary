@@ -31,11 +31,11 @@
   --td-select-option-selected-bg: rgb(91 124 255 / 28%);
   --td-select-option-selected-color: #ffffff;
 
-  /* 交易方向色遵循中国市场习惯：红涨绿跌。 */
-  --td-color-profit: #ff5e73;
-  --td-color-profit-surface: rgb(255 94 115 / 14%);
-  --td-color-loss: #39d3c3;
-  --td-color-loss-surface: rgb(57 211 195 / 14%);
+  /* 红涨绿跌：珊瑚红与草绿，避免与青色主题混淆；同步 market-colors.ts。 */
+  --td-color-profit: #ff756b;
+  --td-color-profit-surface: rgb(255 117 107 / 14%);
+  --td-color-loss: #8bd66b;
+  --td-color-loss-surface: rgb(139 214 107 / 14%);
   --td-color-flat: #6b7280;
   --td-color-flat-surface: #1b2e3e;
 

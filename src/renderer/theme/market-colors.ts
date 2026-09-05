@@ -3,10 +3,10 @@
  * 避免“盈利”和“操作成功”、“亏损”和“操作失败”产生语义冲突。
  */
 export const marketColors = {
-  profit: '#ff5e73',
-  profitSurface: 'rgba(255, 94, 115, 0.14)',
-  loss: '#39d3c3',
-  lossSurface: 'rgba(57, 211, 195, 0.14)',
+  profit: '#ff756b',
+  profitSurface: 'rgba(255, 117, 107, 0.14)',
+  loss: '#8bd66b',
+  lossSurface: 'rgba(139, 214, 107, 0.14)',
   flat: '#65739a',
   flatSurface: 'rgba(101, 115, 154, 0.14)',
 } as const;

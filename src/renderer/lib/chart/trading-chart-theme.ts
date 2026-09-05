@@ -12,8 +12,8 @@ function readCssVar(name: string, fallback: string): string {
  * @param kind 标的类型，场外基金使用面积图展示净值
  */
 export function buildTradingChartStyles(kind: InstrumentKind = 'stock'): DeepPartial<Styles> {
-  const profit = readCssVar('--td-color-profit', '#ff5e73');
-  const loss = readCssVar('--td-color-loss', '#39d3c3');
+  const profit = readCssVar('--td-color-profit', '#ff756b');
+  const loss = readCssVar('--td-color-loss', '#8bd66b');
   const flat = readCssVar('--td-color-flat', '#65739a');
   const line = readCssVar('--td-color-line', 'rgb(210 224 255 / 14%)');
   const ink = readCssVar('--td-color-ink', '#f5f7ff');

@@ -814,9 +814,12 @@
 }
 
 .broker-select-option {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 22px;
+  height: 100%;
+  line-height: 22px;
 }
 
 .broker-select-icon {
@@ -862,9 +865,19 @@
 }
 
 .account-select-option {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  min-height: 22px;
+  height: 100%;
+  line-height: 22px;
+}
+
+:is(.account-select, .broker-select) :is(.ant-select-selection-item, .ant-select-content),
+.ant-select-item-option-content:has(> :is(.account-select-option, .broker-select-option)) {
+  display: flex;
+  align-items: center;
   min-width: 0;
 }
 
@@ -1694,4 +1707,3 @@
 .ant-modal-body .ant-space-vertical > .account-select {
   width: 100%;
 }
-

@@ -356,10 +356,11 @@ select {
 }
 
 .command-search {
-  height: 42px;
-  padding-left: 14px;
-  border-color: var(--yingji-border);
-  border-radius: 12px;
+  gap: 10px;
+  height: 36px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--ui-line-strong);
+  border-radius: 6px;
   color: var(--yingji-muted);
   background: rgb(17 29 37 / 38%);
   transition:
@@ -368,15 +369,50 @@ select {
     background 160ms ease;
 }
 
+.topbar-leading .command-search:hover {
+  border-color: var(--ui-accent);
+}
+
 .command-search:focus-within {
   border-color: var(--ui-accent);
   background: var(--ui-inset);
   box-shadow: 0 0 0 2px rgb(120 211 216 / 12%);
 }
 
-.command-search .ant-input,
-.command-search .ant-input-affix-wrapper {
+.command-search :is(.ant-input, .ant-input-affix-wrapper),
+.command-search :is(.ant-input, .ant-input-affix-wrapper):is(:hover, :focus, :focus-within) {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
   color: var(--yingji-text);
+  background: transparent;
+  box-shadow: none;
+}
+
+.command-search > .anticon {
+  flex: none;
+  font-size: 16px;
+}
+
+.command-search .ant-input-affix-wrapper {
+  flex: 1;
+  height: 100%;
+  align-items: center;
+}
+
+.command-search .ant-input {
+  font-size: 13px;
+  line-height: 22px;
+}
+
+.command-search .ant-input-suffix {
+  margin-inline-start: 10px;
+}
+
+.command-search:focus-within > .anticon {
+  color: var(--ui-accent);
 }
 
 .command-search .ant-input::placeholder {
@@ -384,12 +420,18 @@ select {
 }
 
 .command-search kbd {
-  padding: 3px 7px;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: 22px;
+  padding: 0 6px;
   border-color: var(--yingji-border);
   border-radius: 4px;
   color: var(--yingji-muted);
   background: #203640;
   font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .market-context,
