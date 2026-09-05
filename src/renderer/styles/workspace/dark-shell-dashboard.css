@@ -20,8 +20,7 @@ body {
 .app-sidebar {
   border-right: 1px solid #1d394c;
   color: #dbe9f5;
-  background:
-    linear-gradient(180deg, rgb(9 29 43 / 96%) 0%, #071825 28%, #061521 100%);
+  background: linear-gradient(180deg, rgb(9 29 43 / 96%) 0%, #071825 28%, #061521 100%);
   box-shadow: 8px 0 24px rgb(0 7 14 / 18%);
 }
 
@@ -378,28 +377,6 @@ body {
 .topbar-actions .ant-btn {
   height: 38px;
   border-radius: 6px;
-}
-
-.new-plan-button {
-  background: #217ee7;
-}
-
-.record-trade-button {
-  border-color: #6f3fd1 !important;
-  color: #ffffff !important;
-  background: #6f3fd1 !important;
-}
-
-.topbar-icon-button {
-  width: 38px;
-  padding: 0;
-  color: #d3e0ea !important;
-  font-size: 18px;
-}
-
-.analytics-button {
-  border-radius: 50% !important;
-  background: #153148 !important;
 }
 
 .app-page-scroll {
@@ -1396,4 +1373,3 @@ body {
   background: #103552;
   font-size: 9px;
 }
-

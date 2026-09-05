@@ -17,14 +17,28 @@
   height: 0;
 }
 
+/* Reserve space before vertical overflow so scrollbars never shift content. */
+:root,
+.app-page-scroll,
+.primary-nav,
+.ant-table-body,
+.ant-table-content,
+.ant-modal-wrap,
+.ant-modal-body,
+.background-picker,
+.ai-stream-preview,
+.renderer-fatal pre,
+textarea {
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
   background-color: var(--td-color-canvas);
   background-image:
-    linear-gradient(rgb(44 140 255 / 4%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(44 140 255 / 4%) 1px, transparent 1px);
+    linear-gradient(rgb(44 140 255 / 4%) 1px, transparent 1px), linear-gradient(90deg, rgb(44 140 255 / 4%) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 

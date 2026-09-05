@@ -19,7 +19,7 @@ const backgrounds = [
 ] as const;
 const storageKey = 'trading-diary:appearance:v1';
 const customImageKey = 'trading-diary:background-image:v1';
-const defaults = { background: 'aurora', transparency: 55 };
+const defaults = { background: 'none', transparency: 55 };
 
 function readCustomImage(): string | null {
   try {
@@ -37,6 +37,7 @@ function readAppearance(): typeof defaults {
     const saved = value as Record<string, unknown>;
     return {
       background:
+        saved.background === 'none' ||
         [...backgrounds, ...imageBackgrounds].some((item) => item.id === saved.background) ||
         (saved.background === 'custom' && readCustomImage() !== null)
           ? String(saved.background)
@@ -60,6 +61,13 @@ export function BackgroundPicker(): React.JSX.Element {
   const fileInput = useRef<HTMLInputElement>(null);
 
   useLayoutEffect(() => {
+    if (appearance.background === 'none') {
+      delete document.body.dataset.background;
+      for (const property of ['--workspace-custom-image', '--workspace-opacity', '--workspace-frost', '--workspace-backdrop']) {
+        document.body.style.removeProperty(property);
+      }
+      return;
+    }
     document.body.dataset.background = appearance.background;
     if (appearance.background === 'custom' && customImage) {
       document.body.style.setProperty('--workspace-custom-image', `url("${customImage}")`);
@@ -122,8 +130,21 @@ export function BackgroundPicker(): React.JSX.Element {
         <section className="background-picker" aria-label="工作台背景">
           <div className="background-picker-heading">
             <span>工作台背景</span>
-            <small>让光透过磨砂玻璃</small>
+            <small>默认使用页面配色，也可选择图片或氛围色</small>
           </div>
+          <button
+            type="button"
+            className="background-option background-option--none"
+            disabled={importing}
+            aria-pressed={appearance.background === 'none'}
+            onClick={() => save({ ...appearance, background: 'none' })}
+          >
+            <span>
+              <strong>不使用背景</strong>
+              <small>使用页面默认配色</small>
+            </span>
+            {appearance.background === 'none' ? <CheckOutlined aria-hidden="true" /> : null}
+          </button>
           <Segmented block options={['图片', '氛围色']} value={category} onChange={setCategory} aria-label="背景类型" />
           <div className="background-options" role="group" aria-label="选择背景">
             {(category === '图片' ? imageBackgrounds : backgrounds).map((item) => (
@@ -188,10 +209,16 @@ export function BackgroundPicker(): React.JSX.Element {
           ) : null}
           <div className="background-transparency">
             <label id="background-transparency-label">背景磨砂强度</label>
-            <span>{appearance.transparency === 0 ? '原图' : `${appearance.transparency}%`}</span>
+            <span>
+              {appearance.background === 'none'
+                ? '未启用'
+                : appearance.transparency === 0
+                  ? '原图'
+                  : `${appearance.transparency}%`}
+            </span>
           </div>
           <Slider
-            disabled={importing}
+            disabled={importing || appearance.background === 'none'}
             min={0}
             max={80}
             value={appearance.transparency}

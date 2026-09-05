@@ -17,15 +17,17 @@ import {
 } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router';
-import type {
-  CreateTradeReviewInput,
-  TradeDirection,
-  TradeEpisodeView,
-  TradingPlan,
-} from '../../shared/api.types';
+import type { CreateTradeReviewInput, TradeDirection, TradeEpisodeView, TradingPlan } from '../../shared/api.types';
 import { ExecutionEntryModal } from '../components/trading/ExecutionEntryModal';
 import { EpisodeTimeline } from '../components/trading/EpisodeTimeline';
-import { directionLabels, formatDateTime, formatPrice, formatSignedCurrency, statisticCurrencyFormatter, ValueDisplay } from '../lib/trading-format';
+import {
+  directionLabels,
+  formatDateTime,
+  formatPrice,
+  formatSignedCurrency,
+  statisticCurrencyFormatter,
+  ValueDisplay,
+} from '../lib/trading-format';
 import { useReviewAiDraft } from '../hooks/useReviewAiDraft';
 import { useTradingAccountId } from '../hooks/useTradingAccountId';
 import { invalidateWorkspaceData, useEpisodesQuery, usePlansQuery, useReviewsQuery } from '../lib/queries';
@@ -63,7 +65,9 @@ export function JournalPage(): React.JSX.Element {
   const requestedOpenExecution = state?.openExecution ?? false;
 
   const [executionOpen, setExecutionOpen] = useState(requestedOpenExecution);
-  const [reviewOpen, setReviewOpen] = useState(Boolean(requestedPlanId || requestedEpisodeId || requestedReviewDraft || requestedOpenReview));
+  const [reviewOpen, setReviewOpen] = useState(
+    Boolean(requestedPlanId || requestedEpisodeId || requestedReviewDraft || requestedOpenReview),
+  );
   const [initialPlanId, setInitialPlanId] = useState<string | null>(requestedPlanId);
   const [initialEpisodeId, setInitialEpisodeId] = useState<string | null>(requestedEpisodeId);
   const [initialReviewDraft, setInitialReviewDraft] = useState<JournalReviewDraft | null>(requestedReviewDraft);
@@ -109,7 +113,7 @@ export function JournalPage(): React.JSX.Element {
   };
 
   return (
-    <main className="workspace-page">
+    <main className="workspace-page journal-page">
       <header className="page-header">
         <div>
           <p className="page-kicker">REVIEW JOURNAL</p>
@@ -117,12 +121,11 @@ export function JournalPage(): React.JSX.Element {
           <p className="page-intro">先记录真实成交，再在回合结束后复盘——过程与结果分开看。</p>
         </div>
         <Space>
-          <Button size="large" icon={<PlusOutlined />} onClick={() => setExecutionOpen(true)}>
+          <Button icon={<PlusOutlined />} onClick={() => setExecutionOpen(true)}>
             记录成交
           </Button>
           <Button
             type="primary"
-            size="large"
             onClick={() => {
               setInitialReviewDraft(null);
               setInitialEpisodeId(null);
@@ -368,8 +371,16 @@ function NewReviewDialog({
   const navigate = useNavigate();
   const [form] = Form.useForm<ReviewFormValues>();
   const [saving, setSaving] = useState(false);
-  const { loading: aiLoading, streamingText, error: aiError, notConfigured, budgetExceeded, generateDraftStream, resetError, cancelStream } =
-    useReviewAiDraft();
+  const {
+    loading: aiLoading,
+    streamingText,
+    error: aiError,
+    notConfigured,
+    budgetExceeded,
+    generateDraftStream,
+    resetError,
+    cancelStream,
+  } = useReviewAiDraft();
   const entryPrice = Form.useWatch('entryPrice', form);
   const exitPrice = Form.useWatch('exitPrice', form);
   const quantity = Form.useWatch('quantity', form);
@@ -388,7 +399,9 @@ function NewReviewDialog({
     }
 
     const episode = episodes.find((item) => item.id === initialEpisodeId);
-    const plan = plans.find((item) => item.id === initialPlanId) ?? (episode?.planId ? plans.find((item) => item.id === episode.planId) : undefined);
+    const plan =
+      plans.find((item) => item.id === initialPlanId) ??
+      (episode?.planId ? plans.find((item) => item.id === episode.planId) : undefined);
 
     if (initialReviewDraft) {
       form.setFieldsValue({
@@ -562,9 +575,7 @@ function NewReviewDialog({
         </Space>
       }
     >
-      <p className="dialog-intro">
-        盈亏是结果，纪律评分只评价你是否按规则执行。事实数据来自成交回合，请在此基础上解释原因。
-      </p>
+      <p className="dialog-intro">盈亏是结果，纪律评分只评价你是否按规则执行。事实数据来自成交回合，请在此基础上解释原因。</p>
       {streamingText ? <pre className="ai-stream-preview">{streamingText}</pre> : null}
       <Form<ReviewFormValues> form={form} layout="vertical" preserve={false}>
         <Form.Item label="关联交易回合（推荐）" name="episodeId">

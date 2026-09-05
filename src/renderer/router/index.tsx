@@ -20,12 +20,14 @@ import { SettingsPage } from '../pages/SettingsPage';
 import { AboutPage } from '../pages/AboutPage';
 import { LlmDebugPage } from '../pages/LlmDebugPage';
 import { SymbolChartPage } from '../pages/SymbolChartPage';
+import { UiComponentsPage } from '../pages/UiComponentsPage';
 import { routePaths } from './paths';
 
 export function AppRouter(): React.JSX.Element {
   return (
     <HashRouter>
       <Routes>
+        {import.meta.env.DEV ? <Route path="/dev/ui-components" element={<UiComponentsPage />} /> : null}
         <Route element={<AppShell />}>
           <Route path={routePaths.home} element={<HomePage />} />
           <Route path={routePaths.plans} element={<PlansPage />} />

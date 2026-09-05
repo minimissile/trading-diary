@@ -38,11 +38,7 @@ body,
 body {
   overflow: hidden;
   color: var(--yingji-text);
-  background:
-    radial-gradient(ellipse 56% 64% at 84% -12%, rgb(91 124 255 / 34%), transparent 66%),
-    radial-gradient(ellipse 50% 54% at 4% 108%, rgb(255 94 115 / 26%), transparent 70%),
-    radial-gradient(ellipse 34% 42% at 60% 104%, rgb(139 92 246 / 20%), transparent 72%),
-    linear-gradient(145deg, #050b23 0%, #091738 48%, #050b20 100%);
+  background: var(--ui-canvas);
   background-attachment: fixed;
 }
 
@@ -58,12 +54,14 @@ body::after {
   opacity: 0.42;
   pointer-events: none;
   transform: rotate(-18deg);
+  display: none;
 }
 
 body::before {
   top: -14vw;
   left: 18vw;
   background: linear-gradient(90deg, #193989, #6e42df 60%, #244fad);
+  display: none;
 }
 
 body::after {
@@ -118,9 +116,9 @@ select {
   overflow: hidden;
   border: 0;
   border-radius: 0;
-  background: linear-gradient(145deg, rgb(35 53 104 / 28%), rgb(8 18 44 / 62%)), rgb(9 20 49 / 88%);
+  background: var(--ui-canvas);
   box-shadow: none;
-  backdrop-filter: blur(28px) saturate(125%);
+  backdrop-filter: none;
 }
 
 .trading-app--collapsed {
@@ -130,12 +128,9 @@ select {
 .app-stage {
   position: relative;
   z-index: 1;
-  grid-template-rows: 84px minmax(0, 1fr);
+  grid-template-rows: 72px minmax(0, 1fr);
   overflow: hidden;
-  background:
-    radial-gradient(circle at 86% 4%, rgb(91 124 255 / 13%), transparent 34%),
-    radial-gradient(circle at 28% 104%, rgb(57 211 195 / 5%), transparent 32%),
-    linear-gradient(155deg, rgb(10 23 57 / 78%), rgb(7 18 47 / 92%));
+  background: transparent;
 }
 
 .app-page-scroll {
@@ -155,12 +150,9 @@ select {
   overflow: hidden;
   border-right: 1px solid var(--yingji-border);
   color: var(--yingji-text);
-  background:
-    radial-gradient(circle at 12% 8%, rgb(91 124 255 / 24%), transparent 36%),
-    radial-gradient(circle at 20% 92%, rgb(139 92 246 / 14%), transparent 32%),
-    linear-gradient(180deg, rgb(25 41 86 / 78%), rgb(11 23 54 / 88%));
-  box-shadow: inset -1px 0 0 rgb(255 255 255 / 3%);
-  backdrop-filter: blur(26px) saturate(126%);
+  background: linear-gradient(180deg, #1b2e39, #0e1c25);
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .app-brand {
@@ -199,15 +191,15 @@ select {
 }
 
 .sidebar-collapse {
-  border-color: var(--yingji-border);
+  border-color: var(--ui-line-strong);
   color: var(--yingji-muted);
-  background: rgb(7 18 47 / 34%);
+  background: var(--ui-inset);
 }
 
 .sidebar-collapse:hover {
   color: var(--yingji-text);
-  border-color: rgb(123 155 255 / 48%);
-  background: rgb(91 124 255 / 16%);
+  border-color: var(--ui-accent);
+  background: #203640;
 }
 
 .sidebar-collapse--top {
@@ -229,8 +221,8 @@ select {
   height: 40px;
   padding: 0 13px;
   border: 1px solid transparent;
-  border-radius: 12px;
-  color: #aeb9d6;
+  border-radius: 8px;
+  color: var(--ui-secondary-text);
   font-size: 13px;
   font-weight: 590;
   transition:
@@ -243,18 +235,18 @@ select {
 
 .primary-nav button:hover {
   color: var(--yingji-text);
-  border-color: rgb(210 224 255 / 8%);
-  background: rgb(91 124 255 / 9%);
-  transform: translateX(2px);
+  border-color: var(--ui-line);
+  background: #203640;
+  transform: none;
 }
 
 .primary-nav button.active {
   color: #fff;
-  border-color: rgb(210 224 255 / 18%);
-  background: linear-gradient(105deg, rgb(76 120 243 / 48%), rgb(119 86 228 / 52%));
+  border-color: #498f99;
+  background: #175462;
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 12%),
-    0 10px 24px rgb(53 78 198 / 22%);
+    inset 0 1px 0 rgb(164 238 240 / 8%),
+    0 2px 4px rgb(0 0 0 / 14%);
 }
 
 .nav-icon {
@@ -284,7 +276,7 @@ select {
   gap: 8px;
   height: 40px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 8px;
   color: var(--yingji-muted);
   font-size: 13px;
 }
@@ -293,7 +285,7 @@ select {
 .sidebar-footer-link.active {
   color: var(--yingji-text);
   border-color: var(--yingji-border);
-  background: rgb(91 124 255 / 10%);
+  background: #203640;
   box-shadow: none;
 }
 
@@ -314,7 +306,7 @@ select {
 .trading-app--collapsed .primary-nav button,
 .trading-app--collapsed .sidebar-footer-link {
   height: 40px;
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 /* Top bar */
@@ -329,13 +321,17 @@ select {
 .topbar-leading .command-search {
   flex: 1;
   min-width: 0;
+  height: 36px;
+  border-radius: 6px;
+  background: #142631;
+  border-color: #46616d;
 }
 
 .sidebar-collapse--content {
   flex: 0 0 32px;
   width: 32px;
   height: 32px;
-  border-radius: 9px;
+  border-radius: 6px;
   -webkit-app-region: no-drag;
 }
 
@@ -344,16 +340,15 @@ select {
   outline-offset: 3px;
 }
 
-
 .command-topbar {
   grid-template-columns: minmax(260px, 380px) minmax(360px, 1fr) auto;
   gap: 20px;
-  height: 84px;
+  height: 72px;
   padding: 0 30px;
   border-bottom: 1px solid var(--yingji-border);
-  background: rgb(10 22 52 / 48%);
-  box-shadow: inset 0 -1px 0 rgb(255 255 255 / 2%);
-  backdrop-filter: blur(24px) saturate(125%);
+  background: #13222c;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .command-search {
@@ -370,9 +365,9 @@ select {
 }
 
 .command-search:focus-within {
-  border-color: rgb(123 155 255 / 66%);
-  background: rgb(7 18 47 / 54%);
-  box-shadow: 0 0 0 3px rgb(91 124 255 / 15%);
+  border-color: var(--ui-accent);
+  background: var(--ui-inset);
+  box-shadow: 0 0 0 2px rgb(120 211 216 / 12%);
 }
 
 .command-search .ant-input,
@@ -387,9 +382,9 @@ select {
 .command-search kbd {
   padding: 3px 7px;
   border-color: var(--yingji-border);
-  border-radius: 7px;
+  border-radius: 4px;
   color: var(--yingji-muted);
-  background: rgb(91 124 255 / 10%);
+  background: #203640;
   font-size: 10px;
 }
 
@@ -399,12 +394,12 @@ select {
 }
 
 .topbar-chip {
-  height: 40px;
+  height: 36px;
   padding: 0 14px;
-  border-color: var(--yingji-border);
-  border-radius: 12px;
-  color: #c9d2e9;
-  background: rgb(17 30 66 / 48%);
+  border-color: #46616d;
+  border-radius: 6px;
+  color: var(--ui-secondary-text);
+  background: #142631;
   font-size: 12px;
 }
 
@@ -413,43 +408,43 @@ select {
 }
 
 .topbar-actions .ant-btn {
-  height: 42px;
-  border-radius: 12px;
+  height: 36px;
+  border-radius: 6px;
   font-size: 13px;
 }
 
 .new-plan-button.ant-btn {
-  border-color: rgb(123 155 255 / 42%);
-  background: linear-gradient(135deg, #6285ff, #4d6df4);
-  box-shadow: 0 10px 24px rgb(59 82 201 / 26%);
+  border-color: #3c919c;
+  background: var(--ui-primary);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 16%);
 }
 
 .record-trade-button.ant-btn {
-  border-color: rgb(210 224 255 / 16%) !important;
-  color: #e9e5ff !important;
-  background: linear-gradient(135deg, rgb(139 92 246 / 26%), rgb(91 124 255 / 20%)) !important;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 7%);
+  border-color: #77613e;
+  color: #f0d8ad;
+  background: #302a20;
+  box-shadow: none;
 }
 
 .topbar-icon-button.ant-btn {
-  width: 42px;
+  width: 36px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 12px !important;
-  color: #cbd5ee !important;
-  background: transparent !important;
+  border-radius: 6px;
+  color: var(--ui-secondary-text);
+  background: transparent;
   font-size: 18px;
 }
 
 .topbar-icon-button.ant-btn:hover,
 .analytics-button.ant-btn:hover {
   border-color: var(--yingji-border);
-  color: #fff !important;
-  background: rgb(91 124 255 / 13%) !important;
+  color: var(--ui-text);
+  background: #21434a;
 }
 
 .analytics-button.ant-btn {
-  background: rgb(91 124 255 / 9%) !important;
+  background: transparent;
 }
 
 /* Shared content, typography and glass components */
@@ -550,7 +545,7 @@ select {
     .trade-price-chart
   ) {
   border: 1px solid var(--yingji-border);
-  border-radius: 22px;
+  border-radius: var(--td-radius-panel);
   color: var(--yingji-text);
   background: var(
     --workspace-panel-glass,
@@ -629,7 +624,7 @@ select {
   overflow: hidden;
   margin-bottom: 24px;
   border: 1px solid var(--yingji-border);
-  border-radius: 22px;
+  border-radius: var(--td-radius-panel);
   background: var(
     --workspace-panel-glass,
     linear-gradient(145deg, rgb(39 57 108 / 30%), rgb(12 24 54 / 54%)),
@@ -706,223 +701,7 @@ select {
   font-size: 23px;
 }
 
-/* Ant Design controls */
-
-.ant-btn {
-  border-radius: 12px;
-  box-shadow: none;
-  transition:
-    transform 150ms ease,
-    border-color 150ms ease,
-    background 150ms ease,
-    box-shadow 150ms ease;
-}
-
-.ant-btn:not(:disabled):active {
-  transform: translateY(1px);
-}
-
-.ant-btn-primary {
-  border-color: rgb(123 155 255 / 42%);
-  background: linear-gradient(135deg, #6285ff, #4d6df4);
-  box-shadow: 0 9px 22px rgb(59 82 201 / 24%);
-}
-
-.ant-btn-primary:not(:disabled):hover {
-  border-color: rgb(178 194 255 / 58%);
-  background: linear-gradient(135deg, #7191ff, #5b79f8);
-  box-shadow: 0 12px 28px rgb(59 82 201 / 32%);
-  transform: translateY(-1px);
-}
-
-.ant-btn-default,
-.ant-btn-color-default {
-  border-color: var(--yingji-border);
-  color: #dce4f8;
-  background: rgb(17 30 66 / 54%);
-}
-
-.ant-input,
-.ant-input-affix-wrapper,
-.ant-input-number,
-.ant-picker,
-.ant-select-selector,
-.ant-segmented,
-.ant-radio-button-wrapper {
-  border-color: var(--yingji-border) !important;
-  border-radius: 12px !important;
-  color: var(--yingji-text) !important;
-  background: rgb(7 18 47 / 40%) !important;
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 2%) !important;
-}
-
-.ant-input:hover,
-.ant-input-affix-wrapper:hover,
-.ant-input-number:hover,
-.ant-picker:hover,
-.ant-select-selector:hover {
-  border-color: rgb(123 155 255 / 46%) !important;
-}
-
-.ant-input:focus,
-.ant-input-affix-wrapper-focused,
-.ant-input-number-focused,
-.ant-picker-focused,
-.ant-select-focused .ant-select-selector {
-  border-color: rgb(123 155 255 / 76%) !important;
-  box-shadow: 0 0 0 3px rgb(91 124 255 / 15%) !important;
-}
-
-.ant-input::placeholder,
-.ant-input-number-input::placeholder,
-.ant-picker-input input::placeholder,
-.ant-select-selection-placeholder {
-  color: var(--yingji-subtle) !important;
-}
-
-.ant-segmented-item {
-  border-radius: 10px;
-  color: var(--yingji-muted);
-}
-
-.ant-segmented-item-selected {
-  color: #fff;
-  background: linear-gradient(135deg, rgb(91 124 255 / 78%), rgb(139 92 246 / 64%));
-  box-shadow: 0 6px 16px rgb(47 62 154 / 22%);
-}
-
-.ant-switch.ant-switch-checked {
-  background: var(--yingji-primary);
-}
-
-.ant-tag {
-  min-height: 26px;
-  margin-inline-end: 6px;
-  padding-inline: 9px;
-  border-color: var(--yingji-border);
-  border-radius: 9px;
-  line-height: 24px;
-}
-
-.ant-tag-blue,
-.ant-tag-geekblue,
-.ant-tag-processing {
-  border-color: rgb(91 124 255 / 28%) !important;
-  color: #9eb0ff !important;
-  background: rgb(91 124 255 / 13%) !important;
-}
-
-.ant-tag-purple,
-.ant-tag-magenta {
-  border-color: rgb(139 92 246 / 28%) !important;
-  color: #bea4ff !important;
-  background: rgb(139 92 246 / 13%) !important;
-}
-
-.ant-tag-green,
-.ant-tag-cyan,
-.ant-tag-success {
-  border-color: rgb(57 211 195 / 28%) !important;
-  color: #69e2d6 !important;
-  background: rgb(57 211 195 / 12%) !important;
-}
-
-.ant-tag-red,
-.ant-tag-volcano,
-.ant-tag-error {
-  border-color: rgb(255 94 115 / 28%) !important;
-  color: #ff91a0 !important;
-  background: rgb(255 94 115 / 12%) !important;
-}
-
-.ant-tag-orange,
-.ant-tag-gold,
-.ant-tag-warning {
-  border-color: rgb(255 178 74 / 28%) !important;
-  color: #ffc675 !important;
-  background: rgb(255 178 74 / 12%) !important;
-}
-
-.ant-alert {
-  border-radius: 14px;
-  backdrop-filter: blur(18px);
-}
-
-.ant-modal-mask {
-  background: rgb(2 7 24 / 62%) !important;
-  backdrop-filter: blur(4px);
-}
-
-.ant-modal-content,
-.ant-popover-inner,
-.ant-select-dropdown,
-.ant-picker-dropdown .ant-picker-panel-container,
-.ant-dropdown .ant-dropdown-menu {
-  border: 1px solid var(--yingji-border-strong) !important;
-  border-radius: 20px !important;
-  background: linear-gradient(145deg, rgb(39 57 108 / 24%), rgb(12 24 54 / 34%)), var(--yingji-glass-strong) !important;
-  box-shadow: 0 32px 72px rgb(0 4 24 / 48%) !important;
-  backdrop-filter: blur(28px) saturate(130%) !important;
-}
-
-.ant-modal-content {
-  padding: 24px !important;
-}
-
-.ant-drawer-content {
-  border-left: 1px solid var(--yingji-border-strong);
-  background: linear-gradient(155deg, rgb(39 57 108 / 24%), transparent), var(--yingji-glass-strong) !important;
-  box-shadow: -24px 0 64px rgb(0 4 24 / 42%);
-  backdrop-filter: blur(28px) saturate(130%);
-}
-
-/* Tables */
-
-.watchlist-table,
-.ant-table-wrapper {
-  overflow: hidden;
-  border: 1px solid var(--yingji-border);
-  border-radius: 18px;
-  background: rgb(13 25 56 / 48%);
-  box-shadow: var(--yingji-soft-shadow);
-}
-
-.watchlist-table .ant-table,
-.ant-table-wrapper .ant-table,
-.ant-table-wrapper .ant-table-container,
-.ant-table-wrapper table {
-  color: #dfe5f5;
-  background: transparent;
-}
-
-.ant-table-wrapper .ant-table-thead > tr > th {
-  border-bottom-color: var(--yingji-border);
-  color: #aeb9d6;
-  background: rgb(91 124 255 / 7%);
-  font-size: 12px;
-  font-weight: 620;
-}
-
-.ant-table-wrapper .ant-table-tbody > tr > td {
-  border-bottom-color: rgb(210 224 255 / 9%);
-  background: transparent;
-}
-
-.ant-table-wrapper .ant-table-tbody > tr:hover > td {
-  background: rgb(91 124 255 / 8%) !important;
-}
-
-.ant-table-wrapper .ant-pagination {
-  margin: 18px !important;
-}
-
-.ant-pagination .ant-pagination-item,
-.ant-pagination .ant-pagination-prev button,
-.ant-pagination .ant-pagination-next button {
-  border-color: var(--yingji-border);
-  border-radius: 9px;
-  background: rgb(7 18 47 / 28%);
-}
+/* Shared controls now live in ui-components.css and theme-config.json. */
 
 /* Home command center */
 
@@ -1003,7 +782,7 @@ select {
   min-width: 0;
   overflow: hidden;
   border: 1px solid var(--yingji-border);
-  border-radius: 22px;
+  border-radius: var(--td-radius-panel);
   background: var(
     --workspace-panel-glass,
     linear-gradient(145deg, rgb(39 57 108 / 30%), rgb(12 24 54 / 54%)),

@@ -63,7 +63,7 @@ export function PlansPage(): React.JSX.Element {
   };
 
   return (
-    <main className="workspace-page">
+    <main className="workspace-page plans-page">
       <header className="page-header">
         <div>
           <p className="page-kicker">PLAYBOOK</p>
@@ -127,7 +127,9 @@ export function PlansPage(): React.JSX.Element {
                 </div>
                 <div className="plan-card-meta">
                   <span>{directionLabels[plan.direction]}</span>
-                  <span>风险 <ValueDisplay kind="currency" value={plan.riskAmount} /></span>
+                  <span>
+                    风险 <ValueDisplay kind="currency" value={plan.riskAmount} />
+                  </span>
                   <span>{expectedR === null ? '未设置目标' : `${expectedR.toFixed(2)}R`}</span>
                   <span>{formatDateTime(plan.updatedAt)} 更新</span>
                 </div>

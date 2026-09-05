@@ -38,19 +38,11 @@ body[data-background]::after {
 }
 body[data-background] .trading-app {
   /* A continuous frosted sheet also softens the image between cards. */
-  background: linear-gradient(
-    145deg,
-    rgb(194 215 245 / calc(0.05 * var(--workspace-frost, 0.6875))),
-    rgb(9 20 49 / calc(0.12 * var(--workspace-frost, 0.6875)))
-  );
+  background: rgb(14 24 31 / calc(0.08 * var(--workspace-frost, 0.6875)));
   backdrop-filter: var(--workspace-backdrop, blur(11px) saturate(110%));
 }
 body[data-background] .app-stage {
-  background: linear-gradient(
-    155deg,
-    rgb(10 23 57 / calc(0.04 * var(--workspace-frost, 0.6875))),
-    rgb(7 18 47 / calc(0.12 * var(--workspace-frost, 0.6875)))
-  );
+  background: transparent;
 }
 body[data-background] .app-sidebar {
   background: var(--workspace-panel-glass);
@@ -210,8 +202,8 @@ body[data-background],
 /* Cards add a second, denser glass layer over the globally softened canvas. */
 body[data-background] {
   --workspace-panel-glass:
-    linear-gradient(135deg, rgb(220 233 255 / 9%), rgb(91 124 180 / 3%) 45%, rgb(7 18 40 / 12%)),
-    rgb(13 26 53 / calc(0.18 + var(--workspace-opacity, 0.45) * 0.6));
+    linear-gradient(135deg, rgb(220 240 240 / 3%), transparent),
+    rgb(22 36 45 / calc(0.58 + var(--workspace-opacity, 0.45) * 0.24));
   --yingji-panel-shadow: inset 0 1px 0 rgb(231 240 255 / 14%), inset 0 -1px 0 rgb(4 12 28 / 16%), 0 12px 32px rgb(0 5 20 / 22%);
 }
 body[data-background] .command-topbar,
@@ -220,4 +212,23 @@ body[data-background] .page-toolbar {
 }
 body[data-background] .ant-table-wrapper {
   background: rgb(13 25 56 / 18%);
+}
+
+.background-option--none {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.background-option--none strong,
+.background-option--none small {
+  margin-inline: 0;
+}
+
+.background-option--none strong {
+  margin-top: 0;
 }

@@ -16,7 +16,10 @@ import './styles/splash-screen.css';
 import './styles/trading-workspace.css';
 import './styles/chart.css';
 import './styles/yingji-glass.css';
+import './styles/ui-tokens.css';
+import './styles/ui-components.css';
 import './styles/window-titlebar.css';
+import './styles/workspace-refinement.css';
 import './styles/dividends.css';
 import { APP_NAME } from '../shared/brand';
 

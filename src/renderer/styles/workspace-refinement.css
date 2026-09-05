@@ -1,0 +1,228 @@
+/* Shared page rhythm for the three workspaces adopting the dividend specimen. */
+.workspace-page:is(.positions-page, .plans-page, .journal-page) {
+  padding: 24px 32px 36px;
+  color: var(--ui-text);
+  background: var(--ui-canvas);
+}
+body[data-background] .workspace-page:is(.positions-page, .plans-page, .journal-page) {
+  background: rgb(14 24 31 / 28%);
+}
+.workspace-page:is(.positions-page, .plans-page, .journal-page) .page-header {
+  margin-bottom: 18px;
+  gap: 16px;
+}
+.workspace-page:is(.positions-page, .plans-page, .journal-page) .page-header h1 {
+  font-size: 30px;
+  line-height: 42px;
+}
+.workspace-page:is(.positions-page, .plans-page, .journal-page) .page-intro {
+  font-size: 13px;
+  color: var(--ui-secondary-text);
+  margin-top: 4px;
+}
+.workspace-page:is(.positions-page, .plans-page, .journal-page) .page-toolbar {
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.workspace-page:is(.positions-page, .plans-page, .journal-page)
+  :is(.portfolio-metrics, .journal-stats, .plan-card, .episode-card, .review-card, .empty-panel) {
+  border: 1px solid var(--ui-line);
+  border-radius: 16px;
+  background: var(--workspace-panel-glass, var(--ui-panel));
+  box-shadow: var(--ui-panel-shadow);
+  backdrop-filter: none;
+}
+.workspace-page:is(.positions-page, .plans-page, .journal-page) :is(.plan-card, .episode-card, .review-card):hover {
+  border-color: var(--ui-line-strong);
+  background: var(--workspace-panel-glass, var(--ui-panel));
+  transform: none;
+  box-shadow: var(--ui-panel-shadow);
+}
+.positions-page .portfolio-header-actions {
+  align-items: center;
+}
+.positions-page .portfolio-header-actions > .ant-select {
+  height: 36px;
+}
+.workspace-page.positions-page .portfolio-metrics:has(> :nth-child(n)) {
+  grid-template-columns: 1.5fr repeat(4, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+.positions-page .portfolio-metric-card {
+  padding: 20px;
+  min-height: 124px;
+  gap: 8px;
+  grid-column: auto;
+}
+.positions-page .portfolio-metric-card > strong {
+  font-size: 26px;
+  line-height: 36px;
+}
+.positions-page .portfolio-metric-card--primary > strong {
+  font-size: 36px;
+  line-height: 42px;
+}
+.positions-page .portfolio-metric-card--primary,
+.journal-page .journal-stats > article:first-child {
+  background: linear-gradient(110deg, rgb(25 59 67 / 72%), rgb(26 43 53 / 40%));
+}
+.positions-page .watchlist-symbol-button {
+  gap: 2px;
+}
+.positions-page .watchlist-symbol-button strong {
+  color: var(--ui-text);
+  font-size: 13px;
+}
+.positions-page .watchlist-symbol-button small {
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+.positions-page .watchlist-symbol-button:hover strong {
+  color: var(--ui-accent);
+}
+.positions-page .portfolio-kind-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.positions-page .portfolio-kind-tags .ant-tag {
+  margin: 0;
+}
+.positions-page .ant-table-cell {
+  font-variant-numeric: tabular-nums;
+}
+.plans-page .plan-card-grid,
+.journal-page .episode-list,
+.journal-page .review-list {
+  gap: 16px;
+}
+.workspace-page.plans-page .plan-card,
+.workspace-page.journal-page .episode-card,
+.workspace-page.journal-page .review-card {
+  padding: 20px;
+}
+.plans-page .plan-card-header,
+.journal-page .episode-card-header,
+.journal-page .review-card-header {
+  margin-bottom: 12px;
+}
+.plans-page .plan-card h2,
+.journal-page .episode-card h2,
+.journal-page .review-card h2 {
+  font-size: 18px;
+  color: var(--ui-text);
+}
+.plans-page .symbol-label,
+.journal-page .symbol-label {
+  color: var(--ui-muted);
+}
+.plans-page .plan-card-thesis {
+  margin: 12px 0;
+  color: var(--ui-secondary-text);
+  line-height: 1.65;
+}
+.plans-page .plan-levels,
+.journal-page .review-result-grid {
+  gap: 12px;
+  margin: 12px 0;
+}
+.plans-page .plan-levels > div,
+.journal-page .review-result-grid > div {
+  padding: 12px;
+  border-radius: 0;
+  border-color: var(--ui-line);
+  background: var(--ui-inset);
+}
+.plans-page .plan-levels small,
+.journal-page .review-result-grid small {
+  color: var(--ui-muted);
+}
+.plans-page .plan-card-meta {
+  gap: 8px 14px;
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+.plans-page .plan-card-actions {
+  padding-top: 14px;
+  margin-top: 14px;
+  gap: 8px;
+  border-color: var(--ui-line);
+}
+.journal-page .journal-stats {
+  margin-bottom: 20px;
+}
+.journal-page .journal-stats > article {
+  padding: 20px;
+}
+.journal-page .journal-section {
+  margin-top: 20px;
+}
+.journal-page .section-inline-header {
+  margin-bottom: 12px;
+}
+.journal-page .review-notes {
+  padding: 12px 0 0;
+  border-color: var(--ui-line);
+  color: var(--ui-secondary-text);
+}
+.journal-page .review-notes p {
+  margin-top: 2px;
+}
+@media (max-width: 1200px) {
+  .workspace-page:is(.positions-page, .plans-page, .journal-page) {
+    padding-inline: 24px;
+  }
+  .workspace-page.positions-page .portfolio-metrics:has(> :nth-child(n)) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .positions-page .portfolio-metric-card--primary {
+    grid-column: span 2;
+  }
+}
+@media (max-width: 780px) {
+  .workspace-page:is(.positions-page, .plans-page, .journal-page) {
+    padding: 20px 16px;
+  }
+  .workspace-page.positions-page .portfolio-metrics:has(> :nth-child(n)) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .positions-page .portfolio-header-actions {
+    flex-wrap: wrap;
+  }
+}
+
+.workspace-page.journal-page .journal-stats .ant-statistic-content {
+  font-size: 26px;
+  line-height: 36px;
+}
+.workspace-page.journal-page .journal-stats > article:first-child .ant-statistic-content {
+  font-size: 36px;
+  line-height: 42px;
+}
+.workspace-page.journal-page .review-result-grid,
+.workspace-page.plans-page .plan-levels {
+  border-radius: 0;
+  background: var(--ui-inset);
+  border-color: var(--ui-line);
+}
+.workspace-page.journal-page .review-notes > div {
+  border-radius: 0;
+  background: var(--ui-inset);
+  border-color: var(--ui-line);
+  padding: 12px;
+}
+.workspace-page.journal-page .review-notes p {
+  white-space: pre-line;
+  line-height: 1.65;
+}
+.trading-app .primary-nav button:focus-visible,
+.trading-app .sidebar-footer-link:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 2px;
+}

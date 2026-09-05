@@ -1,0 +1,193 @@
+/* Shared UI skin. Base tokens come from theme-config.json; page layouts stay local. */
+.ant-btn {
+  box-shadow: none;
+}
+.ant-btn:not(:disabled):active {
+  transform: none;
+}
+.ant-btn:focus-visible,
+.background-option:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 3px;
+}
+.ant-btn.ui-button-secondary {
+  border-color: #77613e;
+  color: #f0d8ad;
+  background: #302a20;
+}
+.ant-btn.ui-button-secondary:not(:disabled):hover {
+  border-color: var(--ui-secondary);
+  color: #ffda92;
+  background: #40321a;
+}
+.ant-btn.ui-icon-button,
+.row-action-button.ant-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--ui-line-strong);
+  border-radius: 4px;
+  color: var(--ui-secondary-text);
+  background: var(--ui-inset);
+}
+.ant-btn.ui-icon-button:not(:disabled):hover,
+.row-action-button.ant-btn:not(:disabled):hover {
+  border-color: var(--ui-accent);
+  color: var(--ui-accent);
+  background: #203640;
+}
+/* Account selectors are selectors, while editable fields remain square. */
+.account-select-icon,
+.broker-select-icon {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.ant-input-affix-wrapper > .ant-input {
+  background: transparent;
+}
+.ant-segmented {
+  border: 1px solid var(--ui-line);
+  box-shadow: none;
+}
+.ant-segmented-item-selected {
+  outline: 1px solid #50a6af;
+  outline-offset: -1px;
+  font-weight: 650;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 18%);
+}
+.ant-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 1px 7px;
+  border: 1px solid var(--ui-line-strong);
+  border-radius: 4px;
+  line-height: 20px;
+  vertical-align: middle;
+}
+.ant-card,
+.ui-panel {
+  border: 1px solid var(--ui-line);
+  border-radius: var(--ui-panel-radius);
+  background: var(--workspace-panel-glass, var(--ui-panel));
+  box-shadow: var(--ui-panel-shadow);
+}
+.ui-panel {
+  padding: 20px;
+}
+.ant-modal .ant-modal-container,
+.ant-modal-content,
+.ant-popover .ant-popover-container,
+.ant-popover-inner,
+.ant-select-dropdown,
+.ant-picker-dropdown .ant-picker-panel-container,
+.ant-dropdown .ant-dropdown-menu {
+  border: 1px solid var(--ui-line-strong);
+  box-shadow: var(--ui-floating-shadow);
+}
+.ant-modal .ant-modal-container,
+.ant-modal-content {
+  border-radius: 12px;
+}
+.ant-popover .ant-popover-container,
+.ant-popover-inner,
+.ant-select-dropdown,
+.ant-picker-dropdown .ant-picker-panel-container,
+.ant-dropdown .ant-dropdown-menu {
+  border-radius: 8px;
+}
+.ant-modal-mask {
+  background: rgb(4 12 18 / 62%);
+  backdrop-filter: blur(4px);
+}
+.ant-drawer-content {
+  background: var(--ui-panel);
+}
+/* One perimeter only; keep Ant Design's explicit bordered-table mode intact. */
+.ant-table-wrapper:not(:has(.ant-table-bordered)) {
+  overflow: hidden;
+  border: 1px solid var(--ui-line);
+  border-radius: 0;
+  background: var(--workspace-panel-glass, var(--ui-panel));
+  box-shadow: none;
+}
+.ant-table-wrapper:not(:has(.ant-table-bordered)) .ant-table-container {
+  border: 0;
+  border-radius: 0;
+}
+.ant-table-wrapper .ant-table {
+  border-radius: 0;
+  background: transparent;
+}
+.ant-table-wrapper .ant-table-tbody > tr:last-child > td {
+  border-bottom: 0;
+}
+.ant-table-wrapper .ant-pagination {
+  margin: 12px 16px;
+}
+.ant-progress .ant-progress-bg {
+  transition: width 800ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ant-progress .ant-progress-bg {
+    transition: none;
+  }
+}
+
+/* Component specimen layout is also used for visual regression checks. */
+.ui-specimen {
+  width: 100%;
+  max-width: none;
+  height: calc(100vh - 36px);
+  overflow: auto;
+  padding: 28px;
+  background: var(--ui-canvas);
+  color: var(--ui-text);
+}
+.ui-specimen h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+}
+.ui-specimen-intro {
+  color: var(--ui-secondary-text);
+  margin: 0 0 24px;
+}
+.ui-specimen-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.ui-specimen .ui-panel h2 {
+  margin: 0 0 16px;
+  font-size: 17px;
+}
+.ui-specimen-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.ui-specimen-wide {
+  grid-column: 1 / -1;
+}
+@media (max-width: 900px) {
+  .ui-specimen-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ui-cell-secondary {
+  display: block;
+  margin-top: 2px;
+  color: var(--ui-muted);
+  font-size: 12px;
+  line-height: 18px;
+}

@@ -2,20 +2,20 @@
 .trading-app:has(.dividends-page),
 .workspace-page.dividends-page,
 .dividend-overlay {
-  --dividend-canvas: #0e181f;
-  --dividend-panel: #16242d;
-  --dividend-inset: #111d25;
-  --dividend-text: #f3f8f9;
-  --dividend-secondary: #bdcdd1;
-  --dividend-muted: #9db0b7;
-  --dividend-line: #344953;
-  --dividend-accent: #78d3d8;
-  --dividend-primary: #116976;
-  --dividend-primary-hover: #147c89;
-  --dividend-secondary-accent: #e3bb73;
-  --dividend-line-strong: #58727d;
+  --dividend-canvas: var(--ui-canvas);
+  --dividend-panel: var(--ui-panel);
+  --dividend-inset: var(--ui-inset);
+  --dividend-text: var(--ui-text);
+  --dividend-secondary: var(--ui-secondary-text);
+  --dividend-muted: var(--ui-muted);
+  --dividend-line: var(--ui-line);
+  --dividend-accent: var(--ui-accent);
+  --dividend-primary: var(--ui-primary);
+  --dividend-primary-hover: var(--ui-primary-hover);
+  --dividend-secondary-accent: var(--ui-secondary);
+  --dividend-line-strong: var(--ui-line-strong);
   --dividend-shadow: inset 0 1px 0 rgb(255 255 255 / 3%), 0 2px 3px rgb(0 0 0 / 18%), 0 8px 18px rgb(0 0 0 / 14%);
-  --dividend-success: #83dfba;
+  --dividend-success: var(--ui-success);
   --workspace-panel-glass: var(--dividend-panel);
   --yingji-panel-shadow: var(--dividend-shadow);
   --yingji-text: var(--dividend-text);
@@ -142,11 +142,11 @@
   line-height: 22px;
 }
 
-.dividends-page .portfolio-metrics,
-.dividends-page .portfolio-dividend-goal,
-.dividends-page .dividend-milestones,
-.dividends-page .dividend-recent-records,
-.dividends-page .portfolio-calendar-wrap {
+.workspace-page.dividends-page .portfolio-metrics,
+.workspace-page.dividends-page .portfolio-dividend-goal,
+.workspace-page.dividends-page .dividend-milestones,
+.workspace-page.dividends-page .dividend-recent-records,
+.workspace-page.dividends-page .portfolio-calendar-wrap {
   margin-bottom: 14px;
   border: 1px solid var(--dividend-line);
   border-radius: 16px;
@@ -214,14 +214,17 @@
   padding: 0;
   border: 0;
   background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .dividends-page .ant-segmented {
   padding: 4px;
   border: 1px solid var(--dividend-line);
-  border-radius: 8px;
+  border-radius: 4px !important;
   color: var(--dividend-secondary);
-  background: #111d25;
+  background: #111d25 !important;
+  box-shadow: none !important;
 }
 
 .dividends-page .ant-segmented-item-label {
@@ -538,7 +541,13 @@
 }
 
 .dividends-page .ant-tag {
-  padding: 2px 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  height: 24px;
+  padding: 0 7px;
+  vertical-align: middle;
   border-radius: 4px;
   font-size: 12px;
   line-height: 18px;
@@ -654,7 +663,7 @@
 /* Crisp page controls and their portalled popovers. */
 .dividends-page .ant-segmented-item,
 .dividends-page .ant-segmented-thumb {
-  border-radius: 5px;
+  border-radius: 4px;
 }
 
 .dividends-page .ant-segmented-item-selected {
@@ -752,9 +761,9 @@
 .dividend-overlay .ant-input-affix-wrapper,
 .dividend-overlay .ant-input-number {
   border-color: var(--dividend-line-strong);
-  border-radius: 0;
+  border-radius: 0 !important;
   color: var(--dividend-text);
-  background: var(--dividend-inset);
+  background: var(--dividend-inset) !important;
 }
 
 .dividend-overlay .ant-input-number-focused,
@@ -860,77 +869,97 @@
   }
 }
 
-/* Keep the sample page's navigation and top bar in the same color family. */
-.trading-app:has(.dividends-page) .app-sidebar {
-  border-color: var(--dividend-line);
-  background: linear-gradient(180deg, rgb(27 46 57 / 94%), rgb(14 28 37 / 94%));
+/* Normalize geometry after the shared workspace and Ant Design defaults. */
+.workspace-page.dividends-page .portfolio-header-actions {
+  align-items: center;
 }
 
-.trading-app:has(.dividends-page) .primary-nav button,
-.trading-app:has(.dividends-page) .sidebar-footer-link {
-  border-radius: 8px;
-}
-
-.trading-app:has(.dividends-page) .primary-nav button.active {
-  border-color: #498f99;
-  background: #175462;
-  box-shadow:
-    inset 0 1px 0 rgb(164 238 240 / 8%),
-    0 2px 4px rgb(0 0 0 / 14%);
-}
-
-.trading-app:has(.dividends-page) .primary-nav button:hover {
-  transform: none;
-}
-
-.trading-app:has(.dividends-page) .app-stage {
-  grid-template-rows: 72px minmax(0, 1fr);
-}
-
-.trading-app:has(.dividends-page) .command-topbar {
-  height: 72px;
-  border-color: var(--dividend-line);
-  background: rgb(19 34 44 / 94%);
-}
-
-.trading-app:has(.dividends-page) .command-search,
-.trading-app:has(.dividends-page) .topbar-chip,
-.trading-app:has(.dividends-page) .sidebar-collapse--content,
-.trading-app:has(.dividends-page) .topbar-actions .ant-btn {
+.workspace-page.dividends-page .portfolio-header-actions > .ant-select,
+.workspace-page.dividends-page .portfolio-header-actions > .ant-btn {
+  height: 36px;
+  min-height: 36px;
+  box-sizing: border-box;
+  border-width: 1px;
   border-radius: 6px;
 }
 
-.trading-app:has(.dividends-page) .command-search,
-.trading-app:has(.dividends-page) .topbar-chip {
-  height: 36px;
-  border-color: #46616d;
-  background: #142631;
+.workspace-page.dividends-page .account-select.ant-select,
+.workspace-page.dividends-page .account-select .ant-select-selector {
+  box-shadow: none !important;
+  outline: none;
+  border-width: 1px;
 }
 
-.trading-app:has(.dividends-page) .topbar-actions .ant-btn {
-  height: 36px;
+.workspace-page.dividends-page .account-select .ant-select-selector {
+  height: 100%;
 }
 
-.trading-app:has(.dividends-page) .new-plan-button.ant-btn {
-  border-color: #3c919c;
-  background: var(--dividend-primary);
-  box-shadow: 0 2px 4px rgb(0 0 0 / 16%);
-}
-
-.trading-app:has(.dividends-page) .record-trade-button.ant-btn {
-  border-color: #77613e !important;
-  color: #f0d8ad !important;
-  background: #302a20 !important;
+.workspace-page.dividends-page .watchlist-table.ant-table-wrapper {
+  border: 1px solid var(--dividend-line);
   box-shadow: none;
 }
 
-.trading-app:has(.dividends-page) .topbar-icon-button.ant-btn {
-  width: 36px;
-  border-radius: 6px !important;
-  background: transparent !important;
+.workspace-page.dividends-page .watchlist-table .ant-table,
+.workspace-page.dividends-page .watchlist-table .ant-table-container,
+.workspace-page.dividends-page .watchlist-table .ant-table-content {
+  border: 0;
+  box-shadow: none;
 }
 
-.trading-app:has(.dividends-page) .topbar-icon-button.ant-btn:hover {
-  border-color: var(--dividend-line-strong);
+.workspace-page.dividends-page .watchlist-table .ant-table-tbody > tr:last-child > td {
+  border-bottom: 0;
+}
+
+.dividends-page .portfolio-calendar-wrap .ant-picker-cell .ant-picker-calendar-date {
+  border-radius: 4px;
+  border-color: var(--dividend-line) !important;
+  background: var(--dividend-inset) !important;
+}
+
+.dividends-page .portfolio-calendar-wrap .ant-picker-cell:hover .ant-picker-calendar-date,
+.dividends-page .portfolio-calendar-wrap .ant-picker-cell-selected .ant-picker-calendar-date,
+.dividends-page .portfolio-calendar-wrap .ant-picker-cell-today .ant-picker-calendar-date {
+  border-color: var(--dividend-accent) !important;
   background: #21434a !important;
+}
+
+/* Let the shared wallpaper and frost controls show through the teal sample. */
+body[data-background] .trading-app:has(.dividends-page) {
+  --dividend-panel-glass: rgb(22 36 45 / calc(0.58 + var(--workspace-opacity, 0.45) * 0.24));
+  --workspace-panel-glass: var(--dividend-panel-glass);
+  background: rgb(14 24 31 / calc(0.08 * var(--workspace-frost, 0.6875)));
+}
+
+body[data-background] .trading-app:has(.dividends-page) .app-stage {
+  background: transparent;
+}
+
+body[data-background] .workspace-page.dividends-page {
+  --dividend-panel-glass: rgb(22 36 45 / calc(0.58 + var(--workspace-opacity, 0.45) * 0.24));
+  --workspace-panel-glass: var(--dividend-panel-glass);
+  background: rgb(14 24 31 / 28%);
+}
+
+body[data-background] .trading-app:has(.dividends-page) .app-sidebar,
+body[data-background] .trading-app:has(.dividends-page) .command-topbar,
+body[data-background] .workspace-page.dividends-page .portfolio-metrics,
+body[data-background] .workspace-page.dividends-page .portfolio-dividend-goal,
+body[data-background] .workspace-page.dividends-page .dividend-milestones,
+body[data-background] .workspace-page.dividends-page .dividend-recent-records,
+body[data-background] .workspace-page.dividends-page .portfolio-calendar-wrap {
+  background: var(--dividend-panel-glass);
+}
+
+body[data-background] .dividends-page .portfolio-metric-card--primary {
+  background: linear-gradient(110deg, rgb(25 59 67 / 72%), rgb(26 43 53 / 40%));
+}
+
+body[data-background] .workspace-page.dividends-page .watchlist-table.ant-table-wrapper {
+  background: var(--dividend-panel-glass);
+}
+
+body[data-background] .dividends-page .dividend-recent-records .watchlist-table.ant-table-wrapper,
+body[data-background] .dividends-page .watchlist-table .ant-table,
+body[data-background] .dividends-page .watchlist-table .ant-table-tbody > tr > td {
+  background: transparent;
 }

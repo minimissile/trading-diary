@@ -23,7 +23,13 @@ import { LedgerAiImportModal } from '../components/trading/LedgerAiImportModal';
 import { PositionLedgerDrawer } from '../components/trading/PositionLedgerDrawer';
 import { PositionSellModal } from '../components/trading/PositionSellModal';
 import { AccountSelect } from '../components/trading/AccountSelect';
-import { ValueDisplay, AnimatedValueDisplay, formatQuoteRefreshTime, formatFloatingPnlCaption, formatDailyPnlCaption } from '../lib/trading-format';
+import {
+  ValueDisplay,
+  AnimatedValueDisplay,
+  formatQuoteRefreshTime,
+  formatFloatingPnlCaption,
+  formatDailyPnlCaption,
+} from '../lib/trading-format';
 import { usePortfolioDashboard } from '../hooks/usePortfolioDashboard';
 import { confirmDanger } from '../lib/confirm-dialog';
 import { deletePortfolioPosition } from '../lib/portfolio-actions';
@@ -43,11 +49,7 @@ function isFundKind(kind: InstrumentKind): boolean {
   return kind === 'otc_fund' || kind === 'etf' || kind === 'lof';
 }
 
-function matchesAssetFilter(
-  position: PortfolioPositionView,
-  category: AssetCategory,
-  stockSubKind: StockSubKind,
-): boolean {
+function matchesAssetFilter(position: PortfolioPositionView, category: AssetCategory, stockSubKind: StockSubKind): boolean {
   if (category === 'all') return true;
   if (category === 'fund') {
     if (!isFundKind(position.kind)) return false;
@@ -178,10 +180,7 @@ export function PositionsPage(): React.JSX.Element {
     [symbolQuery, tabFilteredPositions],
   );
 
-  const filteredStats = useMemo(
-    () => aggregatePortfolioStats(tabFilteredPositions),
-    [tabFilteredPositions],
-  );
+  const filteredStats = useMemo(() => aggregatePortfolioStats(tabFilteredPositions), [tabFilteredPositions]);
 
   const statsCacheKey = statsCacheSuffix(assetCategory, stockSubKind);
 
@@ -242,9 +241,7 @@ export function PositionsPage(): React.JSX.Element {
         render: (kind: InstrumentKind, row) => (
           <span className="portfolio-kind-tags">
             <Tag>{kindLabels[kind] ?? kind}</Tag>
-            {row.fundProfile?.operationModeLabel ? (
-              <Tag color="orange">{row.fundProfile.operationModeLabel}</Tag>
-            ) : null}
+            {row.fundProfile?.operationModeLabel ? <Tag color="orange">{row.fundProfile.operationModeLabel}</Tag> : null}
           </span>
         ),
       },
@@ -253,18 +250,14 @@ export function PositionsPage(): React.JSX.Element {
         dataIndex: 'quantity',
         width: 96,
         align: 'right',
-        render: (value: number, row) => (
-          <ValueDisplay kind={quantityPresetForKind(row.kind)} value={value} />
-        ),
+        render: (value: number, row) => <ValueDisplay kind={quantityPresetForKind(row.kind)} value={value} />,
       },
       {
         title: '成本',
         dataIndex: 'avgPrice',
         width: 96,
         align: 'right',
-        render: (value: number, row) => (
-          <ValueDisplay kind={priceListPresetForKind(row.kind)} value={value} />
-        ),
+        render: (value: number, row) => <ValueDisplay kind={priceListPresetForKind(row.kind)} value={value} />,
       },
       {
         title: '现价',
@@ -308,11 +301,7 @@ export function PositionsPage(): React.JSX.Element {
           row.dailyPnl === null ? (
             '—'
           ) : (
-            <AnimatedValueDisplay
-              cacheKey={`positions:${accountId}:${row.symbol}:dailyPnl`}
-              kind="pnl"
-              value={row.dailyPnl}
-            />
+            <AnimatedValueDisplay cacheKey={`positions:${accountId}:${row.symbol}:dailyPnl`} kind="pnl" value={row.dailyPnl} />
           ),
       },
       {
@@ -341,11 +330,7 @@ export function PositionsPage(): React.JSX.Element {
         sorter: (a, b) => compareNullableNumber(a.unrealizedReturnPercent, b.unrealizedReturnPercent),
         sortDirections: ['descend', 'ascend'],
         render: (_, row) =>
-          row.unrealizedReturnPercent === null ? (
-            '—'
-          ) : (
-            <ValueDisplay kind="percent" value={row.unrealizedReturnPercent} />
-          ),
+          row.unrealizedReturnPercent === null ? '—' : <ValueDisplay kind="percent" value={row.unrealizedReturnPercent} />,
       },
       {
         title: '操作',
@@ -391,8 +376,7 @@ export function PositionsPage(): React.JSX.Element {
             }}
           >
             <Button
-              type="text"
-              size="small"
+              className="ui-icon-button"
               icon={<MoreOutlined />}
               loading={deletingSymbol === row.symbol}
               aria-label="操作菜单"
@@ -420,12 +404,7 @@ export function PositionsPage(): React.JSX.Element {
           <p className="page-intro">录入买入与卖出流水，跟踪真实持仓、成本与市值。</p>
         </div>
         <div className="portfolio-header-actions">
-          <AccountSelect
-            value={accountId}
-            onChange={setAccountId}
-            includeAllOption
-            className="portfolio-account-select"
-          />
+          <AccountSelect value={accountId} onChange={setAccountId} includeAllOption className="portfolio-account-select" />
           <Button icon={<ReloadOutlined spin={refreshing} />} loading={refreshing} onClick={() => void refreshQuotes()}>
             刷新行情
           </Button>
@@ -470,9 +449,7 @@ export function PositionsPage(): React.JSX.Element {
               <small>持仓数量</small>
               <strong>{filteredStats.positionCount}</strong>
               <span>
-                {assetCategory === 'all' && stockSubKind === 'all'
-                  ? '当前有效标的'
-                  : `筛选后 / 共 ${positions.length}`}
+                {assetCategory === 'all' && stockSubKind === 'all' ? '当前有效标的' : `筛选后 / 共 ${positions.length}`}
               </span>
             </article>
             <article className="portfolio-metric-card">
