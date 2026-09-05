@@ -6,16 +6,19 @@ import {
   CalendarOutlined,
   DownOutlined,
   PlusOutlined,
+  RobotOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
 import { Badge, Button, Input } from 'antd';
-import { useRef, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useScrollRestoration } from '../../hooks/useScrollRestoration';
 import { useWorkspaceSnapshot } from '../../lib/queries';
 import { routePaths } from '../../router/paths';
 import { AppSidebar } from './AppSidebar';
 import { BackgroundPicker } from './BackgroundPicker';
+
+const CompanyAssistantDrawer = lazy(() => import('./CompanyAssistantDrawer'));
 
 const routeByNavigationKey: Readonly<Record<string, string>> = {
   today: routePaths.home,
@@ -69,6 +72,8 @@ export function AppShell(): React.JSX.Element {
   useScrollRestoration(pageScrollRef);
   const { triggeredAlertCount: alertCount } = useWorkspaceSnapshot();
   const [collapsed, setCollapsed] = useState(false);
+  const [companyAssistantLoaded, setCompanyAssistantLoaded] = useState(false);
+  const [companyAssistantOpen, setCompanyAssistantOpen] = useState(false);
 
   return (
     <div className={`trading-app${collapsed ? ' trading-app--collapsed' : ''}`}>
@@ -123,6 +128,16 @@ export function AppShell(): React.JSX.Element {
           <div className="topbar-actions">
             <BackgroundPicker />
             <Button
+              className="ai-company-button"
+              icon={<RobotOutlined />}
+              onClick={() => {
+                setCompanyAssistantLoaded(true);
+                setCompanyAssistantOpen(true);
+              }}
+            >
+              AI 公司助手
+            </Button>
+            <Button
               className="new-plan-button"
               type="primary"
               icon={<PlusOutlined />}
@@ -162,6 +177,11 @@ export function AppShell(): React.JSX.Element {
         <div className="app-page-scroll" ref={pageScrollRef}>
           <Outlet />
         </div>
+        {companyAssistantLoaded ? (
+          <Suspense fallback={null}>
+            <CompanyAssistantDrawer open={companyAssistantOpen} onClose={() => setCompanyAssistantOpen(false)} />
+          </Suspense>
+        ) : null}
       </div>
     </div>
   );

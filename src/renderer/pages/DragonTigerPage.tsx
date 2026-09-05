@@ -29,6 +29,7 @@ const sortOptions: Array<{ value: LhbSort; label: string }> = [
   { value: 'change', label: '涨跌幅' },
   { value: 'turnover', label: '换手率' },
   { value: 'appearances', label: '上榜次数' },
+  { value: 'intervalNet', label: '区间净流入（单日榜）' },
   ...LHB_NUMERIC_FILTERS.filter(
     ({ field }) => !['netCents', 'buyCents', 'sellCents', 'changePercent', 'turnoverPercent'].includes(field),
   ).map(({ field, label }) => ({ value: field, label })),
@@ -317,6 +318,23 @@ export function DragonTigerPage(): React.JSX.Element {
     { title: '上榜记录数', dataIndex: 'eventCount', width: 110, align: 'right' },
     { title: '首次上榜', dataIndex: 'firstDate', width: 120 },
     { title: '最近上榜', dataIndex: 'lastDate', width: 120 },
+    {
+      title: (
+        <span title="所选区间全部单日榜净买额，同日金额一致的多个原因仅计一次；不含多日榜，不等于全市场资金净流入。">
+          区间净流入（单日榜）
+        </span>
+      ),
+      key: 'intervalNet',
+      width: 185,
+      align: 'right',
+      render: (_, row) => (
+        <span
+          title={`区间单日榜累计，与金额、原因等筛选及计次方式无关。可累计 ${row.intervalNetDays} 天；未计入 ${row.intervalNetExcludedRecords} 条多日或其他榜。${row.intervalNetUnresolvedDays > 0 ? `${row.intervalNetUnresolvedDays} 天金额缺失或同日金额不一致，暂不显示合计。` : row.intervalNetDays === 0 ? '没有可累计的单日榜记录。' : ''}`}
+        >
+          <LhbMoney cents={row.intervalNetCents} signed />
+        </span>
+      ),
+    },
     {
       title: '最近净买额',
       key: 'net',
@@ -733,7 +751,7 @@ export function DragonTigerPage(): React.JSX.Element {
         <div className="lhb-results-toolbar">
           <span>
             次数统计在全部筛选条件之后进行；{input?.countMode === 'events' ? '每条上榜原因计一次' : '同一标的同日计一次'}。
-            {stocksView ? '金额为最近一条匹配记录。' : '同日多原因分别列出。'}
+            {stocksView ? '区间净流入累计全部单日榜，同日去重、不含多日榜；其余金额为最近一条匹配记录。' : '同日多原因分别列出。'}
           </span>
           <Space>
             <span>排序</span>
@@ -797,7 +815,7 @@ export function DragonTigerPage(): React.JSX.Element {
             dataSource={result.data?.stocks ?? []}
             size="small"
             loading={result.isFetching || status.isPending}
-            scroll={{ x: 1100 + extraColumns.length * 150 }}
+            scroll={{ x: 1285 + extraColumns.length * 150 }}
             pagination={pagination}
             locale={{ emptyText: empty }}
           />

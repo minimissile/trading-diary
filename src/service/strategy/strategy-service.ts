@@ -210,6 +210,10 @@ export class StockStrategyService {
         id: randomUUID(),
         createdAt: new Date().toISOString(),
       };
+      if (input.settings.selectionSource) {
+        const source = input.settings.selectionSource;
+        result.warnings.unshift(`本次股票池来自 ${source.platform === 'wencai' ? '同花顺 i 问财' : '东方财富妙想'} 于 ${source.queriedAt} 的查询：${source.query}。这是当前名单的固定池回测，包含前视偏差，不能代表该条件的历史选股收益。`);
+      }
       this.persist({ ...this.state, lastBacktest: result });
       return result;
     } finally {

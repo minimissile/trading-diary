@@ -1,7 +1,7 @@
 import type { LhbNumericField, LhbRangeKey } from './filters';
 export type LhbExchange = 'SH' | 'SZ' | 'BJ' | 'UNKNOWN';
 export type LhbPeriod = 'daily' | 'multi' | 'other';
-export type LhbSort = 'date' | 'net' | 'buy' | 'sell' | 'change' | 'turnover' | 'appearances' | LhbNumericField;
+export type LhbSort = 'date' | 'net' | 'buy' | 'sell' | 'change' | 'turnover' | 'appearances' | 'intervalNet' | LhbNumericField;
 
 /** 金额均为人民币分；百分数字段中 10 表示 10%。 */
 export interface LhbEvent extends Record<LhbNumericField, number | null> {
@@ -93,6 +93,11 @@ export interface LhbStockSummary {
   tradingDays: number;
   firstDate: string;
   lastDate: string;
+  /** 所选区间全部单日榜的去重净买额，不受事件筛选或计次口径影响。 */
+  intervalNetCents: number | null;
+  intervalNetDays: number;
+  intervalNetExcludedRecords: number;
+  intervalNetUnresolvedDays: number;
 }
 
 export interface LhbQueryResult extends LhbFreshness {

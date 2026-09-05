@@ -302,3 +302,59 @@ describe('完整业务字段与周期统计', () => {
     expect(provider.list).toHaveBeenCalledWith(date, date, undefined, 'bond');
   });
 });
+
+describe('区间龙虎榜单日净流入', () => {
+  it('同日相同金额只计一次，包含区间负值，不混入多日榜，也不随事件条件及计次方式改变', async () => {
+    const positive = { date: '2024-01-02', buyCents: 10001, sellCents: 0, netCents: 10001 };
+    const { service } = setup([
+      event(1, positive),
+      event(2, { ...positive, reason: '另一单日原因' }),
+      event(3, { date: '2024-01-03', buyCents: 0, sellCents: 5000, netCents: -5000 }),
+      event(4, { date: '2024-01-03', period: 'multi', netCents: 90000 }),
+      event(5, { date: '2024-01-04', period: 'other', netCents: 50000 }),
+    ]);
+    const query = { startDate: '2024-01-01', endDate: date, view: 'stocks' as const };
+    const all = (await service.query(query)).stocks[0]!;
+    expect(all.intervalNetCents).toBe(5001);
+    expect(all.intervalNetDays).toBe(2);
+    expect(all.intervalNetExcludedRecords).toBe(2);
+    const filtered = (await service.query({ ...query, minNetCents: 1, countMode: 'events' })).stocks[0]!;
+    expect(filtered.intervalNetCents).toBe(5001);
+    expect(filtered.appearances).toBe(4);
+  });
+  it('金额冲突、缺失或仅有多日榜时为空，真实零保留；排序在分页前生效且空值始终末尾', async () => {
+    const { service } = setup([
+      event(1, { symbol: '000001', netCents: null }),
+      event(2, { symbol: '000002', netCents: 0 }),
+      event(3, { symbol: '000003', netCents: 100 }),
+      event(4, { symbol: '000003', netCents: 100, buyCents: 999 }),
+      event(5, { symbol: '000004', period: 'multi', netCents: 300 }),
+      event(6, { symbol: '000005', netCents: -50 }),
+      event(7, { symbol: '000006', netCents: 200 }),
+      event(8, { symbol: '000001', date: '2024-01-04', netCents: 100 }),
+    ]);
+    const query = { startDate: '2024-01-01', endDate: date, view: 'stocks' as const, sort: 'intervalNet' as const, pageSize: 2 };
+    const first = await service.query(query),
+      second = await service.query({ ...query, page: 2 });
+    expect(first.stocks.map((row) => row.latestEvent.symbol)).toEqual(['000006', '000002']);
+    expect(first.stocks[1]?.intervalNetCents).toBe(0);
+    expect(second.stocks[0]?.intervalNetCents).toBe(-50);
+    expect(second.stocks[1]?.intervalNetCents).toBeNull();
+    expect(second.stocks[1]?.intervalNetUnresolvedDays).toBe(1);
+    const last = await service.query({ ...query, page: 3 });
+    expect(last.stocks.map((row) => row.intervalNetCents)).toEqual([null, null]);
+    const ascending = await service.query({ ...query, order: 'asc' });
+    expect(ascending.stocks.map((row) => row.intervalNetCents)).toEqual([-50, 0]);
+    expect((await service.query({ ...query, view: 'events' })).items[0]?.symbol).toBe('000006');
+  });
+  it('整数分累计不损失精度，超出安全整数范围时拒绝显示', async () => {
+    const { service } = setup([
+      event(1, { date: '2024-01-02', netCents: Number.MAX_SAFE_INTEGER }),
+      event(2, { date: '2024-01-03', netCents: 5 }),
+      event(3, { date: '2024-01-04', netCents: -Number.MAX_SAFE_INTEGER }),
+    ]);
+    expect((await service.query({ startDate: '2024-01-01', endDate: date })).stocks[0]?.intervalNetCents).toBe(5);
+    const overflow = setup([event(1, { netCents: Number.MAX_SAFE_INTEGER }), event(2, { date: '2024-01-04', netCents: 1 })]);
+    await expect(overflow.service.query({ startDate: '2024-01-01', endDate: date })).rejects.toThrow('安全计算范围');
+  });
+});

@@ -48,4 +48,21 @@ describe('PromptLoader', () => {
     expect(definition.id).toBe('portfolio.ledger.import.screenshot');
     expect(definition.responseFormat).toBe('json');
   });
+
+  it('renders the company assistant prompt with current market context', () => {
+    const loader = new PromptLoader(resolvePromptsDir());
+    const rendered = loader.render(PROMPT_IDS.COMPANY_ASSISTANT, {
+      currentDate: '2026-09-06T09:30:00.000Z',
+      marketContext: '公司：示例公司（600000）\n最新价：10.2',
+      newsContext: '[资讯1] 示例公告',
+      conversationHistory: '暂无历史对话。',
+      question: '这家公司靠什么赚钱？',
+    });
+
+    expect(rendered.definition.id).toBe('company.assistant');
+    expect(rendered.definition.responseFormat).toBe('text');
+    expect(rendered.system).toContain('上市公司研究助手');
+    expect(rendered.user).toContain('最新价：10.2');
+    expect(rendered.user).toContain('这家公司靠什么赚钱？');
+  });
 });

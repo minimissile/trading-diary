@@ -29,6 +29,8 @@ import type {
 import type {
   AssetStats,
   CreateTradeAlertInput,
+  CompanyAssistantAskInput,
+  CompanyAssistantResult,
   CreateTradeReviewInput,
   CreateTradingPlanInput,
   HealthResult,
@@ -670,14 +672,19 @@ export interface ServiceContract
   };
 }
 
-export type ServiceStreamMethod = 'reviews.generateAiDraftStream' | 'llm.debugRunStream';
+export type ServiceStreamMethod =
+  | 'companyAssistant.askStream'
+  | 'reviews.generateAiDraftStream'
+  | 'llm.debugRunStream';
 
 export type ServiceStreamParams = {
+  'companyAssistant.askStream': CompanyAssistantAskInput;
   'reviews.generateAiDraftStream': ReviewAiDraftInput;
   'llm.debugRunStream': { promptId: PromptId; variables: Record<string, string> };
 };
 
 export type ServiceStreamResult = {
+  'companyAssistant.askStream': CompanyAssistantResult;
   'reviews.generateAiDraftStream': ReviewAiDraftResult;
   'llm.debugRunStream': LlmDebugRunResult;
 };

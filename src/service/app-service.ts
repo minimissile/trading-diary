@@ -8,10 +8,12 @@ import { AppDatabase } from './database/database';
 import { debugRunStream, previewPrompt } from './llm/debug-service';
 import { createLlmRunner, type LlmRunner } from './llm/llm-runner';
 import { generateReviewAiDraft, generateReviewAiDraftStream } from './reviews/review-ai-service';
+import { generateCompanyAnswerStream } from './company-assistant/company-assistant-service';
 import { marketService } from './market/market-service';
 import { LonghubangService } from './longhubang/longhubang-service';
 import { StockStrategyService } from './strategy/strategy-service';
 import { QuantResearchService } from './quant-research/quant-service';
+import { ResearchWorkbenchService } from './quant-research/research-service';
 import { watchlistService } from './watchlist/watchlist-service';
 import { createPortfolioService, type PortfolioService } from './portfolio/portfolio-service';
 import { AccountService } from './accounts/account-service';
@@ -46,6 +48,23 @@ const reviewAiDraftParamsSchema = z
   })
   .strict();
 
+const companyAssistantParamsSchema = z
+  .object({
+    symbol: z.string().trim().min(1).max(32),
+    question: z.string().trim().min(1).max(1_000),
+    history: z
+      .array(
+        z
+          .object({
+            role: z.enum(['user', 'assistant']),
+            content: z.string().trim().min(1).max(4_000),
+          })
+          .strict(),
+      )
+      .max(8),
+  })
+  .strict();
+
 const llmPreviewParamsSchema = z
   .object({
     promptId: z.enum([PROMPT_IDS.REVIEW_SUMMARIZE, PROMPT_IDS.RELEASE_NOTES, PROMPT_IDS.RELEASE_PLAN]),
@@ -61,6 +80,11 @@ const llmDebugRunParamsSchema = z
   .strict();
 
 export class AppService {
+  private researchWorkbench: ResearchWorkbenchService | null = null;
+  private getResearchWorkbench(): ResearchWorkbenchService {
+    this.researchWorkbench ??= new ResearchWorkbenchService(this.database.quantWorkbench);
+    return this.researchWorkbench;
+  }
   private quantResearchService: QuantResearchService | null = null;
 
   private getQuantResearchService(): QuantResearchService {
@@ -124,6 +148,14 @@ export class AppService {
 
   async handle(request: ServiceRequest): Promise<unknown> {
     switch (request.method) {
+      case 'quantResearch.toolState':
+        return this.getResearchWorkbench().state(request.params.kind);
+      case 'quantResearch.toolSave':
+        return this.getResearchWorkbench().save(request.params);
+      case 'quantResearch.toolRun':
+        return this.getResearchWorkbench().run(request.params);
+      case 'quantResearch.report':
+        return this.getResearchWorkbench().get(request.params.id);
       case 'quantResearch.state':
         return this.getQuantResearchService().getState();
       case 'quantResearch.save':
@@ -538,6 +570,16 @@ export class AppService {
 
     try {
       switch (method) {
+        case 'companyAssistant.askStream': {
+          const input = companyAssistantParamsSchema.parse(params);
+          this.licenseService.assertFeature('ai_review');
+          const result = await generateCompanyAnswerStream(this.llmRunner, input, {
+            streamId,
+            onChunk: (delta) => emit({ type: 'chunk', delta }),
+          });
+          emit({ type: 'done', result });
+          return;
+        }
         case 'reviews.generateAiDraftStream': {
           const input = reviewAiDraftParamsSchema.parse(params);
           this.licenseService.assertFeature('ai_review');

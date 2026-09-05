@@ -13,6 +13,15 @@ export const stockStrategySettingsSchema = z
     strategyId: z.enum(['momentum', 'breakout', 'pullback']),
     poolId: z.enum(['personal', 'research', 'custom']),
     symbols: z.array(stockStrategySymbolSchema).max(60),
+    selectionSource: z
+      .object({
+        platform: z.enum(['wencai', 'eastmoney']),
+        query: z.string().trim().min(2).max(2000),
+        queriedAt: z.iso.datetime(),
+        snapshotId: z.uuid(),
+      })
+      .strict()
+      .optional(),
     topN: z.number().int().min(1).max(20),
     holdingDays: z.number().int().min(1).max(60),
     stopLossPercent: z.number().finite().min(1).max(50),
@@ -24,7 +33,8 @@ export const stockStrategySettingsSchema = z
     slippageBps: z.number().finite().min(0).max(100),
   })
   .strict()
-  .refine((input) => input.poolId !== 'custom' || input.symbols.length > 0, '自定义股票池不能为空');
+  .refine((input) => input.poolId !== 'custom' || input.symbols.length > 0, '自定义股票池不能为空')
+  .refine((input) => !input.selectionSource || input.poolId === 'custom', '平台选股来源只适用于导入的自定义股票池');
 export const stockStrategyBacktestSchema = z
   .object({
     settings: stockStrategySettingsSchema,

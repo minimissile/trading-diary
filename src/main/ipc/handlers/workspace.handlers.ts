@@ -1,5 +1,6 @@
 import { dialog, ipcMain, shell } from 'electron';
 import type {
+  CompanyAssistantAskInput,
   CreateTradeAlertInput,
   CreateTradeReviewInput,
   CreateTradingPlanInput,
@@ -101,6 +102,26 @@ export function registerWorkspaceHandlers({ window, service }: IpcHandlerContext
     assertTrustedSender(event, window);
     return service.request('reviews.generateAiDraft', input);
   });
+
+  ipcMain.handle(
+    ipcChannels.startCompanyAssistantStream,
+    (event, input: { streamId: string; payload: CompanyAssistantAskInput }) => {
+      assertTrustedSender(event, window);
+      const session = service.startStream('companyAssistant.askStream', input.payload, input.streamId, {
+        onChunk: (delta) => sendStreamEvent(window, { streamId: input.streamId, type: 'chunk', delta }),
+        onDone: (result) => {
+          activeStreamCancels.delete(input.streamId);
+          sendStreamEvent(window, { streamId: input.streamId, type: 'done', result });
+        },
+        onError: (error) => {
+          activeStreamCancels.delete(input.streamId);
+          sendStreamEvent(window, { streamId: input.streamId, type: 'error', code: error.code, message: error.message });
+        },
+      });
+      activeStreamCancels.set(input.streamId, session.cancel);
+      return { streamId: input.streamId };
+    },
+  );
 
   ipcMain.handle(ipcChannels.startReviewAiDraftStream, (event, input: { streamId: string; payload: ReviewAiDraftInput }) => {
     assertTrustedSender(event, window);

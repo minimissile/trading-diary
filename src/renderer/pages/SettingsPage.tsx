@@ -728,7 +728,7 @@ export function SettingsPage(): React.JSX.Element {
           <Tag color={llmConfigured ? 'green' : 'default'}>{llmConfigured ? '已配置' : '未配置'}</Tag>
         </div>
         <p className="page-intro">
-          API Key 保存在本机 userData 目录，不会写入 SQLite 或前端存储。AI 仅用于复盘草稿与发布说明，不提供买卖建议。
+          API Key 保存在本机 userData 目录，不会写入 SQLite 或前端存储。AI 用于公司信息助手、复盘草稿与截图识别，不提供买卖建议。
         </p>
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <Input.Password

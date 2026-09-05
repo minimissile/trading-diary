@@ -1,5 +1,9 @@
 import type { AlertEvent, AlertEventUserAction } from './alerts/event-types';
 import type {
+  CompanyAssistantAskInput,
+  CompanyAssistantResult,
+} from './ai/company-assistant';
+import type {
   ConfirmFundSipOccurrenceInput,
   ConfirmFundSipOccurrenceResult,
   CreateFundSipPlanInput,
@@ -334,7 +338,7 @@ export interface LlmStreamPayload {
   streamId: string;
   type: LlmStreamEventType;
   delta?: string;
-  result?: ReviewAiDraftResult | LlmDebugRunResult;
+  result?: ReviewAiDraftResult | LlmDebugRunResult | CompanyAssistantResult;
   code?: string;
   message?: string;
 }
@@ -365,6 +369,13 @@ export type {
   MarketSearchHit,
   MarketSnapshot,
 } from './market/types';
+
+export type {
+  CompanyAssistantAskInput,
+  CompanyAssistantHistoryMessage,
+  CompanyAssistantResult,
+  CompanyAssistantSource,
+} from './ai/company-assistant';
 
 export interface MarketSnapshotView {
   instrument: InstrumentInfo;
@@ -462,6 +473,16 @@ export interface DesktopApi {
       listeners: {
         onChunk: (delta: string) => void;
         onDone: (result: ReviewAiDraftResult) => void;
+        onError: (error: { code: string; message: string }) => void;
+      },
+    ) => Promise<{ streamId: string; cancel: () => void }>;
+  };
+  companyAssistant: {
+    askStream: (
+      input: CompanyAssistantAskInput,
+      listeners: {
+        onChunk: (delta: string) => void;
+        onDone: (result: CompanyAssistantResult) => void;
         onError: (error: { code: string; message: string }) => void;
       },
     ) => Promise<{ streamId: string; cancel: () => void }>;

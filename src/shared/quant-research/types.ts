@@ -1,3 +1,5 @@
+import type { ResearchKind, ResearchReport, ResearchRequest, ResearchState } from './workbench';
+
 export type QuantRuleId =
   | 'new_high'
   | 'new_low'
@@ -72,6 +74,10 @@ export interface QuantResearchState {
 }
 
 export interface QuantResearchMethods {
+  'quantResearch.toolState': { params: { kind: ResearchKind }; result: ResearchState };
+  'quantResearch.toolSave': { params: ResearchRequest; result: ResearchRequest };
+  'quantResearch.toolRun': { params: ResearchRequest; result: ResearchReport };
+  'quantResearch.report': { params: { id: string }; result: ResearchReport };
   'quantResearch.state': { params: Record<string, never>; result: QuantResearchState };
   'quantResearch.save': { params: QuantSettings; result: QuantSettings };
   'quantResearch.scan': { params: QuantSettings; result: QuantRun };
@@ -79,6 +85,10 @@ export interface QuantResearchMethods {
 }
 
 export interface QuantResearchApi {
+  getToolState: (kind: ResearchKind) => Promise<ResearchState>;
+  saveToolSettings: (input: ResearchRequest) => Promise<ResearchRequest>;
+  runTool: (input: ResearchRequest) => Promise<ResearchReport>;
+  getReport: (id: string) => Promise<ResearchReport>;
   getState: () => Promise<QuantResearchState>;
   saveSettings: (settings: QuantSettings) => Promise<QuantSettings>;
   scan: (settings: QuantSettings) => Promise<QuantRun>;

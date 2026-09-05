@@ -4,6 +4,84 @@
   padding: 28px;
   color: var(--ui-text);
 }
+.quant-workbench,
+.quant-workbench-chart {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.quant-workbench-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.quant-workbench-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0 16px;
+  margin-top: 22px;
+}
+.quant-workbench-form .ant-input-number {
+  width: 100%;
+}
+.quant-workbench-symbols {
+  grid-column: 1 / -1;
+}
+.quant-workbench-history {
+  width: min(360px, 50%);
+}
+.quant-workbench-chart {
+  border: 1px solid var(--ui-line);
+  border-radius: 12px;
+  padding: 16px;
+}
+.quant-workbench-chart svg {
+  width: 100%;
+  max-height: 300px;
+}
+.quant-workbench-chart text {
+  fill: var(--ui-muted);
+  font-size: 12px;
+}
+.quant-workbench-chart path {
+  fill: none;
+  stroke-width: 2;
+}
+.quant-workbench-chart label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.quant-workbench-chart input {
+  flex: 1;
+  accent-color: var(--ui-accent);
+}
+.quant-workbench-chart p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ui-muted);
+}
+.quant-curve-grid {
+  stroke: var(--ui-line);
+  stroke-dasharray: 3 4;
+}
+.quant-curve-equity {
+  stroke: var(--ui-accent);
+}
+.quant-curve-benchmark {
+  stroke: var(--ui-warning, #d5a35c);
+}
+.quant-workbench-chart .quant-curve-benchmark-label {
+  fill: var(--ui-warning, #d5a35c);
+}
+.quant-workbench pre {
+  max-height: 240px;
+  overflow: auto;
+  padding: 12px;
+  background: var(--ui-panel);
+  border-radius: 8px;
+}
 .quant-research-heading,
 .quant-research-section-heading {
   display: flex;

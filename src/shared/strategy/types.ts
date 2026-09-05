@@ -1,3 +1,5 @@
+import type { AiSelectionApi, SelectionPlatform } from './ai-selection';
+
 export type StockStrategyId = 'momentum' | 'breakout' | 'pullback';
 export type StrategyPoolId = 'personal' | 'research' | 'custom';
 
@@ -5,6 +7,12 @@ export interface StockStrategySettings {
   strategyId: StockStrategyId;
   poolId: StrategyPoolId;
   symbols: string[];
+  selectionSource?: {
+    platform: SelectionPlatform;
+    query: string;
+    queriedAt: string;
+    snapshotId: string;
+  };
   topN: number;
   holdingDays: number;
   stopLossPercent: number;
@@ -114,6 +122,7 @@ export interface StockStrategyMethods {
   'stockStrategy.backtest': { params: StockBacktestInput; result: StockBacktestResult };
 }
 export interface StockStrategyApi {
+  aiSelection: AiSelectionApi;
   getState: () => Promise<StockStrategyState>;
   saveSettings: (settings: StockStrategySettings) => Promise<StockStrategySettings>;
   screen: (input: { settings: StockStrategySettings; refresh?: boolean }) => Promise<StockScreenResult>;

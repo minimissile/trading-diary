@@ -50,7 +50,7 @@ export function SymbolSearchInput({
   disabled,
   ...inputProps
 }: SymbolSearchInputProps): React.JSX.Element {
-  const { options, loading, search, clear } = useSymbolSearch(searchLimit, marketScopes, assetKind);
+  const { options, loading, error, search, clear } = useSymbolSearch(searchLimit, marketScopes, assetKind);
   const lastResolvedSymbol = useRef<string | null>(null);
   const resolveSequence = useRef(0);
   const scopesKey = marketScopes.join(',');
@@ -150,7 +150,7 @@ export function SymbolSearchInput({
       disabled={disabled}
       options={autoCompleteOptions}
       value={value}
-      notFoundContent={loading ? <Spin size="small" /> : '无匹配标的'}
+      notFoundContent={loading ? <Spin size="small" /> : error ? <span role="alert">{error}</span> : '无匹配标的'}
       onSelect={(symbol, option) => handleSelect(symbol, option)}
       onBlur={handleBlur}
       onChange={handleChange}

@@ -803,4 +803,28 @@ export const migrations: readonly Migration[] = [
       CREATE INDEX quant_research_runs_created_idx ON quant_research_runs(created_at DESC);
     `,
   },
+  {
+    version: 29,
+    name: 'quant_research_workbench',
+    sql: `
+      CREATE TABLE quant_research_tool_settings (
+        kind TEXT PRIMARY KEY,
+        payload_json TEXT NOT NULL CHECK (json_valid(payload_json))
+      ) STRICT;
+      CREATE TABLE quant_research_reports (
+        id TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        summary_json TEXT NOT NULL CHECK (json_valid(summary_json)),
+        payload_json TEXT NOT NULL CHECK (json_valid(payload_json))
+      ) STRICT;
+      CREATE INDEX quant_research_reports_kind_idx ON quant_research_reports(kind, created_at DESC);
+      CREATE TABLE quant_research_share_observations (
+        symbol TEXT NOT NULL,
+        data_date TEXT NOT NULL,
+        shares REAL NOT NULL CHECK (shares > 0),
+        PRIMARY KEY (symbol, data_date)
+      ) STRICT;
+    `,
+  },
 ];

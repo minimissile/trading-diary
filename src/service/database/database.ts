@@ -31,6 +31,7 @@ import { LofArbitrageDatabase } from '../lof-arbitrage/lof-arbitrage-database';
 import { WatchlistDatabase } from '../watchlist/watchlist-database';
 import { LonghubangDatabase } from '../longhubang/longhubang-database';
 import { QuantResearchDatabase } from '../quant-research/quant-database';
+import { ResearchWorkbenchDatabase } from '../quant-research/research-database';
 
 const PRICE_SCALE = 10_000;
 const QUANTITY_SCALE = 10_000;
@@ -148,6 +149,7 @@ export class AppDatabase {
   readonly watchlist: WatchlistDatabase;
   readonly longhubang: LonghubangDatabase;
   readonly quantResearch: QuantResearchDatabase;
+  readonly quantWorkbench: ResearchWorkbenchDatabase;
   private readonly db: DatabaseSync;
 
   constructor(filePath: string) {
@@ -185,6 +187,7 @@ export class AppDatabase {
     this.watchlist = new WatchlistDatabase(this.db);
     this.longhubang = new LonghubangDatabase(this.db);
     this.quantResearch = new QuantResearchDatabase(this.db);
+    this.quantWorkbench = new ResearchWorkbenchDatabase(this.db);
     if (this.schemaVersion() >= 3) {
       this.portfolio.ensureDefaultAccount();
     }

@@ -44,6 +44,90 @@
   border-radius: var(--ui-panel-radius);
   box-shadow: var(--ui-panel-shadow);
 }
+.ai-stock-selection,
+.ai-selection-result {
+  min-width: 0;
+}
+.ai-selection-credentials {
+  margin: 18px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--ui-line);
+  background: var(--ui-inset);
+  border-radius: 8px;
+}
+.ai-selection-credentials summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ui-secondary-text);
+}
+.ai-selection-credentials summary .ant-tag {
+  margin-left: 10px;
+}
+.ai-selection-key-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.ai-selection-key-row .ant-input-password {
+  flex: 1;
+  min-width: 240px;
+}
+.ai-selection-key-row a {
+  font-size: 13px;
+}
+.ai-selection-form {
+  margin-top: 20px;
+}
+.ai-selection-limit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ui-secondary-text);
+  font-size: 13px;
+}
+.ai-selection-limit .ant-input-number {
+  width: 80px;
+}
+.ai-selection-result {
+  border-top: 1px solid var(--ui-line);
+  padding-top: 18px;
+  margin-top: 18px;
+}
+.ai-selection-result h3 {
+  margin: 0;
+}
+.ai-selection-history {
+  width: 260px;
+  max-width: 100%;
+}
+.ai-selection-query {
+  color: var(--ui-secondary-text);
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.ai-selection-result .ant-table-wrapper {
+  margin: 16px 0;
+}
+.ai-selection-result .ui-cell-secondary {
+  display: block;
+}
+.ai-selection-metrics {
+  display: flex;
+  gap: 5px 18px;
+  flex-wrap: wrap;
+  color: var(--ui-secondary-text);
+  font-size: 12px;
+}
+.ai-selection-metrics b {
+  font-weight: 400;
+  color: var(--ui-muted);
+}
+.ai-selection-explanation {
+  white-space: pre-wrap;
+}
 .stock-strategy-section-heading h2 {
   margin: 0;
   font-size: 18px;

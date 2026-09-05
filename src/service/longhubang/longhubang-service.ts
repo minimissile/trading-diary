@@ -47,7 +47,7 @@ function compareEvents(a: LhbEvent, b: LhbEvent, input: LhbQueryInput): number {
     turnover: 'turnoverPercent',
   } as const;
   let compared = 0;
-  if (sort === 'date' || sort === 'appearances') compared = a.date.localeCompare(b.date) * direction;
+  if (sort === 'date' || sort === 'appearances' || sort === 'intervalNet') compared = a.date.localeCompare(b.date) * direction;
   else {
     const field: LhbNumericField = sort in aliases ? aliases[sort as keyof typeof aliases] : (sort as LhbNumericField);
     const left = a[field],
@@ -81,7 +81,65 @@ export function filterLhbEvents(events: readonly LhbEvent[], input: LhbQueryInpu
     .sort((a, b) => compareEvents(a, b, input));
 }
 
-export function summarizeLhbStocks(events: LhbEvent[], input: LhbQueryInput): LhbStockSummary[] {
+/** 按单日披露累计；多日榜无逐日拆分信息，同日金额不一致时不能任意取一条。 */
+function intervalLhbFlows(events: readonly LhbEvent[]) {
+  const groups = new Map<string, { days: Map<string, LhbEvent[]>; excluded: number }>();
+  for (const event of events) {
+    const key = securityKey(event);
+    let group = groups.get(key);
+    if (!group) {
+      group = { days: new Map(), excluded: 0 };
+      groups.set(key, group);
+    }
+    if (event.period !== 'daily') {
+      group.excluded++;
+      continue;
+    }
+    const day = group.days.get(event.date) ?? [];
+    day.push(event);
+    group.days.set(event.date, day);
+  }
+  return new Map(
+    [...groups].map(([key, group]) => {
+      let sum = 0n,
+        days = 0,
+        unresolved = 0;
+      for (const records of group.days.values()) {
+        const first = records[0]!;
+        if (
+          first.netCents === null ||
+          !Number.isSafeInteger(first.netCents) ||
+          records.some(
+            (row) => row.netCents !== first.netCents || row.buyCents !== first.buyCents || row.sellCents !== first.sellCents,
+          )
+        ) {
+          unresolved++;
+          continue;
+        }
+        sum += BigInt(first.netCents);
+        days++;
+      }
+      const cents = Number(sum);
+      if (!Number.isSafeInteger(cents)) throw new Error('区间龙虎榜净买额超出安全计算范围');
+      return [
+        key,
+        {
+          intervalNetCents: days > 0 && unresolved === 0 ? cents : null,
+          intervalNetDays: days,
+          intervalNetExcludedRecords: group.excluded,
+          intervalNetUnresolvedDays: unresolved,
+        },
+      ];
+    }),
+  );
+}
+
+export function summarizeLhbStocks(
+  events: LhbEvent[],
+  input: LhbQueryInput,
+  intervalEvents: readonly LhbEvent[] = events,
+): LhbStockSummary[] {
+  const flows = intervalLhbFlows(intervalEvents);
   const groups = new Map<string, { summary: LhbStockSummary; dates: Set<string> }>();
   for (const event of events) {
     const key = securityKey(event);
@@ -96,6 +154,10 @@ export function summarizeLhbStocks(events: LhbEvent[], input: LhbQueryInput): Lh
           tradingDays: 0,
           firstDate: event.date,
           lastDate: event.date,
+          intervalNetCents: null,
+          intervalNetDays: 0,
+          intervalNetExcludedRecords: 0,
+          intervalNetUnresolvedDays: 0,
         },
         dates: new Set(),
       };
@@ -113,11 +175,21 @@ export function summarizeLhbStocks(events: LhbEvent[], input: LhbQueryInput): Lh
   return [...groups.values()]
     .map(({ summary, dates }) => ({
       ...summary,
+      ...flows.get(summary.key),
       tradingDays: dates.size,
       appearances: input.countMode === 'events' ? summary.eventCount : dates.size,
     }))
     .filter((row) => matchesRange(row.appearances, input.minAppearances, input.maxAppearances))
     .sort((a, b) => {
+      if (input.sort === 'intervalNet') {
+        if (a.intervalNetCents === null && b.intervalNetCents !== null) return 1;
+        if (b.intervalNetCents === null && a.intervalNetCents !== null) return -1;
+        return (
+          (a.intervalNetCents !== null && b.intervalNetCents !== null
+            ? (a.intervalNetCents - b.intervalNetCents) * (input.order === 'asc' ? 1 : -1)
+            : 0) || a.key.localeCompare(b.key)
+        );
+      }
       if (!input.sort || input.sort === 'appearances')
         return (
           (a.appearances - b.appearances) * (input.order === 'asc' ? 1 : -1) ||
@@ -209,10 +281,10 @@ export class LonghubangService {
       (events) => (!events.length ? 5 * MINUTE : this.now() - Date.parse(endDate) > 7 * DAY ? 30 * DAY : 15 * MINUTE),
     );
     const matching = filterLhbEvents(data, input);
-    const stocks = summarizeLhbStocks(matching, input);
+    const stocks = summarizeLhbStocks(matching, input, data);
     const keys = new Set(stocks.map((row) => row.key));
     const filtered = matching.filter((event) => keys.has(securityKey(event)));
-    if (input.sort === 'appearances') {
+    if (input.sort === 'appearances' || input.sort === 'intervalNet') {
       const positions = new Map(stocks.map((row, index) => [row.key, index]));
       filtered.sort(
         (a, b) =>

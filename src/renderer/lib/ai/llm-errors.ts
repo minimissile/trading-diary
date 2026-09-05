@@ -12,7 +12,7 @@ export function getLlmErrorMessage(error: unknown, fallback = 'AI 服务暂时�
       return '连接 AI 服务失败，请稍后重试';
     }
     if (error.message.includes('LLM_POLICY_VIOLATION')) {
-      return 'AI 草稿未通过合规检查，请手动填写';
+      return 'AI 内容未通过合规检查，请调整问题后重试';
     }
     return error.message || fallback;
   }

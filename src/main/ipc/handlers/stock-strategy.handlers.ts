@@ -3,8 +3,11 @@ import { ipcChannels } from '../../../shared/ipc-channels';
 import type { StockBacktestInput, StockStrategySettings } from '../../../shared/strategy/types';
 import { assertTrustedSender } from '../shared';
 import type { IpcHandlerContext } from '../types';
+import { registerAiSelectionHandlers } from './ai-selection.handlers';
 
-export function registerStockStrategyHandlers({ window, service }: IpcHandlerContext): void {
+export function registerStockStrategyHandlers(context: IpcHandlerContext): void {
+  const { window, service } = context;
+  registerAiSelectionHandlers(context);
   ipcMain.handle(ipcChannels.stockStrategyState, (event) => {
     assertTrustedSender(event, window);
     return service.request('stockStrategy.state', {});

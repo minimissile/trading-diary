@@ -62,6 +62,7 @@ export const lhbQuerySchema = z
         'change',
         'turnover',
         'appearances',
+        'intervalNet',
         ...LHB_NUMERIC_FILTERS.map((field) => field.field),
       ])
       .optional(),

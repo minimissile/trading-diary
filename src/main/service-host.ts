@@ -23,6 +23,7 @@ const LEDGER_AI_RECOGNIZE_TIMEOUT_MS = 600_000;
 
 const REQUEST_TIMEOUT_BY_METHOD: Partial<Record<ServiceMethod, number>> = {
   'quantResearch.scan': 180_000,
+  'quantResearch.toolRun': 360_000,
   'stockStrategy.screen': 180_000,
   'stockStrategy.backtest': 180_000,
   'backup.export': BACKUP_REQUEST_TIMEOUT_MS,

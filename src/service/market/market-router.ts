@@ -1,6 +1,7 @@
 import type { InstrumentInfo, MarketQuote, MarketSearchHit } from '../../shared/market/types';
 import { parseInstrumentInput, instrumentPositionKey } from '../../shared/market/instrument-id';
 import type { InstrumentVenue } from '../../shared/market/venues';
+import { MarketProviderError } from '../../shared/market/errors';
 import { resolveInstrument, resolveEastMoneyByVenue, searchInstrumentsScoped } from './eastmoney/search-service';
 import { enrichEastMoneyInstrument, enrichEastMoneyQuote } from './eastmoney/enrich';
 import { fetchYahooQuote, fetchYahooQuotes, resolveYahooInstrument, searchYahooInstruments } from './yahoo/quote-service';
@@ -69,12 +70,13 @@ export async function searchInstrumentsMulti(query: string, scopes: readonly str
     tasks.push(searchYahooInstruments(query, yahooVenues, perSource));
   }
 
-  const groups = await Promise.all(tasks);
+  const groups = await Promise.allSettled(tasks);
   const merged: MarketSearchHit[] = [];
   const seen = new Set<string>();
 
   for (const group of groups) {
-    for (const hit of group) {
+    if (group.status === 'rejected') continue;
+    for (const hit of group.value) {
       const key = instrumentPositionKey({ venue: hit.venue, symbol: hit.symbol });
       if (seen.has(key)) continue;
       seen.add(key);
@@ -83,6 +85,9 @@ export async function searchInstrumentsMulti(query: string, scopes: readonly str
     }
   }
 
+  if (!merged.length && groups.some(group => group.status === 'rejected')) {
+    throw new MarketProviderError('证券搜索数据源暂不可用，请稍后重试');
+  }
   return merged;
 }
 

@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
+  CompanyAssistantResult,
   DesktopApi,
   LlmDebugRunResult,
   LlmStreamPayload,
@@ -105,6 +106,12 @@ const desktopApi: DesktopApi = {
     generateAiDraftStream: (input, listeners) =>
       Promise.resolve(startLlmStream<ReviewAiDraftResult>(ipcChannels.startReviewAiDraftStream, { payload: input }, listeners)),
   },
+  companyAssistant: {
+    askStream: (input, listeners) =>
+      Promise.resolve(
+        startLlmStream<CompanyAssistantResult>(ipcChannels.startCompanyAssistantStream, { payload: input }, listeners),
+      ),
+  },
   settings: {
     getLlmStatus: () => ipcRenderer.invoke(ipcChannels.getLlmStatus),
     saveLlmApiKey: (apiKey) => ipcRenderer.invoke(ipcChannels.saveLlmApiKey, { apiKey }),
@@ -146,12 +153,23 @@ const desktopApi: DesktopApi = {
     getDetail: (input) => ipcRenderer.invoke(ipcChannels.longhubangDetail, input),
   },
   stockStrategy: {
+    aiSelection: {
+      getState: () => ipcRenderer.invoke(ipcChannels.aiSelectionState),
+      saveSettings: (input) => ipcRenderer.invoke(ipcChannels.aiSelectionSave, input),
+      saveKey: (input) => ipcRenderer.invoke(ipcChannels.aiSelectionSaveKey, input),
+      clearKey: (platform) => ipcRenderer.invoke(ipcChannels.aiSelectionClearKey, platform),
+      query: (input) => ipcRenderer.invoke(ipcChannels.aiSelectionQuery, input),
+    },
     getState: () => ipcRenderer.invoke(ipcChannels.stockStrategyState),
     saveSettings: (input) => ipcRenderer.invoke(ipcChannels.stockStrategySave, input),
     screen: (input) => ipcRenderer.invoke(ipcChannels.stockStrategyScreen, input),
     backtest: (input) => ipcRenderer.invoke(ipcChannels.stockStrategyBacktest, input),
   },
   quantResearch: {
+    getToolState: (kind) => ipcRenderer.invoke(ipcChannels.quantResearchToolState, { kind }),
+    saveToolSettings: (input) => ipcRenderer.invoke(ipcChannels.quantResearchToolSave, input),
+    runTool: (input) => ipcRenderer.invoke(ipcChannels.quantResearchToolRun, input),
+    getReport: (id) => ipcRenderer.invoke(ipcChannels.quantResearchReport, { id }),
     getState: () => ipcRenderer.invoke(ipcChannels.quantResearchState),
     saveSettings: (input) => ipcRenderer.invoke(ipcChannels.quantResearchSave, input),
     scan: (input) => ipcRenderer.invoke(ipcChannels.quantResearchScan, input),

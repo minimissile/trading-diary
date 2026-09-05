@@ -123,7 +123,7 @@ export class LicenseService {
     if (this.hasFeature(feature)) return;
 
     const messages: Record<LicenseFeature, string> = {
-      ai_review: 'AI 复盘草稿为 Pro 功能，请在设置中激活或升级',
+      ai_review: 'AI 助手与复盘草稿为 Pro 功能，请在设置中激活或升级',
       portfolio_dividend_sync: '分红同步为 Pro 功能，请在设置中激活或升级',
       unlimited_plans: '免费版最多 3 个交易计划，请激活 Pro 后继续使用',
       unlimited_alerts: '免费版最多 5 条提醒，请激活 Pro 后继续使用',

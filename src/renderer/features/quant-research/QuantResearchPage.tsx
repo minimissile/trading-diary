@@ -7,6 +7,8 @@ import { QUANT_RULES } from '../../../shared/quant-research/catalog';
 import { quantSettingsSchema } from '../../../shared/quant-research/schemas';
 import type { QuantResearchState, QuantRun, QuantRunSummary, QuantSettings } from '../../../shared/quant-research/types';
 import { QuantSignals } from './QuantSignals';
+import { ResearchWorkbench } from './ResearchWorkbench';
+import { RESEARCH_TOOLS, type ResearchKind } from '../../../shared/quant-research/workbench';
 import './quant-research.css';
 
 const stateKey = ['quant-research', 'state'] as const;
@@ -15,20 +17,35 @@ const poolNames = { personal: '我的自选（沪深 A 股）', custom: '独立�
 const dateTime = (value: string): string => new Date(value).toLocaleString('zh-CN', { hour12: false });
 
 export default function QuantResearchPage(): React.JSX.Element {
+  const [workspace, setWorkspace] = useState<'technical' | ResearchKind>('technical');
   const state = useQuery({ queryKey: stateKey, queryFn: () => window.desktop.quantResearch.getState(), retry: false });
   return (
     <div className="quant-research-page">
       <header className="quant-research-heading">
         <div>
-          <span className="quant-research-kicker">市场观察 · 规则扫描</span>
+          <span className="quant-research-kicker">市场观察 · 策略实验</span>
           <h1>量化研究</h1>
-          <p>从价格、量能与 K 线形态中提取可复查的信号。</p>
+          <p>技术信号、独立回测与市场数据研究；各工具分别保存配置和结果。</p>
         </div>
         <Tag color="processing" icon={<ExperimentOutlined />}>
-          日线研究
+          独立工作区
         </Tag>
       </header>
-      {state.isPending ? (
+      <nav className="quant-workbench-nav" aria-label="研究工具">
+        {[{ kind: 'technical' as const, name: '技术信号' }, ...RESEARCH_TOOLS].map((tool) => (
+          <Button
+            key={tool.kind}
+            type={workspace === tool.kind ? 'primary' : 'default'}
+            aria-pressed={workspace === tool.kind}
+            onClick={() => setWorkspace(tool.kind)}
+          >
+            {tool.name}
+          </Button>
+        ))}
+      </nav>
+      {workspace !== 'technical' ? (
+        <ResearchWorkbench key={workspace} kind={workspace} />
+      ) : state.isPending ? (
         <Skeleton active paragraph={{ rows: 8 }} />
       ) : state.isError ? (
         <Alert

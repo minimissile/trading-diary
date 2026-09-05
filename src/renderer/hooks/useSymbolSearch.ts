@@ -9,6 +9,7 @@ const SEARCH_THROTTLE_MS = 400;
 export interface UseSymbolSearchResult {
   options: MarketSearchHit[];
   loading: boolean;
+  error: string | null;
   search: (query: string) => void;
   clear: () => void;
 }
@@ -17,6 +18,7 @@ export interface UseSymbolSearchResult {
 export function useSymbolSearch(limit = 8, marketScopes: readonly string[] = ['CN_A'], assetKind?: 'stock' | 'fund'): UseSymbolSearchResult {
   const [options, setOptions] = useState<MarketSearchHit[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const requestSeq = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRun = useRef(0);
@@ -33,6 +35,7 @@ export function useSymbolSearch(limit = 8, marketScopes: readonly string[] = ['C
     cancel();
     setOptions([]);
     setLoading(false);
+    setError(null);
   }, [cancel]);
 
   const search = useCallback(
@@ -44,6 +47,8 @@ export function useSymbolSearch(limit = 8, marketScopes: readonly string[] = ['C
         return;
       }
       const seq = requestSeq.current;
+      setOptions([]);
+      setError(null);
       setLoading(true);
       const delay = Math.max(SEARCH_DEBOUNCE_MS, SEARCH_THROTTLE_MS - (Date.now() - lastRun.current));
       timer.current = setTimeout(() => {
@@ -59,7 +64,10 @@ export function useSymbolSearch(limit = 8, marketScopes: readonly string[] = ['C
             if (seq === requestSeq.current) setOptions(hits);
           })
           .catch(() => {
-            if (seq === requestSeq.current) setOptions([]);
+            if (seq === requestSeq.current) {
+              setOptions([]);
+              setError('搜索暂不可用，请稍后重新输入');
+            }
           })
           .finally(() => {
             if (seq === requestSeq.current) setLoading(false);
@@ -69,5 +77,5 @@ export function useSymbolSearch(limit = 8, marketScopes: readonly string[] = ['C
     [cancel, clear, limit, scopesKey, assetKind],
   );
 
-  return { options, loading, search, clear };
+  return { options, loading, error, search, clear };
 }

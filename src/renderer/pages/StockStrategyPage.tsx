@@ -16,6 +16,8 @@ import type {
 } from '../../shared/strategy/types';
 import { stockStrategySettingsSchema } from '../../shared/schemas/requests/stock-strategy.requests';
 import { StrategyEquityChart } from '../components/trading/StrategyEquityChart';
+import { AiStockSelection } from '../components/trading/AiStockSelection';
+import { SELECTION_PLATFORMS } from '../../shared/strategy/ai-selection';
 import { buildPositionChartPath } from '../router/paths';
 import { ValueDisplay } from '../lib/trading-format';
 import '../styles/stock-strategy.css';
@@ -122,7 +124,7 @@ function StrategyWorkspace({ initial }: { initial: StockStrategyState }): React.
   const dirty = JSON.stringify(editedSettings) !== JSON.stringify(active);
   const busy = save.isPending || run.isPending || refresh.isPending || daily.isFetching;
   const update = <K extends keyof StockStrategySettings>(key: K, value: StockStrategySettings[K]): void => {
-    setDraft((previous) => ({ ...previous, [key]: value }));
+    setDraft((previous) => ({ ...previous, [key]: value, ...(key === 'poolId' ? { selectionSource: undefined } : {}) }));
     setValidation(null);
   };
   const apply = (): void => {
@@ -183,6 +185,30 @@ function StrategyWorkspace({ initial }: { initial: StockStrategyState }): React.
   const error = validation ?? save.error?.message;
   return (
     <>
+      <AiStockSelection
+        disabled={busy}
+        onUsePool={async (result) => {
+          const next = stockStrategySettingsSchema.parse({
+            ...editedSettings,
+            poolId: 'custom',
+            symbols: result.stocks.map((stock) => stock.symbol),
+            selectionSource: {
+              platform: result.platform,
+              query: result.query,
+              queriedAt: result.createdAt,
+              snapshotId: result.id,
+            },
+          });
+          const saved = await window.desktop.stockStrategy.saveSettings(next);
+          setActive(saved);
+          setDraft(saved);
+          setSymbols(saved.symbols.join(', '));
+          setHistorical(null);
+          setValidation(null);
+          setTab('daily');
+          void client.invalidateQueries({ queryKey: stateKey });
+        }}
+      />
       <section className="stock-strategy-config ui-panel" aria-label="策略配置">
         <div className="stock-strategy-section-heading">
           <div>
@@ -193,6 +219,14 @@ function StrategyWorkspace({ initial }: { initial: StockStrategyState }): React.
             保存并应用
           </Button>
         </div>
+        {draft.selectionSource ? (
+          <Alert
+            type="info"
+            showIcon
+            title={`股票池来源：${SELECTION_PLATFORMS[draft.selectionSource.platform].name}`}
+            description={`${new Date(draft.selectionSource.queriedAt).toLocaleString('zh-CN')} · ${draft.selectionSource.query}。历史回测仅检验此固定名单，不代表平台条件的历史选股收益。`}
+          />
+        ) : null}
         <div className="stock-strategy-cards">
           {STOCK_STRATEGIES.map((strategy) => (
             <button
@@ -279,7 +313,10 @@ function StrategyWorkspace({ initial }: { initial: StockStrategyState }): React.
               aria-label="自定义股票代码"
               disabled={busy}
               value={symbols}
-              onChange={(event) => setSymbols(event.target.value)}
+              onChange={(event) => {
+                setSymbols(event.target.value);
+                setDraft((previous) => ({ ...previous, selectionSource: undefined }));
+              }}
               placeholder="600036, 000333, 300750"
               autoSize={{ minRows: 2, maxRows: 4 }}
             />

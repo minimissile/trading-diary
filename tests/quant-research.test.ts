@@ -13,6 +13,7 @@ import { QuantResearchService } from '../src/service/quant-research/quant-servic
 import { AppDatabase } from '../src/service/database/database';
 import { migrations } from '../src/service/database/migrations';
 import { BackupService } from '../src/service/backup/backup-service';
+import { defaultResearchRequest } from '../src/shared/quant-research/workbench';
 
 const directories: string[] = [];
 const databases: AppDatabase[] = [];
@@ -293,22 +294,24 @@ describe('quant research service and storage', () => {
     expect(reopened.quantResearch.getState().history).toHaveLength(20);
   });
 
-  it('migrates an existing database without losing research-independent data', () => {
+  it.each([27, 28])('migrates version %i without losing research-independent data', (previousVersion) => {
     const dir = temporary();
     const dbPath = path.join(dir, 'database', 'app.sqlite');
-    const db = database(dir);
-    const previousVersion = migrations.at(-2)!.version;
-    db.close();
-    databases.pop();
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
     const raw = new DatabaseSync(dbPath);
     raw.exec(
-      "DROP TABLE quant_research_runs; DROP TABLE quant_research_settings; CREATE TABLE migration_sentinel (value TEXT); INSERT INTO migration_sentinel VALUES ('keep')",
+      'CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TEXT NOT NULL) STRICT;',
     );
-    raw.prepare('DELETE FROM schema_migrations WHERE version > ?').run(previousVersion);
+    for (const migration of migrations.filter((item) => item.version <= previousVersion)) {
+      raw.exec(migration.sql);
+      raw.prepare('INSERT INTO schema_migrations VALUES (?, ?, ?)').run(migration.version, migration.name, now().toISOString());
+    }
+    raw.exec("CREATE TABLE migration_sentinel (value TEXT); INSERT INTO migration_sentinel VALUES ('keep')");
     raw.close();
     const upgraded = database(dir);
     expect(upgraded.schemaVersion()).toBe(migrations.at(-1)!.version);
     expect(upgraded.quantResearch.getState().history).toEqual([]);
+    expect(upgraded.quantWorkbench.state('backtest').history).toEqual([]);
     const inspect = new DatabaseSync(dbPath, { readOnly: true });
     expect(inspect.prepare('SELECT value FROM migration_sentinel').get()).toMatchObject({ value: 'keep' });
     inspect.close();
@@ -320,6 +323,24 @@ describe('quant research service and storage', () => {
     const source = database(sourceDir);
     const run = runFixture();
     source.quantResearch.saveRun(run);
+    const toolRequest = defaultResearchRequest('lof', now());
+    const toolReport = source.quantWorkbench.save(
+      {
+        id: randomUUID(),
+        kind: 'lof',
+        request: toolRequest,
+        title: 'LOF 快照',
+        asOf: '2026-09-04',
+        createdAt: now().toISOString(),
+        source: 'fixture',
+        metrics: [],
+        rows: [],
+        columns: [],
+        notes: [],
+        warnings: [],
+      },
+      [{ symbol: '161725', date: '2026-09-04', shares: 1200 }],
+    );
     const zipPath = path.join(sourceDir, 'research.zip');
     new BackupService(sourceDir, source, '0.0.1').exportBackup({ targetPath: zipPath, includeLicense: false });
     const target = database(targetDir);
@@ -328,5 +349,7 @@ describe('quant research service and storage', () => {
     const restored = database(targetDir);
     expect(restored.quantResearch.getRun(run.id)).toEqual(run);
     expect(restored.quantResearch.getState().settings).toEqual(settings);
+    expect(restored.quantWorkbench.get(toolReport.id)).toEqual(toolReport);
+    expect(restored.quantWorkbench.previous('161725', '2026-09-05')).toMatchObject({ shares: 1200 });
   });
 });

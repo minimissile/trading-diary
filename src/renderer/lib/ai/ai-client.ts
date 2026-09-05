@@ -1,4 +1,6 @@
 import type {
+  CompanyAssistantAskInput,
+  CompanyAssistantResult,
   LlmConnectionTestResult,
   LlmDebugRunResult,
   LlmPromptPreview,
@@ -47,6 +49,17 @@ export const aiClient = {
     },
   ): Promise<{ streamId: string; cancel: () => void }> {
     return window.desktop.reviews.generateAiDraftStream(input, listeners);
+  },
+
+  askCompanyStream(
+    input: CompanyAssistantAskInput,
+    listeners: {
+      onChunk: (delta: string) => void;
+      onDone: (result: CompanyAssistantResult) => void;
+      onError: (error: { code: string; message: string }) => void;
+    },
+  ): Promise<{ streamId: string; cancel: () => void }> {
+    return window.desktop.companyAssistant.askStream(input, listeners);
   },
 
   previewPrompt(promptId: string, variables: Record<string, string>): Promise<LlmPromptPreview> {
