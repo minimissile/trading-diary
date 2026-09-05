@@ -1,4 +1,5 @@
-import type { SipAiPlanHints, SipRecognizedPlanMode } from '../sip/import-hints';
+import type { SipRecognizedPlanMode } from '../sip/import-hints';
+import type { SipAiPlanHints } from '../sip/import-types';
 
 export type LedgerAiRecordKind = 'trade' | 'sip_deduction' | 'dividend' | 'skip';
 export type LedgerAiTradeSide = 'buy' | 'sell';

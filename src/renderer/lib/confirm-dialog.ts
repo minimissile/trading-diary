@@ -25,10 +25,7 @@ export function withConfirmDefaults(props: ModalFuncProps): ModalFuncProps {
 /**
  * 危险操作确认框（删除等），统一图标与按钮样式。
  */
-export function confirmDanger(
-  confirm: (props: ModalFuncProps) => void,
-  props: ModalFuncProps,
-): void {
+export function confirmDanger(confirm: (props: ModalFuncProps) => unknown, props: ModalFuncProps): void {
   confirm(
     withConfirmDefaults({
       ...props,

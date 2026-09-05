@@ -1,10 +1,10 @@
-import type { PortfolioLedgerSide } from '../../shared/portfolio/types';
+import type { LedgerAiTradeSide } from '../../shared/portfolio/ledger-import-types';
 import type { LedgerAiExtractedRecord } from '../../shared/portfolio/ledger-import-types';
 import { inferOtcTradeCashOutflow } from './otc-fund-cash-outflow';
 
 export interface NormalizedLedgerTradeRow {
   symbol: string;
-  side: PortfolioLedgerSide;
+  side: LedgerAiTradeSide;
   tradeAt: string;
   price: number;
   quantity: number;
@@ -20,7 +20,10 @@ function parseNumber(raw: string): number | null {
 }
 
 function normalizeSymbol(raw: string): string {
-  const cleaned = raw.trim().toUpperCase().replace(/\.(SH|SZ|SS|XSHE|XSHG)$/u, '');
+  const cleaned = raw
+    .trim()
+    .toUpperCase()
+    .replace(/\.(SH|SZ|SS|XSHE|XSHG)$/u, '');
   const digits = cleaned.match(/\d{6}/u);
   if (digits) return digits[0];
   return cleaned;
@@ -45,14 +48,7 @@ function parseTradeAt(raw: string): string | null {
   if (!match) return null;
 
   const [, year, month, day, hour = '9', minute = '30', second = '0'] = match;
-  const date = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour),
-    Number(minute),
-    Number(second),
-  );
+  const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 

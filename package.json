@@ -36,6 +36,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:live": "TRADING_DIARY_LIVE_TESTS=1 vitest run",
     "theme:generate": "node scripts/generate-theme-css.mjs",
     "license:keys": "node scripts/generate-license-keys.mjs",
     "license:issue": "node scripts/issue-license.mjs",

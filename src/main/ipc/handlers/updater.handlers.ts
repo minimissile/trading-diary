@@ -1,29 +1,9 @@
-import { app, dialog, ipcMain, shell } from 'electron';
-import type {
-  CreateTradeAlertInput,
-  CreateTradeReviewInput,
-  CreateTradingPlanInput,
-  LlmUserSettings,
-  ReviewAiDraftInput,
-  TradeAlertStatus,
-  TradingPlanStatus,
-} from '../../../shared/api.types';
-import type { CreateTradingAccountInput, FeeEstimateInput, UpdateTradingAccountInput } from '../../../shared/accounts/types';
-import type { CreateExecutionInput } from '../../../shared/episodes/types';
-import type { ExecutionImportInput } from '../../../shared/import/types';
-import type { AlertEventUserAction } from '../../../shared/alerts/event-types';
-import type {
-  CreatePlaybookRuleInput,
-  PlaybookRuleStatus,
-  UpdatePlaybookRuleInput,
-} from '../../../shared/playbook/types';
-import type { KLineAdjust, KLinePeriod } from '../../../shared/market/types';
+import { ipcMain } from 'electron';
 import { ipcChannels } from '../../../shared/ipc-channels';
+import { assertTrustedSender } from '../shared';
 import type { IpcHandlerContext } from '../types';
-import { assertDevOnly, assertTrustedSender, activeStreamCancels, sendStreamEvent } from '../shared';
-import { notifyDueSipOccurrences, notifyTriggeredAlerts } from '../notifications';
 
-export function registerUpdaterHandlers({ window, service, updater }: IpcHandlerContext): void {
+export function registerUpdaterHandlers({ window, updater }: IpcHandlerContext): void {
   ipcMain.handle(ipcChannels.getUpdateState, (event) => {
     assertTrustedSender(event, window);
     return updater.getState();

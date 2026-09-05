@@ -38,7 +38,7 @@ describe('LlmRunner', () => {
   it('testConnection 使用 ping 专用模型而非默认 reasoning 路由', async () => {
     process.env.OPENROUTER_API_KEY = 'sk-or-test';
     const runner = new LlmRunner({ enforcePolicy: false });
-    runner.useProvider(new MockProvider({ ping: 'OK' }));
+    runner.useProvider(new MockProvider({ [PROMPT_IDS.RELEASE_NOTES]: 'OK' }));
 
     const result = await runner.testConnection();
     expect(result.ok).toBe(true);

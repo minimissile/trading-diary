@@ -27,7 +27,11 @@ export const sipServiceRequests = [
         dayOfWeek: z.number().int().min(1).max(7).optional(),
         dayOfMonth: z.number().int().min(1).max(28).optional(),
         startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+        endDate: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .nullable()
+          .optional(),
         thesis: z.string().trim().min(1).max(2_000),
         activateNow: z.boolean().optional(),
       })
@@ -45,7 +49,11 @@ export const sipServiceRequests = [
             frequency: z.enum(['daily', 'weekly', 'biweekly', 'monthly']).optional(),
             dayOfWeek: z.number().int().min(1).max(7).nullable().optional(),
             dayOfMonth: z.number().int().min(1).max(28).nullable().optional(),
-            endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+            endDate: z
+              .string()
+              .regex(/^\d{4}-\d{2}-\d{2}$/)
+              .nullable()
+              .optional(),
             thesis: z.string().trim().min(1).max(2_000).optional(),
           })
           .strict(),
@@ -89,7 +97,11 @@ export const sipServiceRequests = [
         dayOfWeek: z.number().int().min(1).max(7).optional(),
         dayOfMonth: z.number().int().min(1).max(28).optional(),
         startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+        endDate: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .nullable()
+          .optional(),
         thesis: z.string().trim().min(1).max(2_000),
         activateNow: z.boolean().optional(),
       })
@@ -101,8 +113,14 @@ export const sipServiceRequests = [
     params: z
       .object({
         planId: z.uuid().optional(),
-        from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        from: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        to: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
       })
       .strict(),
   }),
@@ -112,8 +130,14 @@ export const sipServiceRequests = [
     params: z
       .object({
         planId: z.uuid().optional(),
-        from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        from: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        to: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
       })
       .strict(),
   }),
@@ -269,13 +293,13 @@ export const sipServiceRequests = [
         ),
         planHints: z
           .object({
-            symbol: z.string().trim().max(32).nullable().optional(),
-            fundName: z.string().trim().max(120).nullable().optional(),
-            amount: z.number().finite().nullable().optional(),
-            startDate: z.string().trim().max(64).nullable().optional(),
-            frequency: z.string().trim().max(32).nullable().optional(),
-            dayOfMonth: z.number().int().nullable().optional(),
-            dayOfWeek: z.number().int().nullable().optional(),
+            symbol: z.string().trim().max(32).nullable().default(null),
+            fundName: z.string().trim().max(120).nullable().default(null),
+            amount: z.number().finite().nullable().default(null),
+            startDate: z.string().trim().max(64).nullable().default(null),
+            frequency: z.string().trim().max(32).nullable().default(null),
+            dayOfMonth: z.number().int().nullable().default(null),
+            dayOfWeek: z.number().int().nullable().default(null),
           })
           .strict()
           .nullable()

@@ -1,3 +1,4 @@
+import type { DividendEventStatus } from '../../../shared/market/types';
 import type { InstrumentKind } from '../../../shared/market/types';
 import type { InstrumentVenue } from '../../../shared/market/venues';
 
@@ -106,7 +107,7 @@ export function mapSecurityTypeName(typeName: string | null | undefined): Instru
   return 'unknown';
 }
 
-export function mapDividendStatus(progress: string | null | undefined): import('../../../shared/market/types').DividendEventStatus {
+export function mapDividendStatus(progress: string | null | undefined): DividendEventStatus {
   const text = progress ?? '';
   if (/实施分配|实施/u.test(text)) return 'implemented';
   if (/股东大会/u.test(text)) return 'announced';
@@ -142,10 +143,7 @@ export function isPlausiblePrevClose(prevClose: number | null, price: number): b
 }
 
 /** 由现价与涨跌幅（%）反推昨收与涨跌额。 */
-export function deriveDayMoveFromPercent(
-  price: number,
-  changePercent: number,
-): { prevClose: number; change: number } {
+export function deriveDayMoveFromPercent(price: number, changePercent: number): { prevClose: number; change: number } {
   const prevClose = price / (1 + changePercent / 100);
   return { prevClose, change: price - prevClose };
 }

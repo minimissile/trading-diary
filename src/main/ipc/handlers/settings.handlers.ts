@@ -1,29 +1,10 @@
-import { app, dialog, ipcMain, shell } from 'electron';
-import type {
-  CreateTradeAlertInput,
-  CreateTradeReviewInput,
-  CreateTradingPlanInput,
-  LlmUserSettings,
-  ReviewAiDraftInput,
-  TradeAlertStatus,
-  TradingPlanStatus,
-} from '../../../shared/api.types';
-import type { CreateTradingAccountInput, FeeEstimateInput, UpdateTradingAccountInput } from '../../../shared/accounts/types';
-import type { CreateExecutionInput } from '../../../shared/episodes/types';
-import type { ExecutionImportInput } from '../../../shared/import/types';
-import type { AlertEventUserAction } from '../../../shared/alerts/event-types';
-import type {
-  CreatePlaybookRuleInput,
-  PlaybookRuleStatus,
-  UpdatePlaybookRuleInput,
-} from '../../../shared/playbook/types';
-import type { KLineAdjust, KLinePeriod } from '../../../shared/market/types';
+import { ipcMain } from 'electron';
+import type { LlmUserSettings } from '../../../shared/api.types';
 import { ipcChannels } from '../../../shared/ipc-channels';
+import { activeStreamCancels, assertDevOnly, assertTrustedSender, sendStreamEvent } from '../shared';
 import type { IpcHandlerContext } from '../types';
-import { assertDevOnly, assertTrustedSender, activeStreamCancels, sendStreamEvent } from '../shared';
-import { notifyDueSipOccurrences, notifyTriggeredAlerts } from '../notifications';
 
-export function registerSettingsHandlers({ window, service, updater }: IpcHandlerContext): void {
+export function registerSettingsHandlers({ window, service }: IpcHandlerContext): void {
   ipcMain.handle(ipcChannels.getLlmStatus, (event) => {
     assertTrustedSender(event, window);
     return service.request('settings.getLlmStatus', {});
@@ -84,14 +65,11 @@ export function registerSettingsHandlers({ window, service, updater }: IpcHandle
     return service.request('settings.changeAccessLockPassword', input);
   });
 
-  ipcMain.handle(
-    ipcChannels.previewLlmPrompt,
-    (event, input: { promptId: string; variables: Record<string, string> }) => {
-      assertTrustedSender(event, window);
-      assertDevOnly();
-      return service.request('llm.previewPrompt', input as never);
-    },
-  );
+  ipcMain.handle(ipcChannels.previewLlmPrompt, (event, input: { promptId: string; variables: Record<string, string> }) => {
+    assertTrustedSender(event, window);
+    assertDevOnly();
+    return service.request('llm.previewPrompt', input as never);
+  });
 
   ipcMain.handle(
     ipcChannels.startLlmDebugStream,
@@ -124,5 +102,4 @@ export function registerSettingsHandlers({ window, service, updater }: IpcHandle
     activeStreamCancels.get(input.streamId)?.();
     activeStreamCancels.delete(input.streamId);
   });
-
 }

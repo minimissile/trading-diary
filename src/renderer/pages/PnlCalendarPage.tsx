@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, Calendar, Empty, Segmented, Skeleton, Spin } from 'antd';
+import { Alert, Button, Calendar, Empty, Select, Skeleton, Spin } from 'antd';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -47,11 +47,7 @@ export function PnlCalendarPage(): React.JSX.Element {
   const syncRunId = useRef(0);
   const autoSyncAccountRef = useRef<string | null>(null);
 
-  const refreshCalendar = useCallback(
-    async (_month = calendarMonth, _options?: { silent?: boolean }): Promise<PortfolioPnlCalendarView | undefined> =>
-      refetch(),
-    [calendarMonth, refetch],
-  );
+  const refreshCalendar = refetch;
 
   const runSync = useCallback(
     async (symbols: readonly string[]): Promise<void> => {
@@ -82,13 +78,12 @@ export function PnlCalendarPage(): React.JSX.Element {
       setSyncErrors(failed);
       setSyncLabel(null);
       setSyncing(false);
-      await refreshCalendar(calendarMonth, { silent: true });
+      await refreshCalendar();
     },
-    [accountId, calendarMonth, refreshCalendar],
+    [accountId, refreshCalendar],
   );
 
   useEffect(() => {
-    setCalendarMonth(currentMonthPrefix());
     autoSyncAccountRef.current = null;
   }, [accountId]);
 
@@ -145,29 +140,22 @@ export function PnlCalendarPage(): React.JSX.Element {
     const symbols = view.missingBarSymbols;
     if (symbols.length === 0) {
       setSyncLabel('行情已是最新，正在刷新日历…');
-      void refreshCalendar(calendarMonth, { silent: true }).finally(() => setSyncLabel(null));
+      void refreshCalendar().finally(() => setSyncLabel(null));
       return;
     }
     void runSync(symbols);
   };
 
   return (
-    <main className="workspace-page portfolio-page">
+    <main className="workspace-page portfolio-page pnl-calendar-page">
       <header className="page-header">
         <div>
           <p className="page-kicker">PNL CALENDAR</p>
           <h1>收益日历</h1>
-          <p className="page-intro">
-            历史日期基于日收盘价；当日与持仓中心一致（实时行情）。仅统计持仓期间，不构成投资建议。
-          </p>
+          <p className="page-intro">历史日期基于日收盘价；当日与持仓中心一致（实时行情）。仅统计持仓期间，不构成投资建议。</p>
         </div>
         <div className="portfolio-header-actions">
-          <AccountSelect
-            value={accountId}
-            onChange={setAccountId}
-            includeAllOption
-            className="portfolio-account-select"
-          />
+          <AccountSelect value={accountId} onChange={setAccountId} includeAllOption className="portfolio-account-select" />
           <Button
             icon={<ReloadOutlined spin={syncing || refreshing} />}
             loading={syncing}
@@ -190,17 +178,27 @@ export function PnlCalendarPage(): React.JSX.Element {
 
       {!syncing && syncErrors.length > 0 ? (
         <Alert
-          className="watchlist-disclaimer"
+          className="calendar-notice"
           type="error"
           showIcon
           title="部分标的同步失败"
-          description={syncErrors.slice(0, 3).join('；')}
+          description={
+            <div>
+              已有数据仍可查看。
+              <details className="calendar-sync-errors">
+                <summary>查看失败详情</summary>
+                {syncErrors.slice(0, 3).map((error, index) => (
+                  <p key={index}>{error}</p>
+                ))}
+              </details>
+            </div>
+          }
         />
       ) : null}
 
       {queryError ? (
         <Alert
-          className="watchlist-disclaimer"
+          className="calendar-notice"
           type="error"
           showIcon
           title="收益日历加载失败"
@@ -215,7 +213,7 @@ export function PnlCalendarPage(): React.JSX.Element {
 
       {!syncing && viewReady && view && view.missingBarSymbols.length > 0 && !syncLabel ? (
         <Alert
-          className="watchlist-disclaimer"
+          className="calendar-notice"
           type="warning"
           showIcon
           title={`${view.missingBarSymbols.length} 个标的尚未同步历史收盘价`}
@@ -229,7 +227,7 @@ export function PnlCalendarPage(): React.JSX.Element {
         <Empty description="暂无收益数据，请先录入持仓流水" />
       ) : (
         <>
-          <section className="portfolio-metrics portfolio-metrics--four">
+          <section className="portfolio-metrics calendar-summary">
             <article className="portfolio-metric-card portfolio-metric-card--primary">
               <small>本月合计</small>
               <AnimatedValueDisplay
@@ -252,22 +250,7 @@ export function PnlCalendarPage(): React.JSX.Element {
               <ValueDisplay as="strong" kind="currency" value={summary?.dividendPnl ?? 0} />
               <span>除息日到账</span>
             </article>
-            <article className="portfolio-metric-card">
-              <small>统计窗口</small>
-              <strong>
-                {view.windowStart.replace(/-/g, '/')} ~ {view.windowEnd.replace(/-/g, '/')}
-              </strong>
-              <span>近一年滚动</span>
-            </article>
           </section>
-
-          <div className="page-toolbar pnl-calendar-toolbar">
-            <Segmented
-              options={monthOptions}
-              value={calendarMonth}
-              onChange={(value) => setCalendarMonth(String(value))}
-            />
-          </div>
 
           <div className="portfolio-calendar-wrap pnl-calendar-wrap">
             <Calendar
@@ -277,8 +260,13 @@ export function PnlCalendarPage(): React.JSX.Element {
               disabledDate={disabledDate}
               headerRender={({ value }) => (
                 <div className="pnl-calendar-panel-head">
-                  <strong>{value.year()}年{value.month() + 1}月</strong>
-                  <span>按日汇总持仓盈亏</span>
+                  <div>
+                    <strong>
+                      {value.year()}年{value.month() + 1}月
+                    </strong>
+                    <span>按日汇总持仓盈亏</span>
+                  </div>
+                  <Select aria-label="选择收益月份" options={monthOptions} value={calendarMonth} onChange={setCalendarMonth} />
                 </div>
               )}
               onPanelChange={(value, mode) => {
@@ -304,6 +292,9 @@ export function PnlCalendarPage(): React.JSX.Element {
                 );
               }}
             />
+            <footer className="calendar-window-note">
+              统计窗口 {view.windowStart} 至 {view.windowEnd} · 近一年滚动
+            </footer>
           </div>
         </>
       )}

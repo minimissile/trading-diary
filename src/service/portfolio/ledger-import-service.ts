@@ -1,3 +1,4 @@
+import type { LedgerAiTradeChannel } from '../../shared/portfolio/ledger-import-types';
 import type {
   LedgerAiExtractedRecord,
   LedgerAiImportInput,
@@ -8,11 +9,7 @@ import type {
 import type { SipAiExtractedRecord } from '../../shared/sip/import-types';
 import type { AppDatabase } from '../database/database';
 import { hasPartialLedgerRecord } from './ledger-ai-import-parser';
-import {
-  resolveEffectiveTradeChannel,
-  resolveImportInstrument,
-  resolveImportTradeChannel,
-} from './ledger-import-instrument';
+import { resolveEffectiveTradeChannel, resolveImportInstrument, resolveImportTradeChannel } from './ledger-import-instrument';
 import { normalizeLedgerTradeRecord, type NormalizedLedgerTradeRow } from './ledger-row-normalizer';
 import type { PortfolioService } from './portfolio-service';
 
@@ -61,9 +58,7 @@ export class LedgerImportService {
       normalizedRows.push({ index: record.rowIndex, record, value: normalized.value });
     }
 
-    normalizedRows.sort((left, right) =>
-      left.value.tradeAt.localeCompare(right.value.tradeAt),
-    );
+    normalizedRows.sort((left, right) => left.value.tradeAt.localeCompare(right.value.tradeAt));
 
     let imported = 0;
     let skippedDuplicate = 0;
@@ -71,16 +66,7 @@ export class LedgerImportService {
     const errors = [...preErrors];
 
     for (const { index, record, value: row } of normalizedRows) {
-      if (
-        this.database.portfolio.hasSimilarLedgerImport(
-          accountId,
-          row.symbol,
-          row.tradeAt,
-          row.quantity,
-          row.price,
-          row.side,
-        )
-      ) {
+      if (this.database.portfolio.hasSimilarLedgerImport(accountId, row.symbol, row.tradeAt, row.quantity, row.price, row.side)) {
         skippedDuplicate += 1;
         continue;
       }
@@ -173,7 +159,7 @@ export class LedgerImportService {
   private async buildPreviewRowAsync(
     accountId: string,
     record: LedgerAiExtractedRecord,
-    defaultTradeChannel = 'exchange',
+    defaultTradeChannel: LedgerAiTradeChannel = 'exchange',
   ): Promise<LedgerImportPreviewRow> {
     const row = this.buildPreviewRow(accountId, record);
     if (row.status !== 'ready' || !row.symbol) return row;
@@ -227,9 +213,7 @@ function summarizePreview(rows: LedgerImportPreviewRow[]): LedgerImportPreviewRe
   const incompleteCount = rows.filter((row) => row.status === 'incomplete').length;
   const skippedCount = rows.filter((row) => row.status === 'skipped').length;
   const tradeReadyCount = rows.filter((row) => row.status === 'ready' && row.recordKind === 'trade').length;
-  const sipReadyCount = rows.filter(
-    (row) => row.recordKind === 'sip_deduction' && row.status !== 'error',
-  ).length;
+  const sipReadyCount = rows.filter((row) => row.recordKind === 'sip_deduction' && row.status !== 'error').length;
 
   return {
     rows,

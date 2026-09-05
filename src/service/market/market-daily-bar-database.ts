@@ -96,9 +96,8 @@ export class MarketDailyBarDatabase {
   getSyncMeta(symbol: string, kind: InstrumentKind = 'stock'): MarketBarSyncMeta | null {
     const normalized = normalizeSymbol(symbol);
     const venue = resolveVenue(normalized, kind);
-    const row = this.db
-      .prepare('SELECT * FROM market_bar_sync_meta WHERE venue = ? AND symbol = ?')
-      .get(venue, normalized) as MarketBarSyncMetaRow | undefined;
+    const row = this.db.prepare('SELECT * FROM market_bar_sync_meta WHERE venue = ? AND symbol = ?').get(venue, normalized) as
+      MarketBarSyncMetaRow | undefined;
     return row ? mapMetaRow(row) : null;
   }
 
@@ -112,7 +111,7 @@ export class MarketDailyBarDatabase {
          WHERE symbol IN (${placeholders}) AND trade_date >= ? AND trade_date <= ?
          ORDER BY symbol ASC, trade_date ASC`,
       )
-      .all(...normalized, startDate, endDate) as MarketDailyBarRow[];
+      .all(...normalized, startDate, endDate) as unknown as MarketDailyBarRow[];
     return rows.map(mapBarRow);
   }
 
@@ -172,7 +171,7 @@ export class MarketDailyBarDatabase {
     const result = this.db
       .prepare('DELETE FROM market_daily_bars WHERE venue = ? AND symbol = ? AND trade_date < ?')
       .run(venue, normalized, beforeDate);
-    return result.changes ?? 0;
+    return Number(result.changes);
   }
 
   countBars(symbol: string, kind: InstrumentKind = 'stock'): number {

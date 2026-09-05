@@ -38,7 +38,7 @@ export function BrokerSelect({ value, onChange, className, accountKind = 'securi
     <Select<AccountBroker>
       className={className ? `broker-select ${className}` : 'broker-select'}
       showSearch
-      getPopupContainer={(trigger) => trigger.ownerDocument.body}
+      getPopupContainer={(trigger: HTMLElement) => trigger.ownerDocument.body}
       filterOption={(input, option) => {
         const meta = registry.find((item) => item.id === option?.value);
         return meta ? matchBrokerSearch(meta, input) : false;
@@ -48,9 +48,7 @@ export function BrokerSelect({ value, onChange, className, accountKind = 'securi
       onChange={onChange}
       options={options}
       optionRender={(option) => <BrokerOptionLabel brokerId={option.value as AccountBroker} />}
-      labelRender={(option) => (
-        <BrokerOptionLabel brokerId={(option.value ?? value ?? 'other') as AccountBroker} />
-      )}
+      labelRender={(option) => <BrokerOptionLabel brokerId={(option.value ?? value ?? 'other') as AccountBroker} />}
     />
   );
 }

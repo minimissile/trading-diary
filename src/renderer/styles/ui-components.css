@@ -191,3 +191,108 @@
   font-size: 12px;
   line-height: 18px;
 }
+
+/* Portal surfaces share the page rhythm, independent of the current route. */
+.ant-modal .ant-modal-container {
+  padding: 20px;
+  background: var(--ui-panel);
+}
+.ant-modal .ant-modal-header {
+  margin-bottom: 16px;
+  background: transparent;
+}
+.ant-modal .ant-modal-title,
+.ant-drawer .ant-drawer-title {
+  color: var(--ui-text);
+  font-size: 18px;
+  line-height: 26px;
+}
+.ant-modal .ant-modal-body {
+  max-height: calc(100dvh - 220px);
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+.ant-modal .ant-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--ui-line);
+}
+.ant-modal .ant-modal-footer > .ant-btn + .ant-btn {
+  margin-inline-start: 0;
+}
+.ant-modal .ant-form-item {
+  margin-bottom: 16px;
+}
+.ant-modal .ant-form-item-label {
+  padding-bottom: 6px;
+}
+.ant-modal :is(.dialog-intro, .sip-import-hint),
+.ui-import-notes {
+  color: var(--ui-secondary-text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ui-import-notes {
+  padding: 10px 12px;
+  border: 1px solid var(--ui-line);
+  background: var(--ui-inset);
+}
+.ui-import-notes summary {
+  cursor: pointer;
+  color: var(--ui-accent);
+}
+.ui-import-notes ul {
+  max-height: 140px;
+  overflow: auto;
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+.ant-drawer :is(.ant-drawer-header, .ant-drawer-footer) {
+  padding: 16px 20px;
+  border-color: var(--ui-line);
+}
+.ant-drawer .ant-drawer-body {
+  padding: 20px;
+}
+.ant-modal :is(.plan-form-footer, .review-score-row, .review-form-switches, .ledger-trade-context, .sip-plan-detail),
+.ant-drawer .ledger-trade-context {
+  padding: 12px;
+  border: 1px solid var(--ui-line);
+  border-radius: 0;
+  background: var(--ui-inset);
+  box-shadow: none;
+}
+.ant-modal :is(.ant-input, .ant-input-affix-wrapper, .ant-input-number, .ant-picker) {
+  border-radius: 0;
+}
+.ant-modal .playbook-checklist {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+.ant-modal .playbook-checklist > li {
+  padding: 12px;
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  background: var(--ui-inset);
+}
+@media (max-width: 780px) {
+  .ant-modal .ant-modal-container {
+    padding: 16px;
+  }
+  .ant-modal .ant-modal-body {
+    max-height: calc(100dvh - 180px);
+  }
+  .ant-modal :is(.form-grid, .plan-form-grid, .review-form-grid, .ledger-form-grid) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-page-scroll {
+    scroll-behavior: auto;
+  }
+}

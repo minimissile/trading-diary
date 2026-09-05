@@ -1,3 +1,5 @@
+import type { InstrumentKind } from '../../shared/market/types';
+import type { FundSipPlan, SipFrequency, SipOccurrenceStatus, SipPlanStatus } from '../../shared/sip/types';
 import type {
   TradeAlertCondition,
   TradeAlertRole,
@@ -6,7 +8,14 @@ import type {
   TradingPlanStatus,
 } from '../../shared/api.types';
 import type { PlaybookCheckTiming, PlaybookRuleCategory } from '../../shared/playbook/types';
-import { formatWithPreset, signedToneClass, quantityPresetForKind, pricePresetForKind, formatFloatingPnlCaption, formatDailyPnlCaption } from '../../shared/format/display-presets';
+import {
+  formatWithPreset,
+  signedToneClass,
+  quantityPresetForKind,
+  pricePresetForKind,
+  formatFloatingPnlCaption,
+  formatDailyPnlCaption,
+} from '../../shared/format/display-presets';
 import { formatQuoteRefreshTime } from '../../shared/format/date-format';
 import { formatDisplayCurrency, formatNumber } from '../../shared/format/number-format';
 
@@ -17,7 +26,17 @@ import { formatDisplayCurrency, formatNumber } from '../../shared/format/number-
  *
  * @see docs/NUMBER_FORMAT.md
  */
-export { formatNumber, formatDisplayCurrency, formatWithPreset, signedToneClass, quantityPresetForKind, pricePresetForKind, formatFloatingPnlCaption, formatDailyPnlCaption, formatQuoteRefreshTime };
+export {
+  formatNumber,
+  formatDisplayCurrency,
+  formatWithPreset,
+  signedToneClass,
+  quantityPresetForKind,
+  pricePresetForKind,
+  formatFloatingPnlCaption,
+  formatDailyPnlCaption,
+  formatQuoteRefreshTime,
+};
 export type { FormatNumberOptions, FormatCurrencyOptions } from '../../shared/format/number-format';
 export type { DisplayPresetKind } from '../../shared/format/display-presets';
 export { ValueDisplay, statisticCurrencyFormatter, statisticPnlFormatter } from '../components/trading/ValueDisplay';
@@ -86,15 +105,12 @@ export function formatPrice(value: number): string {
 }
 
 /** 按标的类型格式化价格。 */
-export function formatPriceForKind(value: number, kind?: import('../../shared/market/types').InstrumentKind): string {
+export function formatPriceForKind(value: number, kind?: InstrumentKind): string {
   return formatWithPreset(value, pricePresetForKind(kind));
 }
 
 /** 按标的类型格式化份额。 */
-export function formatQuantityForKind(
-  value: number | null | undefined,
-  kind?: import('../../shared/market/types').InstrumentKind,
-): string {
+export function formatQuantityForKind(value: number | null | undefined, kind?: InstrumentKind): string {
   return formatWithPreset(value, quantityPresetForKind(kind));
 }
 
@@ -153,7 +169,7 @@ export function calculateExpectedR(entryPrice: number, stopPrice: number, target
   return Math.abs(targetPrice - entryPrice) / risk;
 }
 
-export const sipPlanStatusLabels: Readonly<Record<import('../../shared/sip/types').SipPlanStatus, string>> = {
+export const sipPlanStatusLabels: Readonly<Record<SipPlanStatus, string>> = {
   draft: '草稿',
   active: '执行中',
   paused: '已暂停',
@@ -161,7 +177,7 @@ export const sipPlanStatusLabels: Readonly<Record<import('../../shared/sip/types
   cancelled: '已取消',
 };
 
-export const sipPlanStatusColors: Readonly<Record<import('../../shared/sip/types').SipPlanStatus, string>> = {
+export const sipPlanStatusColors: Readonly<Record<SipPlanStatus, string>> = {
   draft: 'default',
   active: 'green',
   paused: 'orange',
@@ -169,9 +185,7 @@ export const sipPlanStatusColors: Readonly<Record<import('../../shared/sip/types
   cancelled: 'default',
 };
 
-export const sipOccurrenceStatusLabels: Readonly<
-  Record<import('../../shared/sip/types').SipOccurrenceStatus, string>
-> = {
+export const sipOccurrenceStatusLabels: Readonly<Record<SipOccurrenceStatus, string>> = {
   scheduled: '待执行',
   due: '已到期',
   completed: '已确认',
@@ -179,7 +193,7 @@ export const sipOccurrenceStatusLabels: Readonly<
   missed: '已逾期',
 };
 
-export const sipFrequencyLabels: Readonly<Record<import('../../shared/sip/types').SipFrequency, string>> = {
+export const sipFrequencyLabels: Readonly<Record<SipFrequency, string>> = {
   daily: '每个交易日',
   weekly: '每周',
   biweekly: '每两周',
@@ -196,10 +210,7 @@ export const weekdayLabels: Readonly<Record<number, string>> = {
   7: '周日',
 };
 
-export function formatSipSchedule(plan: Pick<
-  import('../../shared/sip/types').FundSipPlan,
-  'frequency' | 'dayOfWeek' | 'dayOfMonth'
->): string {
+export function formatSipSchedule(plan: Pick<FundSipPlan, 'frequency' | 'dayOfWeek' | 'dayOfMonth'>): string {
   if (plan.frequency === 'daily') {
     return '每个交易日';
   }

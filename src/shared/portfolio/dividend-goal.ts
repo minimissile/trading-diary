@@ -19,12 +19,6 @@ export interface DividendGoalProgressView {
   year: number;
 }
 
-interface LegacyDividendGoalSettings {
-  enabled?: boolean;
-  kind: DividendGoalKind;
-  targetAmount: number;
-}
-
 /**
  * 生成分红目标在偏好存储中的键名。
  * @param accountId 账户 ID，含全部账户汇总 ID
@@ -50,11 +44,10 @@ export function normalizeDividendGoalSettings(raw: unknown): DividendGoalSetting
 
   const record = raw as Record<string, unknown>;
   if ('kind' in record && 'targetAmount' in record) {
-    const legacy = record as LegacyDividendGoalSettings;
-    if (legacy.enabled === false || legacy.targetAmount <= 0) return null;
-    return legacy.kind === 'daily'
-      ? { ytdTarget: null, dailyTarget: legacy.targetAmount }
-      : { ytdTarget: legacy.targetAmount, dailyTarget: null };
+    const target = sanitizeTargetAmount(record.targetAmount);
+    if (record.enabled === false || target === null) return null;
+    if (record.kind !== 'daily' && record.kind !== 'ytd') return null;
+    return record.kind === 'daily' ? { ytdTarget: null, dailyTarget: target } : { ytdTarget: target, dailyTarget: null };
   }
 
   const ytdTarget = sanitizeTargetAmount(record.ytdTarget);

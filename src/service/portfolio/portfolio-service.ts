@@ -27,7 +27,11 @@ import type { InstrumentKind } from '../../shared/market/types';
 import type { FeeProfileRates } from '../../shared/accounts/types';
 import type { AppDatabase } from '../database/database';
 import { createDailyBarSyncService, type DailyBarSyncService } from '../market/daily-bar-sync-service';
-import { createFundProfileSyncService, FUND_PROFILE_STALE_MS, type FundProfileSyncService } from '../market/fund-profile-sync-service';
+import {
+  createFundProfileSyncService,
+  FUND_PROFILE_STALE_MS,
+  type FundProfileSyncService,
+} from '../market/fund-profile-sync-service';
 import { buildFundProfileSummary, shouldCacheFundProfile, type FundProfileRecord } from '../../shared/market/fund-profile';
 import { instrumentPositionKey } from '../../shared/market/instrument-id';
 import { quoteCurrencyForVenue } from '../../shared/market/venues';
@@ -35,12 +39,7 @@ import { normalizeSymbol } from '../market/eastmoney/symbols';
 import { marketService } from '../market/market-service';
 import { buildProjectedDividends, matchDividendEvent } from './dividend-matcher';
 import { buildDividendReinvestPlan } from './dividend-reinvest';
-import {
-  buildDividendCalendar,
-  buildPortfolioSummary,
-  computeExpectedFromEvents,
-  computeYtdReceived,
-} from './dividend-stats';
+import { buildDividendCalendar, buildPortfolioSummary, computeExpectedFromEvents, computeYtdReceived } from './dividend-stats';
 import { aggregatePositions, computeExchangeTradedNetCashInvested, computeOtcFundHoldMetrics } from './ledger-service';
 import { resolveDividendEligibleQuantity } from './dividend-matcher';
 import { computePositionDailyPnl, sumDailyPnl } from './position-daily-pnl';
@@ -70,12 +69,14 @@ export class PortfolioService {
         venue: item.kind === 'otc_fund' ? 'OTC' : item.venue,
       })),
     );
-    const quoteMap = new Map(
-      quotes.map((quote) => [instrumentPositionKey({ venue: quote.venue, symbol: quote.symbol }), quote]),
-    );
+    const quoteMap = new Map(quotes.map((quote) => [instrumentPositionKey({ venue: quote.venue, symbol: quote.symbol }), quote]));
     const fundProfileMap = new Map(
       this.database.fundProfiles
-        .list(aggregates.filter((item) => item.venue === 'SH' || item.venue === 'SZ' || item.venue === 'OTC').map((item) => item.symbol))
+        .list(
+          aggregates
+            .filter((item) => item.venue === 'SH' || item.venue === 'SZ' || item.venue === 'OTC')
+            .map((item) => item.symbol),
+        )
         .map((record) => [record.symbol, record]),
     );
     this.scheduleFundProfileMaintenance(
@@ -91,13 +92,13 @@ export class PortfolioService {
       aggregates
         .filter((item) => item.venue === 'SH' || item.venue === 'SZ' || item.venue === 'OTC')
         .map(async (item) => {
-        try {
-          const result = await marketService.listDividends(item.symbol, 1, 20);
-          return { key: instrumentPositionKey(item), items: result.items };
-        } catch {
-          return { key: instrumentPositionKey(item), items: [] };
-        }
-      }),
+          try {
+            const result = await marketService.listDividends(item.symbol, 1, 20);
+            return { key: instrumentPositionKey(item), items: result.items };
+          } catch {
+            return { key: instrumentPositionKey(item), items: [] };
+          }
+        }),
     );
     const allUpcoming = upcomingBySymbol.flatMap((item) => item.items);
     const ledgerByKey = new Map<string, PortfolioLedgerEntry[]>();
@@ -118,9 +119,7 @@ export class PortfolioService {
       const marketPrice =
         position.kind === 'otc_fund' ? (quote?.nav ?? quote?.price ?? null) : (quote?.price ?? quote?.nav ?? null);
       const marketValue = marketPrice === null ? null : marketPrice * position.quantity;
-      const symbolDividends = dividends.filter(
-        (record) => record.symbol === position.symbol,
-      );
+      const symbolDividends = dividends.filter((record) => record.symbol === position.symbol);
       const ytd = computeYtdReceived(symbolDividends, year);
       const holdings = new Map([[position.symbol, position.quantity]]);
       const expected = computeExpectedFromEvents(holdings, allUpcoming);
@@ -129,20 +128,15 @@ export class PortfolioService {
         .filter((item) => item.status === 'confirmed' && item.payoutMode === 'cash')
         .reduce((sum, item) => sum + item.cashAmount, 0);
       const otcHoldMetrics =
-        position.kind === 'otc_fund'
-          ? computeOtcFundHoldMetrics(symbolEntries, cashDividendsReceived)
-          : null;
+        position.kind === 'otc_fund' ? computeOtcFundHoldMetrics(symbolEntries, cashDividendsReceived) : null;
       const displayAvgPrice = otcHoldMetrics?.holdPrice ?? position.avgPrice;
       const displayAvgCost = otcHoldMetrics?.holdPrice ?? position.avgCost;
       const displayTotalCost = otcHoldMetrics?.totalCost ?? position.totalCost;
       const exchangeTradedNetCash =
-        position.kind === 'otc_fund'
-          ? null
-          : computeExchangeTradedNetCashInvested(symbolEntries, cashDividendsReceived);
+        position.kind === 'otc_fund' ? null : computeExchangeTradedNetCashInvested(symbolEntries, cashDividendsReceived);
       const pnlCostBasis = exchangeTradedNetCash ?? displayTotalCost;
       const feeProfile = this.resolveFeeProfile(accountId, symbolEntries);
-      const feeMarket =
-        position.venue === 'HK' ? 'HK' : position.venue === 'US' ? 'US' : inferMarketFromSymbol(position.symbol);
+      const feeMarket = position.venue === 'HK' ? 'HK' : position.venue === 'US' ? 'US' : inferMarketFromSymbol(position.symbol);
       const unrealizedPnl =
         marketPrice === null
           ? null
@@ -162,15 +156,12 @@ export class PortfolioService {
         referenceUnrealizedPnl: unrealizedPnl,
         firstBuyAt: position.firstBuyAt,
       });
-      const unrealizedReturnPercent =
-        unrealizedPnl === null ? null : computeReferenceReturnPercent(unrealizedPnl, pnlCostBasis);
+      const unrealizedReturnPercent = unrealizedPnl === null ? null : computeReferenceReturnPercent(unrealizedPnl, pnlCostBasis);
 
       const cachedFundProfile = fundProfileMap.get(normalizeSymbol(position.symbol));
       const fundProfile = cachedFundProfile ? buildFundProfileSummary(cachedFundProfile.profile) : null;
       const fundProfileName =
-        typeof cachedFundProfile?.profile.SHORTNAME === 'string'
-          ? cachedFundProfile.profile.SHORTNAME
-          : null;
+        typeof cachedFundProfile?.profile.SHORTNAME === 'string' ? cachedFundProfile.profile.SHORTNAME : null;
 
       return {
         symbol: position.symbol,
@@ -222,9 +213,7 @@ export class PortfolioService {
   async getDividendCalendar(accountId: string | undefined, month: string): Promise<DividendCalendarDay[]> {
     const portfolio = this.database.portfolio;
     const records = await this.enrichDividendNames(
-      isAllAccountsId(accountId)
-        ? portfolio.listAllDividends()
-        : portfolio.listDividends(portfolio.resolveAccountId(accountId)),
+      isAllAccountsId(accountId) ? portfolio.listAllDividends() : portfolio.listDividends(portfolio.resolveAccountId(accountId)),
     );
     const positions = await this.listPositions(accountId);
     const holdings = new Map(
@@ -246,11 +235,7 @@ export class PortfolioService {
     return buildDividendCalendar(records, month, projected);
   }
 
-  async listDividends(
-    accountId?: string,
-    year?: number,
-    statuses?: DividendRecordStatus[],
-  ): Promise<PortfolioDividendRecord[]> {
+  async listDividends(accountId?: string, year?: number, statuses?: DividendRecordStatus[]): Promise<PortfolioDividendRecord[]> {
     const records = this.database.portfolio.listDividends(accountId, year, statuses);
     const withNames = await this.enrichDividendNames(records);
     return this.enrichDividendReinvestQuantities(withNames);
@@ -263,9 +248,7 @@ export class PortfolioService {
     const normalizedSymbol = normalizeSymbol(payload.symbol);
 
     if (!payload.kind && !payload.venue) {
-      const sibling = portfolio
-        .listLedger(accountId)
-        .find((entry) => entry.symbol === normalizedSymbol);
+      const sibling = portfolio.listLedger(accountId).find((entry) => entry.symbol === normalizedSymbol);
       if (sibling) {
         payload = { ...payload, kind: sibling.kind, venue: sibling.venue };
       }
@@ -288,6 +271,8 @@ export class PortfolioService {
     return this.listPositions(payload.accountId);
   }
 
+  // Service boundary intentionally converts synchronous database failures to rejected promises.
+  // eslint-disable-next-line @typescript-eslint/require-await
   async listLedgerEntries(accountId?: string, symbol?: string): Promise<PortfolioLedgerEntry[]> {
     return this.database.portfolio.listLedgerEntries(accountId, symbol);
   }
@@ -297,11 +282,10 @@ export class PortfolioService {
     const ledger = isAllAccountsId(accountId) ? portfolio.listAllLedger() : portfolio.listLedger(accountId);
     const history = buildRealizedHistory(ledger, year);
 
-    const symbols = [...new Set([
-      ...history.trades.map((item) => item.symbol),
-      ...history.closedPositions.map((item) => item.symbol),
-    ])];
-    const quotes = symbols.length > 0 ? await marketService.getQuotesBySymbols(symbols) : [];
+    const symbols = [
+      ...new Set([...history.trades.map((item) => item.symbol), ...history.closedPositions.map((item) => item.symbol)]),
+    ];
+    const quotes = symbols.length > 0 ? await marketService.getQuotesBySymbols([...symbols]) : [];
     const nameMap = new Map(quotes.map((quote) => [normalizeSymbol(quote.symbol), quote.name]));
 
     return {
@@ -317,6 +301,8 @@ export class PortfolioService {
     };
   }
 
+  // Service boundary intentionally converts synchronous database failures to rejected promises.
+  // eslint-disable-next-line @typescript-eslint/require-await
   async getPnlCalendar(accountId?: string, month?: string): Promise<PortfolioPnlCalendarView> {
     const portfolio = this.database.portfolio;
     const ledger = isAllAccountsId(accountId) ? portfolio.listAllLedger() : portfolio.listLedger(accountId);
@@ -380,7 +366,7 @@ export class PortfolioService {
     }
 
     const results = await this.dailyBarSync.syncSymbolsNow(symbols, symbolKinds);
-    const quotes = await marketService.getQuotesBySymbols(symbols);
+    const quotes = await marketService.getQuotesBySymbols([...symbols]);
     const nameMap = new Map(quotes.map((quote) => [normalizeSymbol(quote.symbol), quote.name]));
 
     return {
@@ -394,6 +380,8 @@ export class PortfolioService {
     };
   }
 
+  // Service boundary intentionally converts synchronous database failures to rejected promises.
+  // eslint-disable-next-line @typescript-eslint/require-await
   async updateLedgerEntry(id: string, input: UpdatePortfolioLedgerInput): Promise<PortfolioLedgerEntry> {
     return this.database.portfolio.updateLedgerEntry(id, input);
   }
@@ -419,12 +407,12 @@ export class PortfolioService {
     const portfolio = this.database.portfolio;
     const status = confirmed ? 'confirmed' : 'rejected';
     const cents = cashAmount === undefined ? undefined : Math.round(cashAmount * 100);
-    let record = portfolio.setDividendStatus(id, status, cents);
+    const record = portfolio.setDividendStatus(id, status, cents);
     if (confirmed && record.payoutMode === 'reinvest') {
-      record = await this.syncDividendReinvestLedger(record);
+      await this.syncDividendReinvestLedger(record);
     } else if (!confirmed && record.reinvestLedgerId) {
       portfolio.deleteLedgerEntry(record.reinvestLedgerId);
-      record = portfolio.setDividendReinvestLedgerId(record.id, null);
+      portfolio.setDividendReinvestLedgerId(record.id, null);
     }
     return this.listDividends(accountId, year);
   }
@@ -506,19 +494,14 @@ export class PortfolioService {
 
   private refreshDividendAmounts(record: PortfolioDividendRecord): PortfolioDividendRecord {
     const portfolio = this.database.portfolio;
-    const symbolLedger = portfolio
-      .listLedger(record.accountId)
-      .filter((entry) => entry.symbol === record.symbol);
+    const symbolLedger = portfolio.listLedger(record.accountId).filter((entry) => entry.symbol === record.symbol);
     const eligibleQuantity = resolveDividendEligibleQuantity(
       symbolLedger,
       { exDividendDate: record.exDividendDate, recordDate: record.recordDate },
       record.kind,
     );
     const cashAmount = record.cashPerShare * eligibleQuantity;
-    if (
-      Math.abs(eligibleQuantity - record.eligibleQuantity) > 1e-6 ||
-      Math.abs(cashAmount - record.cashAmount) > 0.01
-    ) {
+    if (Math.abs(eligibleQuantity - record.eligibleQuantity) > 1e-6 || Math.abs(cashAmount - record.cashAmount) > 0.01) {
       return portfolio.updateDividendEligibleAmount(record.id, eligibleQuantity, cashAmount);
     }
     return record;
@@ -555,16 +538,11 @@ export class PortfolioService {
     return this.refreshDividendsForAccount(this.database.portfolio.resolveAccountId(accountId), symbol);
   }
 
-  private async refreshDividendsForAccount(
-    accountId: string,
-    symbol?: string,
-  ): Promise<PortfolioRefreshResult> {
+  private async refreshDividendsForAccount(accountId: string, symbol?: string): Promise<PortfolioRefreshResult> {
     const portfolio = this.database.portfolio;
     const ledger = portfolio.listLedger(accountId);
     const aggregates = aggregatePositions(ledger);
-    const targets = symbol
-      ? aggregates.filter((item) => item.symbol === symbol.trim().toUpperCase())
-      : aggregates;
+    const targets = symbol ? aggregates.filter((item) => item.symbol === symbol.trim().toUpperCase()) : aggregates;
 
     const today = new Date().toISOString().slice(0, 10);
     const autoCutoff = shiftDate(today, -3);
@@ -656,10 +634,7 @@ export class PortfolioService {
     return this.database.portfolio.resolveAccountId(accountId);
   }
 
-  private resolveFeeProfile(
-    accountId: string | undefined,
-    symbolEntries: readonly PortfolioLedgerEntry[],
-  ): FeeProfileRates {
+  private resolveFeeProfile(accountId: string | undefined, symbolEntries: readonly PortfolioLedgerEntry[]): FeeProfileRates {
     const { accounts } = this.database;
     if (accountId && !isAllAccountsId(accountId)) {
       const account = accounts.getAccount(accountId);
@@ -741,21 +716,14 @@ export class PortfolioService {
     return records.map((record) => ({
       ...record,
       name:
-        quoteNameMap.get(record.symbol) ??
-        fundNameMap.get(record.symbol) ??
-        resolveNameMap.get(record.symbol) ??
-        record.symbol,
+        quoteNameMap.get(record.symbol) ?? fundNameMap.get(record.symbol) ?? resolveNameMap.get(record.symbol) ?? record.symbol,
     }));
   }
 
-  private enrichDividendReinvestQuantities(
-    records: PortfolioDividendRecord[],
-  ): PortfolioDividendRecord[] {
+  private enrichDividendReinvestQuantities(records: PortfolioDividendRecord[]): PortfolioDividendRecord[] {
     if (records.length === 0) return records;
 
-    const reinvestIds = records
-      .map((record) => record.reinvestLedgerId)
-      .filter((id): id is string => Boolean(id));
+    const reinvestIds = records.map((record) => record.reinvestLedgerId).filter((id): id is string => Boolean(id));
     if (reinvestIds.length === 0) {
       return records.map((record) => ({ ...record, reinvestQuantity: null }));
     }
@@ -769,9 +737,7 @@ export class PortfolioService {
 
     return records.map((record) => ({
       ...record,
-      reinvestQuantity: record.reinvestLedgerId
-        ? (quantityByLedgerId.get(record.reinvestLedgerId) ?? null)
-        : null,
+      reinvestQuantity: record.reinvestLedgerId ? (quantityByLedgerId.get(record.reinvestLedgerId) ?? null) : null,
     }));
   }
 }

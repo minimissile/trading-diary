@@ -4,11 +4,7 @@ import type { Dayjs } from 'dayjs';
 import { useNavigate } from 'react-router';
 import type { PortfolioPositionView } from '../../../shared/portfolio/types';
 import { ALL_ACCOUNTS_ID, isAllAccountsId } from '../../../shared/accounts/constants';
-import {
-  quantityFromFraction,
-  roundSellQuantity,
-  SELL_FRACTION_PRESETS,
-} from '../../../shared/portfolio/sell-quantity';
+import { quantityFromFraction, roundSellQuantity, SELL_FRACTION_PRESETS } from '../../../shared/portfolio/sell-quantity';
 import { routePaths } from '../../router/paths';
 import type { JournalReviewDraft } from '../../router/journal-state';
 import { AccountSelect } from './AccountSelect';
@@ -34,13 +30,11 @@ interface FormValues {
   reviewAfterSave?: boolean;
 }
 
-export function PositionSellModal({
-  open,
-  position,
-  accountId,
-  onClose,
-  onSaved,
-}: PositionSellModalProps): React.JSX.Element {
+export function PositionSellModal(props: PositionSellModalProps): React.JSX.Element {
+  return props.open ? <PositionSellModalContent key={props.position?.symbol + ':' + props.accountId} {...props} /> : <></>;
+}
+
+function PositionSellModalContent({ open, position, accountId, onClose, onSaved }: PositionSellModalProps): React.JSX.Element {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
@@ -76,14 +70,10 @@ export function PositionSellModal({
   }, [accountId, position]);
 
   useEffect(() => {
-    if (!open || !position) {
-      form.resetFields();
-      setActiveFraction(null);
-      setResolvedAccountId(null);
-      setAvailableQuantity(null);
-      return;
-    }
+    if (!open || !position) return;
 
+    // Start the external IPC request and expose its pending state in the same lifecycle.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void resolveAccount().then(() => {
       form.setFieldsValue({
         accountId: !accountId || isAllAccountsId(accountId) ? undefined : accountId,
@@ -173,7 +163,7 @@ export function PositionSellModal({
   };
 
   const estimateFees = async (): Promise<void> => {
-    const sellAccountId = form.getFieldValue('accountId') ?? resolvedAccountId;
+    const sellAccountId = (form.getFieldValue('accountId') as string | undefined) ?? resolvedAccountId;
     const currentPrice = form.getFieldValue('price') as number | undefined;
     const currentQuantity = form.getFieldValue('quantity') as number | undefined;
 
@@ -226,8 +216,7 @@ export function PositionSellModal({
 
           <div className="position-sell-summary">
             <span>
-              可卖 {formatQuantityForKind(maxQuantity, kind)} · 成本{' '}
-              {formatPriceForKind(position.avgPrice, kind)} · 现价{' '}
+              可卖 {formatQuantityForKind(maxQuantity, kind)} · 成本 {formatPriceForKind(position.avgPrice, kind)} · 现价{' '}
               {position.marketPrice === null ? '—' : formatPriceForKind(position.marketPrice, kind)}
             </span>
           </div>
@@ -244,11 +233,7 @@ export function PositionSellModal({
           </Form.Item>
 
           <div className="portfolio-form-row">
-            <Form.Item
-              label={quantityLabel}
-              name="quantity"
-              rules={[{ required: true, message: '请输入卖出数量' }]}
-            >
+            <Form.Item label={quantityLabel} name="quantity" rules={[{ required: true, message: '请输入卖出数量' }]}>
               <InputNumber
                 className="full-width-input"
                 min={kind === 'otc_fund' ? 0.0001 : 1}

@@ -1,15 +1,35 @@
+import { marketService } from '../src/service/market/market-service';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppDatabase } from '../src/service/database/database';
 import { createSipImportService } from '../src/service/sip/sip-import-service';
 import { createSipService } from '../src/service/sip/sip-service';
 import { buildSipReviewTemplate, summarizePlanOccurrences } from '../src/service/sip/sip-stats';
 
+beforeEach(() => {
+  vi.spyOn(marketService, 'resolve').mockImplementation((symbol) =>
+    Promise.resolve({
+      symbol,
+      name: '测试基金',
+      kind: 'otc_fund',
+      market: null,
+      venue: 'OTC',
+      quoteCurrency: 'CNY',
+      secid: null,
+      f10Code: symbol,
+      securityTypeName: '基金',
+      source: 'eastmoney',
+    }),
+  );
+  vi.spyOn(marketService, 'lookupHistoricalPriceOnDate').mockResolvedValue(null);
+});
+
 const tempDirs: string[] = [];
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const dir of tempDirs.splice(0)) {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -42,11 +62,7 @@ describe('sip import', () => {
     );
 
     const csvPath = path.join(os.tmpdir(), `sip-import-${Date.now()}.csv`);
-    fs.writeFileSync(
-      csvPath,
-      '代码,扣款日期,净值,金额\n161725,2026-01-01,2.5,500\n',
-      'utf8',
-    );
+    fs.writeFileSync(csvPath, '代码,扣款日期,净值,金额\n161725,2026-01-01,2.5,500\n', 'utf8');
 
     const mapping = {
       symbol: 0,
@@ -79,11 +95,7 @@ describe('sip import', () => {
     const accountId = database.portfolio.ensureDefaultAccount();
 
     const csvPath = path.join(os.tmpdir(), `sip-import-auto-plan-${Date.now()}.csv`);
-    fs.writeFileSync(
-      csvPath,
-      '代码,扣款日期,净值,金额\n110022,2026-01-05,1.8,300\n110022,2026-02-05,1.82,300\n',
-      'utf8',
-    );
+    fs.writeFileSync(csvPath, '代码,扣款日期,净值,金额\n110022,2026-01-05,1.8,300\n110022,2026-02-05,1.82,300\n', 'utf8');
 
     const mapping = {
       symbol: 0,
@@ -105,7 +117,9 @@ describe('sip import', () => {
 
     const plans = sipService.listPlans();
     expect(plans.some((plan) => plan.symbol === '110022')).toBe(true);
-    expect(sipService.listOccurrenceViews().filter((item) => item.symbol === '110022' && item.status === 'completed').length).toBe(2);
+    expect(
+      sipService.listOccurrenceViews().filter((item) => item.symbol === '110022' && item.status === 'completed').length,
+    ).toBe(2);
 
     fs.unlinkSync(csvPath);
     database.close();

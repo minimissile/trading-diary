@@ -4,7 +4,7 @@ import { enrichSipExtractedRecords } from '../src/service/sip/sip-import-enrichm
 import { marketService } from '../src/service/market/market-service';
 
 vi.mock('../src/service/market/eastmoney/search-service', () => ({
-  searchInstruments: vi.fn(async () => []),
+  searchInstruments: vi.fn(() => Promise.resolve([])),
 }));
 
 describe('sip import enrichment', () => {

@@ -16,6 +16,7 @@ export function useWatchlistPoolsQuery(): {
 
 export function useWatchlistPoolSnapshotQuery(poolId: WatchlistPoolId): {
   snapshot: WatchlistPoolSnapshot | null | undefined;
+  error: Error | null;
   isLoading: boolean;
   isFetching: boolean;
   refetch: () => Promise<void>;
@@ -27,6 +28,7 @@ export function useWatchlistPoolSnapshotQuery(poolId: WatchlistPoolId): {
   });
   return {
     snapshot: query.data,
+    error: query.error,
     isLoading: query.isLoading,
     isFetching: query.isFetching,
     refetch: async () => {

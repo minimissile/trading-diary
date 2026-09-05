@@ -33,7 +33,7 @@ export function AnalysisPage(): React.JSX.Element {
   }, [reviews]);
 
   return (
-    <main className="workspace-page">
+    <main className="workspace-page analysis-page">
       <header className="page-header">
         <div>
           <p className="page-kicker">PROCESS OVER OUTCOME</p>
@@ -53,6 +53,10 @@ export function AnalysisPage(): React.JSX.Element {
         </div>
       ) : (
         <>
+          <div className="analysis-section-heading">
+            <h2>交易结果</h2>
+            <span>基于已完成复盘的交易样本</span>
+          </div>
           <section className="analysis-hero">
             <article className={(snapshot?.totalPnl ?? 0) >= 0 ? 'metric-profit' : 'metric-loss'}>
               <Statistic title="累计净盈亏" value={snapshot?.totalPnl ?? 0} formatter={statisticCurrencyFormatter} />
@@ -63,7 +67,7 @@ export function AnalysisPage(): React.JSX.Element {
               <p>不能单独代表策略质量</p>
             </article>
             <article>
-              <Statistic title="Profit Factor" value={stats.profitFactor === null ? '—' : stats.profitFactor.toFixed(2)} />
+              <Statistic title="盈亏因子" value={stats.profitFactor === null ? '—' : stats.profitFactor.toFixed(2)} />
               <p>{stats.profitFactor === null ? '当前没有已实现亏损' : '总盈利 / 总亏损'}</p>
             </article>
             <article>
@@ -86,13 +90,13 @@ export function AnalysisPage(): React.JSX.Element {
             </div>
             <div className="process-grid">
               <article>
-                <Progress type="dashboard" percent={Math.round(stats.plannedRate)} size={140} />
-                <strong>计划内交易占比</strong>
+                <Progress type="line" percent={Math.round(stats.plannedRate)} />
+                <strong>计划内交易占比 · {stats.plannedRate.toFixed(1)}%</strong>
                 <p>无计划交易会单独进入改进清单。</p>
               </article>
               <article>
-                <Progress type="dashboard" percent={Math.round(stats.disciplinedRate)} size={140} strokeColor="#39d3c3" />
-                <strong>高纪律交易占比</strong>
+                <Progress type="line" percent={Math.round(stats.disciplinedRate)} strokeColor="var(--ui-accent)" />
+                <strong>高纪律交易占比 · {stats.disciplinedRate.toFixed(1)}%</strong>
                 <p>纪律评分达到 4 分及以上。</p>
               </article>
               <article className="sample-guidance">

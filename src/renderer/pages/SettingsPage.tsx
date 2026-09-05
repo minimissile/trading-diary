@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, App, Button, Checkbox, Descriptions, Input, InputNumber, Modal, Space, Switch, Tag } from 'antd';
 import { Link } from 'react-router';
-import type { AssetStats, BackupExportResult, HealthResult, ImportedAsset, LicenseStatus, LlmUsageSummary, LlmUserSettings, UpdateState } from '../../shared/api.types';
+import type {
+  AssetStats,
+  BackupExportResult,
+  HealthResult,
+  ImportedAsset,
+  LicenseStatus,
+  LlmUsageSummary,
+  LlmUserSettings,
+  UpdateState,
+} from '../../shared/api.types';
 import type { AccessLockSettingsView } from '../../shared/security/access-lock.types';
 import { AssetWorkspace } from '../components/AssetWorkspace';
 import { UpdaterPanel } from '../components/UpdaterPanel';
@@ -246,7 +255,9 @@ export function SettingsPage(): React.JSX.Element {
       cancelText: '取消',
       content: (
         <div>
-          <p>导入会用备份文件<strong>完全覆盖</strong>当前设备上的交易计划、提醒、复盘、持仓与图片数据。</p>
+          <p>
+            导入会用备份文件<strong>完全覆盖</strong>当前设备上的交易计划、提醒、复盘、持仓与图片数据。
+          </p>
           <p>此操作不可撤销。导入完成后应用会自动重启。</p>
         </div>
       ),
@@ -348,9 +359,7 @@ export function SettingsPage(): React.JSX.Element {
     }
     setAccessLockBusy(true);
     try {
-      setAccessLock(
-        await window.desktop.settings.changeAccessLockPassword(currentAccessPassword, changeAccessPassword),
-      );
+      setAccessLock(await window.desktop.settings.changeAccessLockPassword(currentAccessPassword, changeAccessPassword));
       setCurrentAccessPassword('');
       setChangeAccessPassword('');
       setConfirmChangeAccessPassword('');
@@ -363,7 +372,7 @@ export function SettingsPage(): React.JSX.Element {
   };
 
   return (
-    <main className="workspace-page">
+    <main className="workspace-page settings-page">
       <header className="page-header">
         <div>
           <p className="page-kicker">LOCAL FIRST</p>
@@ -373,15 +382,32 @@ export function SettingsPage(): React.JSX.Element {
         <Tag color={health?.storageReady ? 'green' : 'orange'}>{health?.storageReady ? '本地存储正常' : '正在检查存储'}</Tag>
       </header>
 
-      <section className="settings-panel">
+      <nav className="settings-navigation" aria-label="设置分类">
+        {[
+          ['license', '授权'],
+          ['security', '访问密码'],
+          ['runtime', '运行状态'],
+          ['backup', '备份恢复'],
+          ['ai', 'AI 配置'],
+          ['usage', '用量'],
+          ['updates', '更新与附件'],
+        ].map(([id, label]) => (
+          <button
+            type="button"
+            key={id}
+            onClick={() => document.getElementById(`settings-${id}`)?.scrollIntoView({ block: 'start' })}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+      <section id="settings-license" className="settings-panel">
         <div className="section-heading">
           <div>
             <span className="section-label">PRO</span>
             <h2>License 激活</h2>
           </div>
-          <Tag color={getLicenseTagColor(licenseStatus)}>
-            {licenseStatus ? formatLicenseTierLabel(licenseStatus) : '读取中'}
-          </Tag>
+          <Tag color={getLicenseTagColor(licenseStatus)}>{licenseStatus ? formatLicenseTierLabel(licenseStatus) : '读取中'}</Tag>
         </div>
         <p className="page-intro">
           新用户默认享有 {TRIAL_DAYS} 天 Pro 试用。付费后请将激活码粘贴到下方；验证完全在本机离线完成，不上传任何数据。
@@ -435,9 +461,7 @@ export function SettingsPage(): React.JSX.Element {
             {
               key: 'activatedAt',
               label: '激活时间',
-              children: licenseStatus?.activatedAt
-                ? new Date(licenseStatus.activatedAt).toLocaleString('zh-CN')
-                : '—',
+              children: licenseStatus?.activatedAt ? new Date(licenseStatus.activatedAt).toLocaleString('zh-CN') : '—',
             },
           ]}
         />
@@ -484,7 +508,7 @@ export function SettingsPage(): React.JSX.Element {
         </Space>
       </section>
 
-      <section className="settings-panel">
+      <section id="settings-security" className="settings-panel">
         <div className="section-heading">
           <div>
             <span className="section-label">安全</span>
@@ -526,12 +550,7 @@ export function SettingsPage(): React.JSX.Element {
           ) : (
             <>
               {!accessLock.enabled ? (
-                <Alert
-                  type="info"
-                  showIcon
-                  title="访问密码已设置"
-                  description="打开上方开关即可在启动时要求输入密码。"
-                />
+                <Alert type="info" showIcon title="访问密码已设置" description="打开上方开关即可在启动时要求输入密码。" />
               ) : null}
               <Input.Password
                 placeholder="当前访问密码"
@@ -564,7 +583,7 @@ export function SettingsPage(): React.JSX.Element {
         </Space>
       </section>
 
-      <section className="settings-panel">
+      <section id="settings-runtime" className="settings-panel">
         <div className="section-heading">
           <div>
             <span className="section-label">运行状态</span>
@@ -584,7 +603,7 @@ export function SettingsPage(): React.JSX.Element {
         />
       </section>
 
-      <section className="settings-panel">
+      <section id="settings-backup" className="settings-panel">
         <div className="section-heading">
           <div>
             <span className="section-label">数据迁移</span>
@@ -592,7 +611,8 @@ export function SettingsPage(): React.JSX.Element {
           </div>
         </div>
         <p className="page-intro">
-          将本机 SQLite 数据库、图片仓库和 AI 设置打包为 ZIP 备份，换设备后可导入继续记录。OpenRouter API Key 不会写入备份文件，需在新设备重新配置。
+          将本机 SQLite 数据库、图片仓库和 AI 设置打包为 ZIP 备份，换设备后可导入继续记录。OpenRouter API Key
+          不会写入备份文件，需在新设备重新配置。
         </p>
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <Checkbox checked={includeLicenseInBackup} onChange={(event) => setIncludeLicenseInBackup(event.target.checked)}>
@@ -623,7 +643,7 @@ export function SettingsPage(): React.JSX.Element {
         </Space>
       </section>
 
-      <section className="settings-panel">
+      <section id="settings-ai" className="settings-panel">
         <div className="section-heading">
           <div>
             <span className="section-label">AI 辅助</span>
@@ -653,7 +673,7 @@ export function SettingsPage(): React.JSX.Element {
         </Space>
       </section>
 
-      <section className="settings-panel">
+      <section id="settings-usage" className="settings-panel">
         <div className="section-heading">
           <div>
             <span className="section-label">Token 预算</span>
@@ -708,22 +728,21 @@ export function SettingsPage(): React.JSX.Element {
                 保存 AI 设置
               </Button>
             </Space>
-            {import.meta.env.DEV ? (
-              <Link to={routePaths.devLlm}>打开 Prompt 调试面板（仅开发模式）</Link>
-            ) : null}
+            {import.meta.env.DEV ? <Link to={routePaths.devLlm}>打开 Prompt 调试面板（仅开发模式）</Link> : null}
           </Space>
         ) : null}
       </section>
 
-      <UpdaterPanel
-        updateState={updateState}
-        updateBusy={updateBusy}
-        onCheck={() => void runUpdateAction(() => window.desktop.updater.check(), '检查更新失败')}
-        onDownload={() => void runUpdateAction(() => window.desktop.updater.download(), '下载更新失败')}
-        onInstall={() => void runUpdateAction(() => window.desktop.updater.install(), '安装更新失败')}
-        onOpenRelease={() => void runUpdateAction(() => window.desktop.updater.openReleasePage(), '打开下载页面失败')}
-      />
-
+      <div id="settings-updates">
+        <UpdaterPanel
+          updateState={updateState}
+          updateBusy={updateBusy}
+          onCheck={() => void runUpdateAction(() => window.desktop.updater.check(), '检查更新失败')}
+          onDownload={() => void runUpdateAction(() => window.desktop.updater.download(), '下载更新失败')}
+          onInstall={() => void runUpdateAction(() => window.desktop.updater.install(), '安装更新失败')}
+          onOpenRelease={() => void runUpdateAction(() => window.desktop.updater.openReleasePage(), '打开下载页面失败')}
+        />
+      </div>
       <AssetWorkspace stats={stats} lastAsset={lastAsset} busy={assetBusy} error={error} onImport={() => void importImage()} />
 
       <Modal

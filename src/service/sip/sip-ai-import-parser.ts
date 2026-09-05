@@ -68,7 +68,7 @@ export interface ParsedSipAiImportResponse {
 }
 
 function coerceNullableString(value: unknown): string | null {
-  if (value === null || value === undefined) return null;
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
   const text = String(value).trim();
   return text ? text : null;
 }
@@ -76,7 +76,8 @@ function coerceNullableString(value: unknown): string | null {
 function coerceNullableNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  const cleaned = String(value).replace(/[,，\s￥¥元]/gu, '').trim();
+  if (typeof value !== 'string') return null;
+  const cleaned = value.replace(/[,，\s￥¥元]/gu, '').trim();
   if (!cleaned) return null;
   const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : null;
@@ -95,9 +96,7 @@ export function extractJsonText(raw: string): string {
 function normalizeRawRecord(raw: z.infer<typeof rawRecordSchema>): SipAiExtractedRecord | null {
   const symbol = coerceNullableString(raw.symbol ?? raw.code ?? raw.fundCode);
   const fundName = coerceNullableString(raw.fundName ?? raw.name ?? raw.fund);
-  const tradeAt = coerceNullableString(
-    raw.tradeDate ?? raw.trade_date ?? raw.date ?? raw.deductionDate ?? raw.confirmDate,
-  );
+  const tradeAt = coerceNullableString(raw.tradeDate ?? raw.trade_date ?? raw.date ?? raw.deductionDate ?? raw.confirmDate);
   const nav = coerceNullableNumber(raw.nav ?? raw.netValue ?? raw.unitNav);
   const amount = coerceNullableNumber(raw.amount ?? raw.confirmAmount ?? raw.deductionAmount);
   const quantity = coerceNullableNumber(raw.quantity ?? raw.shares ?? raw.confirmShares);
@@ -119,7 +118,7 @@ function normalizeRawRecord(raw: z.infer<typeof rawRecordSchema>): SipAiExtracte
   };
 }
 
-export function parsePlanHints(raw: z.infer<typeof planHintsSchema> | undefined): SipAiPlanHints | null {
+export function parsePlanHints(raw: z.infer<typeof planHintsSchema> | null | undefined): SipAiPlanHints | null {
   if (!raw) return null;
   const amount = coerceNullableNumber(raw.amount);
   const dayOfMonth = coerceNullableNumber(raw.dayOfMonth);

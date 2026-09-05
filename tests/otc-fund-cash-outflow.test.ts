@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computeOtcFundHoldMetrics } from '../src/service/portfolio/ledger-service';
-import {
-  inferOtcTradeCashOutflow,
-  resolveOtcBuyCashOutflow,
-} from '../src/service/portfolio/otc-fund-cash-outflow';
+import { inferOtcTradeCashOutflow, resolveOtcBuyCashOutflow } from '../src/service/portfolio/otc-fund-cash-outflow';
 import { computeReferenceUnrealizedPnl } from '../src/service/portfolio/reference-unrealized-pnl';
 import { FEE_PROFILE_A_SHARE_STANDARD } from '../src/shared/accounts/fee-presets';
 import type { PortfolioLedgerEntry } from '../src/shared/portfolio/types';
@@ -38,13 +35,15 @@ function otcBuy(
 describe('otc fund cash outflow', () => {
   it('infers round deduction tiers when net cost is close to 100', () => {
     expect(resolveOtcBuyCashOutflow(otcBuy('2026-01-20', 38.28, 2.6059, 0.1))).toBe(100);
-    expect(inferOtcTradeCashOutflow({
-      amount: 100,
-      amountIsNetConfirmed: false,
-      quantity: 39.77,
-      price: 2.512,
-      fees: 0.1,
-    })).toBe(100);
+    expect(
+      inferOtcTradeCashOutflow({
+        amount: 100,
+        amountIsNetConfirmed: false,
+        quantity: 39.77,
+        price: 2.512,
+        fees: 0.1,
+      }),
+    ).toBe(100);
   });
 
   it('matches Ant Fortune hold metrics for 161226 with explicit cash outflows', () => {
@@ -64,7 +63,7 @@ describe('otc fund cash outflow', () => {
       quantity: 116.5,
       totalCost: hold.totalCost,
       kind: 'otc_fund',
-      market: 'OTC',
+      market: null,
       feeProfile: FEE_PROFILE_A_SHARE_STANDARD,
     });
 

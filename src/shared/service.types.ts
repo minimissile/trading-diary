@@ -1,4 +1,32 @@
 import type {
+  PortfolioLedgerEntry,
+  PortfolioPnlCalendarSyncResult,
+  PortfolioPnlCalendarView,
+  PortfolioRealizedHistoryView,
+  UpdatePortfolioLedgerInput,
+} from './portfolio/types';
+import type { DividendGoalSettings } from './portfolio/dividend-goal';
+import type { DividendPayoutMode } from './portfolio/dividend-payout';
+import type {
+  LedgerAiImportAssetKind,
+  LedgerAiImportInput,
+  LedgerAiImportPreviewResult,
+  LedgerAiRecognizeResult,
+  LedgerImportCommitResult,
+} from './portfolio/ledger-import-types';
+import type { SipSchedulePauseResult } from './sip/types';
+import type {
+  CreateLofArbitrageRuleInput,
+  LofArbitrageAlertEvent,
+  LofArbitrageMonitorResult,
+  LofArbitragePollResult,
+  LofArbitrageRule,
+  LofArbitrageRuleStatus,
+  LofArbitrageScanResult,
+  LofArbitrageSnapshot,
+  LofWatchItem,
+} from './lof-arbitrage/types';
+import type {
   AssetStats,
   CreateTradeAlertInput,
   CreateTradeReviewInput,
@@ -60,27 +88,15 @@ import type {
   UpdateTradingAccountInput,
 } from './accounts/types';
 import type { PromptId } from './llm/prompt-id';
-import type {
-  CreateExecutionInput,
-  TradeEpisodeView,
-} from './episodes/types';
+import type { CreateExecutionInput, TradeEpisodeView } from './episodes/types';
 import type {
   CsvParseResult,
   ExecutionImportCommitResult,
   ExecutionImportInput,
   ExecutionImportPreviewResult,
 } from './import/types';
-import type {
-  AlertEvent,
-  AlertEventUserAction,
-  AlertPollResult,
-} from './alerts/event-types';
-import type {
-  CreatePlaybookRuleInput,
-  PlaybookRule,
-  PlaybookRuleStatus,
-  UpdatePlaybookRuleInput,
-} from './playbook/types';
+import type { AlertEvent, AlertEventUserAction, AlertPollResult } from './alerts/event-types';
+import type { CreatePlaybookRuleInput, PlaybookRule, PlaybookRuleStatus, UpdatePlaybookRuleInput } from './playbook/types';
 import type {
   ConfirmFundSipOccurrenceInput,
   ConfirmFundSipOccurrenceResult,
@@ -108,12 +124,7 @@ import type {
   SipAiImportPreviewResult,
   SipAiRecognizeResult,
 } from './sip/import-types';
-import type {
-  BackupExportInput,
-  BackupExportResult,
-  BackupImportInput,
-  BackupImportResult,
-} from './backup/types';
+import type { BackupExportInput, BackupExportResult, BackupImportInput, BackupImportResult } from './backup/types';
 
 export interface ServiceContract {
   'system.health': {
@@ -290,27 +301,27 @@ export interface ServiceContract {
   };
   'portfolio.listLedgerEntries': {
     params: { accountId?: string; symbol?: string };
-    result: import('./portfolio/types').PortfolioLedgerEntry[];
+    result: PortfolioLedgerEntry[];
   };
   'portfolio.getRealizedHistory': {
     params: { accountId?: string; year?: number };
-    result: import('./portfolio/types').PortfolioRealizedHistoryView;
+    result: PortfolioRealizedHistoryView;
   };
   'portfolio.getPnlCalendar': {
     params: { accountId?: string; month?: string };
-    result: import('./portfolio/types').PortfolioPnlCalendarView;
+    result: PortfolioPnlCalendarView;
   };
   'portfolio.syncPnlCalendarBars': {
     params: { accountId?: string };
-    result: import('./portfolio/types').PortfolioPnlCalendarSyncResult;
+    result: PortfolioPnlCalendarSyncResult;
   };
   'portfolio.syncPnlCalendarBar': {
     params: { accountId?: string; symbol: string };
-    result: import('./portfolio/types').PortfolioPnlCalendarSyncResult;
+    result: PortfolioPnlCalendarSyncResult;
   };
   'portfolio.updateLedgerEntry': {
-    params: { id: string; input: import('./portfolio/types').UpdatePortfolioLedgerInput };
-    result: import('./portfolio/types').PortfolioLedgerEntry;
+    params: { id: string; input: UpdatePortfolioLedgerInput };
+    result: PortfolioLedgerEntry;
   };
   'portfolio.deleteLedgerEntry': {
     params: { id: string };
@@ -334,23 +345,23 @@ export interface ServiceContract {
   };
   'portfolio.getDividendGoal': {
     params: { accountId?: string };
-    result: import('./portfolio/dividend-goal').DividendGoalSettings | null;
+    result: DividendGoalSettings | null;
   };
   'portfolio.saveDividendGoal': {
     params: {
       accountId?: string;
-      settings: import('./portfolio/dividend-goal').DividendGoalSettings | null;
+      settings: DividendGoalSettings | null;
     };
-    result: import('./portfolio/dividend-goal').DividendGoalSettings | null;
+    result: DividendGoalSettings | null;
   };
   'portfolio.getDividendPayoutDefault': {
     params: { accountId: string; symbol: string };
-    result: import('./portfolio/dividend-payout').DividendPayoutMode | null;
+    result: DividendPayoutMode | null;
   };
   'portfolio.setDividendPayoutMode': {
     params: {
       id: string;
-      payoutMode: import('./portfolio/dividend-payout').DividendPayoutMode;
+      payoutMode: DividendPayoutMode;
       setDefault?: boolean;
       accountId?: string;
       year?: number;
@@ -366,16 +377,16 @@ export interface ServiceContract {
     result: string[];
   };
   'portfolio.recognizeLedgerImportScreenshots': {
-    params: { sourcePaths: string[]; importAssetKind?: import('./portfolio/ledger-import-types').LedgerAiImportAssetKind };
-    result: import('./portfolio/ledger-import-types').LedgerAiRecognizeResult;
+    params: { sourcePaths: string[]; importAssetKind?: LedgerAiImportAssetKind };
+    result: LedgerAiRecognizeResult;
   };
   'portfolio.previewLedgerAiImport': {
-    params: import('./portfolio/ledger-import-types').LedgerAiImportInput;
-    result: import('./portfolio/ledger-import-types').LedgerAiImportPreviewResult;
+    params: LedgerAiImportInput;
+    result: LedgerAiImportPreviewResult;
   };
   'portfolio.commitLedgerAiImport': {
-    params: import('./portfolio/ledger-import-types').LedgerAiImportInput;
-    result: import('./portfolio/ledger-import-types').LedgerImportCommitResult;
+    params: LedgerAiImportInput;
+    result: LedgerImportCommitResult;
   };
   'license.getStatus': {
     params: Record<string, never>;
@@ -522,7 +533,7 @@ export interface ServiceContract {
   };
   'sip.schedulePause': {
     params: { id: string; fromDate: string };
-    result: import('../sip/types').SipSchedulePauseResult;
+    result: SipSchedulePauseResult;
   };
   'sip.cancelScheduledPause': {
     params: { id: string };
@@ -602,11 +613,11 @@ export interface ServiceContract {
   };
   'lofArbitrage.listWatchItems': {
     params: Record<string, never>;
-    result: import('./lof-arbitrage/types').LofWatchItem[];
+    result: LofWatchItem[];
   };
   'lofArbitrage.addWatchItem': {
     params: { symbol: string; notes?: string | null };
-    result: import('./lof-arbitrage/types').LofWatchItem;
+    result: LofWatchItem;
   };
   'lofArbitrage.removeWatchItem': {
     params: { id: string };
@@ -614,15 +625,15 @@ export interface ServiceContract {
   };
   'lofArbitrage.listRules': {
     params: Record<string, never>;
-    result: import('./lof-arbitrage/types').LofArbitrageRule[];
+    result: LofArbitrageRule[];
   };
   'lofArbitrage.createRule': {
-    params: import('./lof-arbitrage/types').CreateLofArbitrageRuleInput;
-    result: import('./lof-arbitrage/types').LofArbitrageRule;
+    params: CreateLofArbitrageRuleInput;
+    result: LofArbitrageRule;
   };
   'lofArbitrage.setRuleStatus': {
-    params: { id: string; status: import('./lof-arbitrage/types').LofArbitrageRuleStatus };
-    result: import('./lof-arbitrage/types').LofArbitrageRule;
+    params: { id: string; status: LofArbitrageRuleStatus };
+    result: LofArbitrageRule;
   };
   'lofArbitrage.deleteRule': {
     params: { id: string };
@@ -630,27 +641,27 @@ export interface ServiceContract {
   };
   'lofArbitrage.getSnapshot': {
     params: { symbol: string };
-    result: import('./lof-arbitrage/types').LofArbitrageSnapshot;
+    result: LofArbitrageSnapshot;
   };
   'lofArbitrage.refreshMonitor': {
     params: Record<string, never>;
-    result: import('./lof-arbitrage/types').LofArbitrageMonitorResult;
+    result: LofArbitrageMonitorResult;
   };
   'lofArbitrage.scanMarket': {
     params: { limit?: number };
-    result: import('./lof-arbitrage/types').LofArbitrageScanResult;
+    result: LofArbitrageScanResult;
   };
   'lofArbitrage.listEvents': {
     params: { limit?: number };
-    result: import('./lof-arbitrage/types').LofArbitrageAlertEvent[];
+    result: LofArbitrageAlertEvent[];
   };
   'lofArbitrage.setEventAction': {
     params: { id: string; action: 'acknowledged' | 'dismissed' };
-    result: import('./lof-arbitrage/types').LofArbitrageAlertEvent;
+    result: LofArbitrageAlertEvent;
   };
   'lofArbitrage.pollActive': {
     params: Record<string, never>;
-    result: import('./lof-arbitrage/types').LofArbitragePollResult;
+    result: LofArbitragePollResult;
   };
 }
 

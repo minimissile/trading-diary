@@ -1,0 +1,181 @@
+/* Positions: asset overview, then a dedicated holdings workspace. */
+.positions-page .positions-overview,
+.positions-page .positions-holdings {
+  border: 1px solid var(--ui-line);
+  border-radius: 16px;
+  background: var(--workspace-panel-glass, var(--ui-panel));
+  box-shadow: var(--ui-panel-shadow);
+  overflow: hidden;
+}
+.positions-page .positions-overview {
+  margin-bottom: 16px;
+}
+.positions-overview-heading,
+.positions-holdings-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px 0;
+}
+.positions-page :is(.positions-overview, .positions-holdings) h2 {
+  margin: 0;
+  color: var(--ui-text);
+  font-size: 17px;
+  line-height: 26px;
+  font-weight: 600;
+}
+.positions-overview-heading > span,
+.positions-holdings-heading p {
+  color: var(--ui-muted);
+  font-size: 12px;
+  margin: 2px 0 0;
+}
+.positions-summary {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  padding: 24px 0;
+}
+.positions-summary > article {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 24px;
+  min-width: 0;
+}
+.positions-summary > article + article {
+  border-left: 1px solid var(--ui-line);
+}
+.positions-summary small {
+  color: var(--ui-secondary-text);
+  font-size: 13px;
+}
+.positions-summary > article > strong {
+  font-size: 30px;
+  line-height: 48px;
+  font-variant-numeric: tabular-nums;
+}
+.positions-summary > .positions-summary-primary > strong {
+  font-size: 40px;
+  letter-spacing: -1px;
+}
+.positions-summary > article > span {
+  color: var(--ui-muted);
+  font-size: 12px;
+  line-height: 20px;
+}
+.positions-overview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--ui-line);
+  padding: 10px 24px;
+  background: rgb(17 29 37 / 35%);
+}
+.positions-quote-status,
+.positions-related-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--ui-muted);
+}
+.positions-related-links a {
+  color: var(--ui-secondary-text);
+  white-space: nowrap;
+}
+.positions-related-links a:hover {
+  color: var(--ui-accent);
+}
+.positions-related-links a:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 4px;
+}
+.positions-holdings-heading h2 > span {
+  margin-left: 6px;
+  color: var(--ui-accent);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.positions-list-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+}
+.positions-category-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.positions-search {
+  width: 260px;
+  flex-shrink: 0;
+}
+.positions-page .positions-holdings .ant-table-wrapper {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+}
+.positions-page .positions-holdings .ant-table {
+  background: transparent;
+}
+.positions-page .positions-holdings .ant-empty {
+  padding: 32px 16px 48px;
+}
+.positions-page .positions-holdings .ant-table-thead > tr > th {
+  background: var(--ui-inset);
+  border-top: 1px solid var(--ui-line);
+}
+.positions-page .positions-holdings .ant-table-tbody > tr:last-child > td {
+  border-bottom: 0;
+}
+@media (max-width: 1100px) {
+  .positions-summary {
+    grid-template-columns: 1.2fr 1fr 1fr;
+  }
+  .positions-summary > .positions-summary-primary > strong {
+    font-size: 32px;
+  }
+  .positions-summary > article > strong {
+    font-size: 26px;
+  }
+  .positions-list-toolbar {
+    align-items: flex-start;
+  }
+  .positions-search {
+    width: 220px;
+  }
+}
+@media (max-width: 780px) {
+  .positions-summary {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 20px;
+  }
+  .positions-summary > .positions-summary-primary {
+    grid-column: 1 / -1;
+  }
+  .positions-summary > article:nth-child(2) {
+    border-left: 0;
+  }
+  .positions-overview-footer,
+  .positions-list-toolbar {
+    flex-wrap: wrap;
+  }
+  .positions-search {
+    width: 100%;
+  }
+  .positions-overview-heading,
+  .positions-holdings-heading {
+    padding-inline: 16px;
+  }
+  .positions-summary > article,
+  .positions-overview-footer,
+  .positions-list-toolbar {
+    padding-inline: 16px;
+  }
+}

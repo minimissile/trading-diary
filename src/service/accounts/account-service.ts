@@ -7,10 +7,7 @@ import type {
   TradingAccountSummary,
   UpdateTradingAccountInput,
 } from '../../shared/accounts/types';
-import {
-  normalizeCreateAccountInput,
-  normalizeUpdateAccountInput,
-} from '../../shared/accounts/account-input';
+import { normalizeCreateAccountInput, normalizeUpdateAccountInput } from '../../shared/accounts/account-input';
 import type { AccountDatabase } from './account-database';
 import { estimateTradeFees } from './fee-calculator';
 import type { PortfolioService } from '../portfolio/portfolio-service';
@@ -51,6 +48,8 @@ export class AccountService {
   }
 
   /** 永久删除已归档账户及其关联数据。 */
+  // Service boundary intentionally converts synchronous database failures to rejected promises.
+  // eslint-disable-next-line @typescript-eslint/require-await
   async delete(id: string): Promise<void> {
     this.accounts.deleteAccount(id);
   }
@@ -87,10 +86,7 @@ export class AccountService {
     let instrumentKind: FeeEstimateInput['instrumentKind'];
     try {
       const resolved = await marketService.resolve(input.symbol);
-      market =
-        resolved.venue === 'HK' || resolved.venue === 'US'
-          ? resolved.venue
-          : resolved.market;
+      market = resolved.venue === 'HK' || resolved.venue === 'US' ? resolved.venue : resolved.market;
       instrumentKind = resolved.kind;
     } catch {
       market = input.symbol.startsWith('6') ? 'SH' : 'SZ';
@@ -119,8 +115,7 @@ export class AccountService {
 
   private async withSummary(account: TradingAccount): Promise<TradingAccountSummary> {
     const stats = this.accounts.getAccountLedgerStats(account.id);
-    const feeRatio =
-      stats.totalTurnover > 0 ? Math.round((stats.totalFees / stats.totalTurnover) * 10_000) / 10_000 : null;
+    const feeRatio = stats.totalTurnover > 0 ? Math.round((stats.totalFees / stats.totalTurnover) * 10_000) / 10_000 : null;
 
     const positions = await this.portfolioService.listPositions(account.id);
     const totalMarketValue = positions.reduce((sum, item) => sum + (item.marketValue ?? 0), 0);

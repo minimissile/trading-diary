@@ -100,7 +100,10 @@ export function alignTradeTimestamp(tradeAt: string, period: KLinePeriod): numbe
 }
 
 /** 将标记吸附到已加载 K 线上最近且不晚于成交时刻的一根 bar。 */
-export function snapTradeMarkerToBars(marker: ChartTradeMarker, bars: KLineBar[]): ChartTradeMarker | null {
+export function snapTradeMarkerToBars(
+  marker: ChartTradeMarker,
+  bars: readonly Pick<KLineBar, 'timestamp'>[],
+): ChartTradeMarker | null {
   if (bars.length === 0) return null;
 
   const sorted = [...bars].sort((left, right) => left.timestamp - right.timestamp);
@@ -128,8 +131,7 @@ function formatQuantity(quantity: number, kind?: PortfolioLedgerEntry['kind']): 
 function buildTooltip(entry: PortfolioLedgerEntry): string {
   const priceText = formatNumber(entry.price, { maximumFractionDigits: entry.kind === 'otc_fund' ? 4 : 2 });
   const quantityText = formatQuantity(entry.quantity, entry.kind);
-  const feeText =
-    entry.fees > 0 ? ` · 费 ${formatNumber(entry.fees, { maximumFractionDigits: 2, useGrouping: true })}` : '';
+  const feeText = entry.fees > 0 ? ` · 费 ${formatNumber(entry.fees, { maximumFractionDigits: 2, useGrouping: true })}` : '';
   const noteText = entry.note.trim().length > 0 ? ` · ${entry.note.trim()}` : '';
   const sourceText = SOURCE_NAMES[entry.source];
   return `${SIDE_NAMES[entry.side]} ${quantityText} @ ${priceText}${feeText} · ${sourceText}${noteText}`;
@@ -140,10 +142,7 @@ function markerPlacement(side: ChartTradeMarkerSide): 'above' | 'below' {
 }
 
 /** 持仓流水 → K 线买卖点标记（含买/卖/分红再投，保留账户与来源信息）。 */
-export function buildChartTradeMarkers(
-  entries: PortfolioLedgerEntry[],
-  period: KLinePeriod,
-): ChartTradeMarker[] {
+export function buildChartTradeMarkers(entries: PortfolioLedgerEntry[], period: KLinePeriod): ChartTradeMarker[] {
   const markers = entries
     .filter((entry) => entry.side === 'buy' || entry.side === 'sell' || entry.side === 'dividend_reinvest')
     .map((entry) => {
@@ -202,7 +201,7 @@ export function spreadOverlappingMarkerPrices(markers: ChartTradeMarker[]): Char
 /** 根据已加载 K 线范围过滤并吸附标记。 */
 export function prepareTradeMarkersForBars(
   markers: ChartTradeMarker[],
-  bars: KLineBar[],
+  bars: readonly Pick<KLineBar, 'timestamp'>[],
 ): ChartTradeMarker[] {
   if (bars.length === 0) return [];
 

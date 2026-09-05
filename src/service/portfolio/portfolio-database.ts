@@ -98,9 +98,8 @@ export class PortfolioDatabase {
   constructor(private readonly db: DatabaseSync) {}
 
   ensureDefaultAccount(): string {
-    const existing = this.db
-      .prepare('SELECT id FROM portfolio_accounts WHERE is_default = 1 LIMIT 1')
-      .get() as { id: string } | undefined;
+    const existing = this.db.prepare('SELECT id FROM portfolio_accounts WHERE is_default = 1 LIMIT 1').get() as
+      { id: string } | undefined;
     if (existing) return existing.id;
 
     const id = 'default';
@@ -142,9 +141,7 @@ export class PortfolioDatabase {
     if (accountIds.length === 0) return [];
     const placeholders = accountIds.map(() => '?').join(', ');
     const rows = this.db
-      .prepare(
-        `SELECT * FROM portfolio_ledger WHERE account_id IN (${placeholders}) ORDER BY trade_at ASC, created_at ASC`,
-      )
+      .prepare(`SELECT * FROM portfolio_ledger WHERE account_id IN (${placeholders}) ORDER BY trade_at ASC, created_at ASC`)
       .all(...accountIds) as unknown as PortfolioLedgerRow[];
     return rows.map((row) => this.mapLedger(row));
   }
@@ -174,26 +171,15 @@ export class PortfolioDatabase {
   }
 
   /** 检测是否已有相同定投导入流水（同日、同标的、同份额与净值）。 */
-  hasSimilarSipImport(
-    accountId: string,
-    symbol: string,
-    tradeAt: string,
-    quantity: number,
-    nav: number,
-  ): boolean {
+  hasSimilarSipImport(accountId: string, symbol: string, tradeAt: string, quantity: number, nav: number): boolean {
     const resolved = this.resolveAccountId(accountId);
     const normalized = normalizeSymbol(symbol);
     const tradeDay = tradeAt.slice(0, 10);
     const entries = this.listLedger(resolved).filter(
       (entry) =>
-        entry.symbol === normalized &&
-        entry.source === 'sip' &&
-        entry.side === 'buy' &&
-        entry.tradeAt.slice(0, 10) === tradeDay,
+        entry.symbol === normalized && entry.source === 'sip' && entry.side === 'buy' && entry.tradeAt.slice(0, 10) === tradeDay,
     );
-    return entries.some(
-      (entry) => Math.abs(entry.quantity - quantity) < 1e-6 && Math.abs(entry.price - nav) < 1e-6,
-    );
+    return entries.some((entry) => Math.abs(entry.quantity - quantity) < 1e-6 && Math.abs(entry.price - nav) < 1e-6);
   }
 
   /** 检测是否已有相同 AI/手动导入流水（同日、同标的、同方向、同份额与价格）。 */
@@ -209,21 +195,14 @@ export class PortfolioDatabase {
     const normalized = normalizeSymbol(symbol);
     const tradeDay = tradeAt.slice(0, 10);
     const entries = this.listLedger(resolved).filter(
-      (entry) =>
-        entry.symbol === normalized &&
-        entry.side === side &&
-        entry.tradeAt.slice(0, 10) === tradeDay,
+      (entry) => entry.symbol === normalized && entry.side === side && entry.tradeAt.slice(0, 10) === tradeDay,
     );
-    return entries.some(
-      (entry) => Math.abs(entry.quantity - quantity) < 1e-6 && Math.abs(entry.price - price) < 1e-6,
-    );
+    return entries.some((entry) => Math.abs(entry.quantity - quantity) < 1e-6 && Math.abs(entry.price - price) < 1e-6);
   }
 
   listLedgerBySymbol(accountId: string, symbol: string): PortfolioLedgerEntry[] {
     const rows = this.db
-      .prepare(
-        `SELECT * FROM portfolio_ledger WHERE account_id = ? AND symbol = ? ORDER BY trade_at ASC, created_at ASC`,
-      )
+      .prepare(`SELECT * FROM portfolio_ledger WHERE account_id = ? AND symbol = ? ORDER BY trade_at ASC, created_at ASC`)
       .all(accountId, normalizeSymbol(symbol)) as unknown as PortfolioLedgerRow[];
     return rows.map((row) => this.mapLedger(row));
   }
@@ -235,9 +214,7 @@ export class PortfolioDatabase {
     const parsed = input.venue
       ? { venue: input.venue, symbol: normalizeSymbol(input.symbol), quoteCurrency: 'CNY' as const }
       : parseInstrumentInput(input.symbol, { kind, defaultVenue: this.defaultVenueForAccount(accountScopes) });
-    const symbol = parsed.venue === 'HK' || parsed.venue === 'US'
-      ? parsed.symbol
-      : normalizeSymbol(parsed.symbol);
+    const symbol = parsed.venue === 'HK' || parsed.venue === 'US' ? parsed.symbol : normalizeSymbol(parsed.symbol);
     const venue = input.venue ?? parsed.venue;
 
     if (!isVenueAllowedByScopes(accountScopes, venue)) {
@@ -252,9 +229,7 @@ export class PortfolioDatabase {
       input.side === 'sell' ? -toScaledInteger(quantity, QUANTITY_SCALE) : toScaledInteger(quantity, QUANTITY_SCALE);
 
     if (input.side === 'sell') {
-      const current = this.listLedger(accountId).filter(
-        (entry) => entry.symbol === symbol && entry.venue === venue,
-      );
+      const current = this.listLedger(accountId).filter((entry) => entry.symbol === symbol && entry.venue === venue);
       const held = current.reduce((sum, entry) => sum + ledgerQuantityDelta(entry), 0);
       if (quantity > held + 1e-8) throw new Error('卖出数量不能超过当前持仓');
     }
@@ -283,9 +258,7 @@ export class PortfolioDatabase {
         (input.note ?? '').trim(),
         input.source ?? 'manual',
         input.sipOccurrenceId ?? null,
-        input.cashOutflow !== null && input.cashOutflow !== undefined
-          ? toScaledInteger(input.cashOutflow, MONEY_SCALE)
-          : null,
+        input.cashOutflow !== null && input.cashOutflow !== undefined ? toScaledInteger(input.cashOutflow, MONEY_SCALE) : null,
         now,
       );
 
@@ -306,8 +279,7 @@ export class PortfolioDatabase {
 
     if (side === 'sell') {
       const others = this.listLedger(existing.accountId).filter(
-        (entry) =>
-          entry.symbol === existing.symbol && entry.venue === existing.venue && entry.id !== id,
+        (entry) => entry.symbol === existing.symbol && entry.venue === existing.venue && entry.id !== id,
       );
       const held = others.reduce((sum, entry) => sum + ledgerQuantityDelta(entry), 0);
       if (quantity > held + 1e-8) throw new Error('卖出数量不能超过当前持仓');
@@ -322,15 +294,7 @@ export class PortfolioDatabase {
           side = ?, quantity_micros = ?, price_micros = ?, fees_cents = ?, trade_at = ?, note = ?
          WHERE id = ?`,
       )
-      .run(
-        side,
-        quantityMicros,
-        toScaledInteger(price, PRICE_SCALE),
-        toScaledInteger(fees, MONEY_SCALE),
-        tradeAt,
-        note,
-        id,
-      );
+      .run(side, quantityMicros, toScaledInteger(price, PRICE_SCALE), toScaledInteger(fees, MONEY_SCALE), tradeAt, note, id);
 
     return this.getLedgerEntry(id);
   }
@@ -355,9 +319,7 @@ export class PortfolioDatabase {
     }
 
     const resolved = this.resolveAccountId(accountId);
-    const result = this.db
-      .prepare('DELETE FROM portfolio_ledger WHERE account_id = ? AND symbol = ?')
-      .run(resolved, normalized);
+    const result = this.db.prepare('DELETE FROM portfolio_ledger WHERE account_id = ? AND symbol = ?').run(resolved, normalized);
     return Number(result.changes ?? 0);
   }
 
@@ -480,17 +442,11 @@ export class PortfolioDatabase {
 
   setDividendPayoutMode(id: string, payoutMode: DividendPayoutMode): PortfolioDividendRecord {
     const now = new Date().toISOString();
-    this.db
-      .prepare(`UPDATE portfolio_dividends SET payout_mode = ?, updated_at = ? WHERE id = ?`)
-      .run(payoutMode, now, id);
+    this.db.prepare(`UPDATE portfolio_dividends SET payout_mode = ?, updated_at = ? WHERE id = ?`).run(payoutMode, now, id);
     return this.getDividend(id);
   }
 
-  updateDividendEligibleAmount(
-    id: string,
-    eligibleQuantity: number,
-    cashAmount: number,
-  ): PortfolioDividendRecord {
+  updateDividendEligibleAmount(id: string, eligibleQuantity: number, cashAmount: number): PortfolioDividendRecord {
     const now = new Date().toISOString();
     this.db
       .prepare(
@@ -498,12 +454,7 @@ export class PortfolioDatabase {
          SET eligible_quantity_micros = ?, cash_amount_cents = ?, updated_at = ?
          WHERE id = ?`,
       )
-      .run(
-        toScaledInteger(eligibleQuantity, QUANTITY_SCALE),
-        toScaledInteger(cashAmount, MONEY_SCALE),
-        now,
-        id,
-      );
+      .run(toScaledInteger(eligibleQuantity, QUANTITY_SCALE), toScaledInteger(cashAmount, MONEY_SCALE), now, id);
     return this.getDividend(id);
   }
 
@@ -519,7 +470,9 @@ export class PortfolioDatabase {
     const now = new Date().toISOString();
     if (cashAmountCents !== undefined) {
       this.db
-        .prepare(`UPDATE portfolio_dividends SET status = ?, cash_amount_cents = ?, confirmed_at = ?, updated_at = ? WHERE id = ?`)
+        .prepare(
+          `UPDATE portfolio_dividends SET status = ?, cash_amount_cents = ?, confirmed_at = ?, updated_at = ? WHERE id = ?`,
+        )
         .run(status, cashAmountCents, status === 'confirmed' ? now : null, now, id);
     } else {
       this.db
@@ -542,16 +495,14 @@ export class PortfolioDatabase {
 
   private getLedgerEntry(id: string): PortfolioLedgerEntry {
     const row = this.db.prepare('SELECT * FROM portfolio_ledger WHERE id = ?').get(id) as unknown as
-      | PortfolioLedgerRow
-      | undefined;
+      PortfolioLedgerRow | undefined;
     if (!row) throw new Error('持仓流水不存在');
     return this.mapLedger(row);
   }
 
   private getDividend(id: string): PortfolioDividendRecord {
     const row = this.db.prepare('SELECT * FROM portfolio_dividends WHERE id = ?').get(id) as unknown as
-      | PortfolioDividendRow
-      | undefined;
+      PortfolioDividendRow | undefined;
     if (!row) throw new Error('分红记录不存在');
     return this.mapDividend(row);
   }
@@ -614,8 +565,7 @@ export class PortfolioDatabase {
 
   getPreference<T>(key: string): T | null {
     const row = this.db.prepare('SELECT value_json FROM portfolio_preferences WHERE key = ?').get(key) as
-      | { value_json: string }
-      | undefined;
+      { value_json: string } | undefined;
     if (!row) return null;
     try {
       return JSON.parse(row.value_json) as T;
@@ -624,7 +574,7 @@ export class PortfolioDatabase {
     }
   }
 
-  setPreference(key: string, value: unknown | null): void {
+  setPreference(key: string, value: unknown): void {
     if (value === null) {
       this.db.prepare('DELETE FROM portfolio_preferences WHERE key = ?').run(key);
       return;
@@ -644,9 +594,8 @@ export class PortfolioDatabase {
   }
 
   private getAccountMarketScope(accountId: string): string[] {
-    const row = this.db
-      .prepare('SELECT market_scope_json FROM portfolio_accounts WHERE id = ?')
-      .get(accountId) as { market_scope_json: string } | undefined;
+    const row = this.db.prepare('SELECT market_scope_json FROM portfolio_accounts WHERE id = ?').get(accountId) as
+      { market_scope_json: string } | undefined;
     if (!row) return ['CN_A'];
     try {
       const parsed = JSON.parse(row.market_scope_json) as unknown;

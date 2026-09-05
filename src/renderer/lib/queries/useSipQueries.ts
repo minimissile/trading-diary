@@ -1,10 +1,11 @@
+import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   FundSipOccurrenceView,
   FundSipPlanDetailView,
   FundSipPlanView,
   SipOccurrenceCalendarDay,
-  SipPlanStatus,
+  SipSummaryView,
 } from '../../../shared/sip/types';
 import { queryKeys } from './keys';
 
@@ -77,9 +78,12 @@ export function useSipOccurrenceCalendarQuery(month: string): {
 
 export function usePrefetchSipPlan(): (planId: string) => Promise<FundSipPlanDetailView> {
   const client = useQueryClient();
-  return (planId: string) =>
-    client.fetchQuery({
-      queryKey: queryKeys.sip.plan(planId),
-      queryFn: () => window.desktop.sip.getPlan(planId),
-    });
+  return useCallback(
+    (planId: string) =>
+      client.fetchQuery({
+        queryKey: queryKeys.sip.plan(planId),
+        queryFn: () => window.desktop.sip.getPlan(planId),
+      }),
+    [client],
+  );
 }

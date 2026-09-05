@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { AccountBroker } from '../../../shared/api.types';
 import { getBrokerIconAssetUrl, getBrokerLabel } from '../../../shared/accounts/brokers';
 
@@ -10,16 +10,12 @@ interface BrokerAvatarProps {
 
 /** 券商图标；经主进程 app-asset 缓存加载，失败后显示首字占位。 */
 export function BrokerAvatar({ brokerId, className, size = 32 }: BrokerAvatarProps): React.JSX.Element {
-  const [failed, setFailed] = useState(false);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const label = getBrokerLabel(brokerId);
   const baseClass = className ?? 'broker-avatar';
   const iconUrl = getBrokerIconAssetUrl(brokerId);
 
-  useEffect(() => {
-    setFailed(false);
-  }, [brokerId, iconUrl]);
-
-  if (!iconUrl || failed) {
+  if (!iconUrl || failedUrl === iconUrl) {
     return (
       <span
         className={`${baseClass} ${baseClass}--fallback`}
@@ -39,7 +35,7 @@ export function BrokerAvatar({ brokerId, className, size = 32 }: BrokerAvatarPro
       width={size}
       height={size}
       loading="lazy"
-      onError={() => setFailed(true)}
+      onError={() => setFailedUrl(iconUrl)}
     />
   );
 }

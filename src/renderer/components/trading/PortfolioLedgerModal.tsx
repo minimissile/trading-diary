@@ -4,10 +4,7 @@ import type { Dayjs } from 'dayjs';
 import { useNavigate } from 'react-router';
 import type { InstrumentInfo, MarketQuote, TradingAccountSummary } from '../../../shared/api.types';
 import type { PortfolioLedgerEntry } from '../../../shared/portfolio/types';
-import {
-  LEDGER_IMPORT_ASSET_KIND_LABELS,
-  type LedgerAiImportAssetKind,
-} from '../../../shared/portfolio/ledger-import-types';
+import { LEDGER_IMPORT_ASSET_KIND_LABELS, type LedgerAiImportAssetKind } from '../../../shared/portfolio/ledger-import-types';
 import { routePaths } from '../../router/paths';
 import type { JournalReviewDraft } from '../../router/journal-state';
 import { SymbolSearchInput } from './SymbolSearchInput';
@@ -37,7 +34,11 @@ interface FormValues {
   reviewAfterSave?: boolean;
 }
 
-export function PortfolioLedgerModal({
+export function PortfolioLedgerModal(props: PortfolioLedgerModalProps): React.JSX.Element {
+  return props.open ? <PortfolioLedgerModalContent key={props.editingEntry?.id ?? props.defaultAccountId} {...props} /> : <></>;
+}
+
+function PortfolioLedgerModalContent({
   open,
   onClose,
   onSaved,
@@ -54,7 +55,9 @@ export function PortfolioLedgerModal({
   const [quote, setQuote] = useState<MarketQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [accounts, setAccounts] = useState<TradingAccountSummary[]>([]);
-  const [ledgerAssetKind, setLedgerAssetKind] = useState<LedgerAiImportAssetKind>('stock');
+  const [ledgerAssetKind, setLedgerAssetKind] = useState<LedgerAiImportAssetKind>(
+    editingEntry?.kind === 'otc_fund' ? 'fund' : 'stock',
+  );
 
   const accountId = Form.useWatch('accountId', form);
   const marketScopes = useMemo(() => {
@@ -111,18 +114,9 @@ export function PortfolioLedgerModal({
   }, [open]);
 
   useEffect(() => {
-    if (!open) {
-      form.resetFields();
-      setResolved(null);
-      setResolving(false);
-      setQuote(null);
-      setQuoteLoading(false);
-      setLedgerAssetKind('stock');
-      return;
-    }
+    if (!open) return;
 
     if (editingEntry) {
-      setLedgerAssetKind(editingEntry.kind === 'otc_fund' ? 'fund' : 'stock');
       form.setFieldsValue({
         accountId: editingEntry.accountId,
         symbol: editingEntry.symbol,
@@ -182,7 +176,7 @@ export function PortfolioLedgerModal({
         void message.success('流水已更新');
       } else {
         const kind = ledgerAssetKind === 'fund' ? 'otc_fund' : resolved?.kind;
-        const venue = ledgerAssetKind === 'fund' ? 'OTC' as const : undefined;
+        const venue = ledgerAssetKind === 'fund' ? ('OTC' as const) : undefined;
         await window.desktop.portfolio.addLedgerEntry({
           accountId: values.accountId,
           symbol,
@@ -217,11 +211,7 @@ export function PortfolioLedgerModal({
     }
   };
 
-  const buildReviewDraft = async (
-    values: FormValues,
-    symbol: string,
-    name?: string,
-  ): Promise<JournalReviewDraft> => {
+  const buildReviewDraft = async (values: FormValues, symbol: string, name?: string): Promise<JournalReviewDraft> => {
     const displayName = name ?? symbol;
     const tradeLabel = values.side === 'sell' ? '卖出' : '买入';
 
@@ -363,9 +353,7 @@ export function PortfolioLedgerModal({
         {resolved ? (
           <LedgerTradeContextPanel
             instrument={
-              ledgerAssetKind === 'fund'
-                ? { ...resolved, kind: 'otc_fund', venue: 'OTC', quoteCurrency: 'CNY' }
-                : resolved
+              ledgerAssetKind === 'fund' ? { ...resolved, kind: 'otc_fund', venue: 'OTC', quoteCurrency: 'CNY' } : resolved
             }
             quote={quote}
             quoteLoading={quoteLoading || resolving}
@@ -389,15 +377,19 @@ export function PortfolioLedgerModal({
           <Form.Item label="数量" name="quantity" rules={[{ required: true, message: '请输入数量' }]}>
             <InputNumber className="full-width-input" min={0.0001} precision={4} />
           </Form.Item>
-          <Form.Item label="成交价" name="price" rules={[{ required: true, message: '请输入价格' }]} extra={side === 'buy' ? '不含佣金净价的成交均价；勿填摊薄成本' : undefined}>
+          <Form.Item
+            label="成交价"
+            name="price"
+            rules={[{ required: true, message: '请输入价格' }]}
+            extra={side === 'buy' ? '不含佣金净价的成交均价；勿填摊薄成本' : undefined}
+          >
             <InputNumber className="full-width-input" min={0.0001} precision={4} />
           </Form.Item>
         </div>
 
         {side === 'buy' && price && quantity ? (
           <p className="portfolio-ledger-amortized-cost">
-            摊薄成本（含费用）{' '}
-            {((price * quantity + (form.getFieldValue('fees') ?? 0)) / quantity).toFixed(4)} 元/份
+            摊薄成本（含费用） {((price * quantity + (form.getFieldValue('fees') ?? 0)) / quantity).toFixed(4)} 元/份
           </p>
         ) : null}
 

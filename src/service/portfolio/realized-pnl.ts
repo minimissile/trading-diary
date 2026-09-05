@@ -1,4 +1,3 @@
-import type { InstrumentKind } from '../../shared/market/types';
 import type {
   ClosedPositionSummary,
   PortfolioLedgerEntry,
@@ -7,13 +6,7 @@ import type {
   RealizedTradeView,
 } from '../../shared/portfolio/types';
 import { aggregatePositions, ledgerQuantityDelta } from './ledger-service';
-import {
-  computeTTradingPnlForSell,
-  createTBuyLot,
-  supportsTTrading,
-  tTradingDayKey,
-  type TBuyLotMutable,
-} from './t-trading-pnl';
+import { computeTTradingPnlForSell, createTBuyLot, supportsTTrading, tTradingDayKey, type TBuyLotMutable } from './t-trading-pnl';
 
 type RealizedTradeCore = Omit<RealizedTradeView, 'name'>;
 type ClosedPositionCore = Omit<ClosedPositionSummary, 'name'>;
@@ -70,10 +63,9 @@ export function computeRealizedTrades(entries: readonly PortfolioLedgerEntry[]):
       const grossProceeds = sellQty * entry.price;
       const sellFees = entry.fees;
       const realizedPnl = grossProceeds - sellFees - costBasis;
-      const tTradingPnl =
-        supportsTTrading(entry.kind)
-          ? computeTTradingPnlForSell(entry, sellQty, tBuyLotsByDay.get(tTradingDayKey(entry)) ?? [])
-          : null;
+      const tTradingPnl = supportsTTrading(entry.kind)
+        ? computeTTradingPnlForSell(entry, sellQty, tBuyLotsByDay.get(tTradingDayKey(entry)) ?? [])
+        : null;
 
       totalCost -= avgCost * sellQty;
       quantity -= sellQty;
@@ -181,15 +173,11 @@ export function buildRealizedHistory(
   closedPositions: ClosedPositionCore[];
 } {
   const allTrades = computeRealizedTrades(entries);
-  const trades = year
-    ? allTrades.filter((trade) => trade.tradeAt.slice(0, 4) === String(year))
-    : allTrades;
+  const trades = year ? allTrades.filter((trade) => trade.tradeAt.slice(0, 4) === String(year)) : allTrades;
 
   const openKeys = collectOpenPositionKeys(entries);
   const allClosed = computeClosedPositionSummaries(allTrades, openKeys);
-  const closedPositions = year
-    ? allClosed.filter((item) => item.lastSellAt.slice(0, 4) === String(year))
-    : allClosed;
+  const closedPositions = year ? allClosed.filter((item) => item.lastSellAt.slice(0, 4) === String(year)) : allClosed;
 
   return {
     trades,

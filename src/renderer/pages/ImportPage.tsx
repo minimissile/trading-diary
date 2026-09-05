@@ -143,7 +143,7 @@ export function ImportPage(): React.JSX.Element {
   ];
 
   return (
-    <main className="workspace-page">
+    <main className="workspace-page import-page">
       <header className="page-header">
         <div>
           <p className="page-kicker">CSV IMPORT</p>
@@ -159,15 +159,27 @@ export function ImportPage(): React.JSX.Element {
       />
 
       {step === 0 ? (
-        <section className="import-panel">
-          <p>支持常见券商导出的 CSV / TSV，表头含「代码、方向、数量、价格、时间」等字段时可自动识别。</p>
-          <Button type="primary" size="large" icon={<UploadOutlined />} loading={busy} onClick={() => void selectFile()}>
-            选择 CSV 文件
-          </Button>
+        <section className="import-panel import-start">
+          <div>
+            <UploadOutlined className="import-start-icon" />
+            <h2>选择券商成交流水</h2>
+            <p>支持常见券商导出的 CSV / TSV，表头含「代码、方向、数量、价格、时间」等字段时可自动识别。</p>
+            <Button type="primary" icon={<UploadOutlined />} loading={busy} onClick={() => void selectFile()}>
+              选择 CSV 文件
+            </Button>
+          </div>
+          <aside>
+            <h3>导入前准备</h3>
+            <ol>
+              <li>从券商导出 CSV 或 TSV 文件</li>
+              <li>核对标的、方向、数量、价格与时间</li>
+              <li>预览并确认后写入，重复成交自动跳过</li>
+            </ol>
+          </aside>
         </section>
       ) : null}
 
-      {step >= 1 && csv && mapping ? (
+      {step === 1 && csv && mapping ? (
         <section className="import-panel">
           <div className="import-file-meta">
             <strong>{csv.fileName}</strong>
@@ -219,8 +231,12 @@ export function ImportPage(): React.JSX.Element {
         </section>
       ) : null}
 
-      {step >= 2 && preview ? (
+      {step === 2 && preview ? (
         <section className="import-panel">
+          <div className="import-file-meta">
+            <h2>核对导入预览</h2>
+            <span>{csv?.fileName}</span>
+          </div>
           <div className="import-summary-tags">
             <Tag color="success">可导入 {preview.readyCount}</Tag>
             <Tag color="error">异常 {preview.errorCount}</Tag>
@@ -243,7 +259,7 @@ export function ImportPage(): React.JSX.Element {
 
       {step === 3 ? (
         <section className="import-panel import-panel--done">
-          <CheckCircleOutlined style={{ fontSize: 40, color: '#39d3c3' }} />
+          <CheckCircleOutlined style={{ fontSize: 40, color: 'var(--ui-accent)' }} />
           <h2>导入完成</h2>
           <p>成交已写入交易回合，可在交易日记查看待复盘项目。</p>
           <Space>

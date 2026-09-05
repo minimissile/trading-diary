@@ -1,13 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Alert, App, Button, Drawer, Segmented, Skeleton, Table, Tag, Tooltip } from 'antd';
+import { Alert, Button, Drawer, Empty, Input, Segmented, Skeleton, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { ReloadOutlined } from '@ant-design/icons';
-import type {
-  DividendPoolItemLive,
-  GrowthPoolItemLive,
-  OverlapPoolItemLive,
-  WatchlistPoolId,
-} from '../../shared/api.types';
+import { ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import type { DividendPoolItemLive, GrowthPoolItemLive, OverlapPoolItemLive, WatchlistPoolId } from '../../shared/api.types';
 import type { DividendEvent } from '../../shared/api.types';
 import { useMarketSnapshotQuery, useWatchlistPoolSnapshotQuery, useWatchlistPoolsQuery } from '../lib/queries';
 import { formatPrice, ValueDisplay } from '../lib/trading-format';
@@ -27,11 +22,12 @@ function stabilityColor(grade: string): string {
 }
 
 export function WatchlistPage(): React.JSX.Element {
-  const { message } = App.useApp();
   const { pools, isLoading: loadingMeta } = useWatchlistPoolsQuery();
+  const [search, setSearch] = useState('');
   const [activePool, setActivePool] = useState<PoolTab>('dividend');
   const {
     snapshot,
+    error: snapshotError,
     isLoading: loadingSnapshot,
     isFetching: refreshing,
     refetch: refetchSnapshot,
@@ -70,9 +66,7 @@ export function WatchlistPage(): React.JSX.Element {
         key: 'change',
         width: 88,
         align: 'right',
-        render: (_, row) => (
-          <ValueDisplay kind="percent" value={row.quote?.changePercent ?? null} />
-        ),
+        render: (_, row) => <ValueDisplay kind="percent" value={row.quote?.changePercent ?? null} />,
       },
       {
         title: '实时股息率',
@@ -152,9 +146,7 @@ export function WatchlistPage(): React.JSX.Element {
         key: 'change',
         width: 88,
         align: 'right',
-        render: (_, row) => (
-          <ValueDisplay kind="percent" value={row.quote?.changePercent ?? null} />
-        ),
+        render: (_, row) => <ValueDisplay kind="percent" value={row.quote?.changePercent ?? null} />,
       },
       {
         title: '营收 CAGR',
@@ -235,9 +227,7 @@ export function WatchlistPage(): React.JSX.Element {
         key: 'change',
         width: 88,
         align: 'right',
-        render: (_, row) => (
-          <ValueDisplay kind="percent" value={row.quote?.changePercent ?? null} />
-        ),
+        render: (_, row) => <ValueDisplay kind="percent" value={row.quote?.changePercent ?? null} />,
       },
       {
         title: '实时股息率',
@@ -282,6 +272,10 @@ export function WatchlistPage(): React.JSX.Element {
   );
 
   const activeMeta = pools.find((pool) => pool.id === activePool) ?? snapshot?.meta;
+  const matchesSearch = (row: { name: string; symbol: string }): boolean => {
+    const query = search.trim().toLowerCase();
+    return !query || `${row.name} ${row.symbol}`.toLowerCase().includes(query);
+  };
   const tableLoading = loadingMeta || loadingSnapshot;
 
   return (
@@ -290,104 +284,153 @@ export function WatchlistPage(): React.JSX.Element {
         <div>
           <p className="page-kicker">WATCHLIST</p>
           <h1>自选观察池</h1>
-          <p className="page-intro">
-            基于 2026-08-26 研究文档的长期观察清单。财务与 CAGR 为文档快照，现价与股息率由东方财富 API 实时刷新。
-          </p>
+          <p className="page-intro">按股息、成长与交集策略观察标的，结合行情核对研究逻辑。</p>
         </div>
-        <Button
-          icon={<ReloadOutlined spin={refreshing} />}
-          loading={refreshing}
-          onClick={() => void refetchSnapshot()}
-        >
+        <Button icon={<ReloadOutlined spin={refreshing} />} loading={refreshing} onClick={() => void refetchSnapshot()}>
           刷新行情
         </Button>
       </header>
 
-      <Alert
-        className="watchlist-disclaimer"
-        type="info"
-        showIcon
-        title="长期观察池，不代表即时买入建议"
-        description="静态高股息率可能来自股价下跌；进入池不等于可以买入。单一行业不超过 25%，银行选 1—2 只，高速公路选 1 只。"
-      />
+      <section className="watchlist-research" aria-label="观察池说明">
+        <div className="watchlist-research-heading">
+          <div>
+            <h2>{activeMeta?.title ?? '观察清单'}</h2>
+            <p>长期观察池，不代表即时买入建议</p>
+          </div>
+          <div className="watchlist-context">
+            <span>
+              文档快照 <strong>{activeMeta?.dataDate ?? '—'}</strong>
+            </span>
+            <span>
+              行情更新{' '}
+              <strong>
+                {snapshot?.fetchedAt
+                  ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(
+                      new Date(snapshot.fetchedAt),
+                    )
+                  : '—'}
+              </strong>
+            </span>
+          </div>
+        </div>
+        <details className="watchlist-research-notes">
+          <summary>查看研究要点与数据口径</summary>
+          <p>财务与 CAGR 为研究文档快照，现价与股息率由东方财富 API 刷新。静态高股息率可能来自股价下跌；进入池不等于可以买入。</p>
+          <p>原文配置约束：单一行业不超过 25%，银行选 1—2 只，高速公路选 1 只。</p>
+          {snapshot?.highlights.length ? (
+            <ul>
+              {snapshot.highlights.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          ) : null}
+        </details>
+      </section>
 
-      <div className="page-toolbar watchlist-toolbar">
-        <Segmented<PoolTab>
-          options={pools.map((pool) => ({
-            label: `${pool.title} ${pool.itemCount}`,
-            value: pool.id,
-          }))}
-          value={activePool}
-          onChange={setActivePool}
-        />
-        {activeMeta ? (
-          <span className="watchlist-meta">
-            文档快照 {activeMeta.dataDate}
-            {snapshot?.fetchedAt ? (
-              <>
-                {' '}
-                · 行情刷新{' '}
-                {new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(
-                  new Date(snapshot.fetchedAt),
-                )}
-              </>
-            ) : null}
-          </span>
+      <section className="watchlist-results" aria-label="观察标的">
+        <div className="watchlist-results-heading">
+          <h2>
+            观察标的 <span>{snapshot?.items.filter(matchesSearch).length ?? 0}</span>
+          </h2>
+          <span>点击标的查看行情与分红详情</span>
+        </div>
+        <div className="watchlist-controls">
+          <Segmented<PoolTab>
+            options={pools.map((pool) => ({ label: `${pool.title} ${pool.itemCount}`, value: pool.id }))}
+            value={activePool}
+            onChange={setActivePool}
+          />
+          <Input
+            className="watchlist-search"
+            allowClear
+            prefix={<SearchOutlined />}
+            aria-label="搜索观察标的"
+            placeholder="搜索名称或代码"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </div>
+        {snapshotError ? (
+          <Alert
+            type="error"
+            showIcon
+            title="行情加载失败"
+            description={snapshotError.message}
+            action={
+              <Button size="small" onClick={() => void refetchSnapshot()}>
+                重试
+              </Button>
+            }
+          />
         ) : null}
-      </div>
-
-      {snapshot?.highlights.length ? (
-        <ul className="watchlist-highlights">
-          {snapshot.highlights.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      ) : null}
-
-      {tableLoading && !snapshot ? (
-        <Skeleton active paragraph={{ rows: 12 }} />
-      ) : snapshot?.poolId === 'dividend' ? (
-        <Table<DividendPoolItemLive>
-          className="watchlist-table"
-          columns={dividendColumns}
-          dataSource={snapshot.items}
-          loading={tableLoading}
-          pagination={false}
-          rowKey="symbol"
-          scroll={{ x: 1280 }}
-          size="small"
-        />
-      ) : snapshot?.poolId === 'growth' ? (
-        <Table<GrowthPoolItemLive>
-          className="watchlist-table"
-          columns={growthColumns}
-          dataSource={snapshot.items}
-          loading={tableLoading}
-          pagination={false}
-          rowKey="symbol"
-          scroll={{ x: 1200 }}
-          size="small"
-        />
-      ) : snapshot?.poolId === 'overlap' ? (
-        <Table<OverlapPoolItemLive>
-          className="watchlist-table"
-          columns={overlapColumns}
-          dataSource={snapshot.items}
-          loading={tableLoading}
-          pagination={false}
-          rowKey="symbol"
-          scroll={{ x: 1100 }}
-          size="small"
-        />
-      ) : null}
+        {tableLoading && !snapshot ? (
+          <Skeleton active paragraph={{ rows: 12 }} />
+        ) : snapshot?.poolId === 'dividend' ? (
+          <Table<DividendPoolItemLive>
+            className="watchlist-table"
+            columns={dividendColumns}
+            dataSource={snapshot.items.filter(matchesSearch)}
+            loading={tableLoading}
+            locale={{
+              emptyText: (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={search.trim() ? '未找到匹配标的' : '当前观察池暂无标的'}>
+                  {search.trim() ? <Button onClick={() => setSearch('')}>清除搜索</Button> : null}
+                </Empty>
+              ),
+            }}
+            pagination={false}
+            rowKey="symbol"
+            scroll={{ x: 1280 }}
+            size="small"
+          />
+        ) : snapshot?.poolId === 'growth' ? (
+          <Table<GrowthPoolItemLive>
+            className="watchlist-table"
+            columns={growthColumns}
+            dataSource={snapshot.items.filter(matchesSearch)}
+            loading={tableLoading}
+            locale={{
+              emptyText: (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={search.trim() ? '未找到匹配标的' : '当前观察池暂无标的'}>
+                  {search.trim() ? <Button onClick={() => setSearch('')}>清除搜索</Button> : null}
+                </Empty>
+              ),
+            }}
+            pagination={false}
+            rowKey="symbol"
+            scroll={{ x: 1200 }}
+            size="small"
+          />
+        ) : snapshot?.poolId === 'overlap' ? (
+          <Table<OverlapPoolItemLive>
+            className="watchlist-table"
+            columns={overlapColumns}
+            dataSource={snapshot.items.filter(matchesSearch)}
+            loading={tableLoading}
+            locale={{
+              emptyText: (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={search.trim() ? '未找到匹配标的' : '当前观察池暂无标的'}>
+                  {search.trim() ? <Button onClick={() => setSearch('')}>清除搜索</Button> : null}
+                </Empty>
+              ),
+            }}
+            pagination={false}
+            rowKey="symbol"
+            scroll={{ x: 1100 }}
+            size="small"
+          />
+        ) : !snapshotError ? (
+          <Empty description="暂无观察数据" />
+        ) : null}
+      </section>
 
       <Drawer
+        className="watchlist-detail-drawer"
         title={detailSnapshot ? `${detailSnapshot.instrument.name} (${detailSnapshot.instrument.symbol})` : detailSymbol}
         open={detailSymbol !== null}
         size={480}
         onClose={() => {
           setDetailSymbol(null);
-          setDetailSnapshot(null);
         }}
       >
         {detailLoading ? (

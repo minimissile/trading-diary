@@ -31,12 +31,11 @@ interface FormValues {
 /**
  * 录入买卖成交，自动归入交易回合。
  */
-export function ExecutionEntryModal({
-  open,
-  onClose,
-  onSaved,
-  defaultAccountId,
-}: ExecutionEntryModalProps): React.JSX.Element {
+export function ExecutionEntryModal(props: ExecutionEntryModalProps): React.JSX.Element {
+  return props.open ? <ExecutionEntryModalContent key={props.defaultAccountId} {...props} /> : <></>;
+}
+
+function ExecutionEntryModalContent({ open, onClose, onSaved, defaultAccountId }: ExecutionEntryModalProps): React.JSX.Element {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
@@ -52,30 +51,26 @@ export function ExecutionEntryModal({
   const quantity = Form.useWatch('quantity', form);
   const tradeAt = Form.useWatch('tradeAt', form);
 
-  const loadQuote = useCallback(async (symbol: string): Promise<void> => {
-    setQuoteLoading(true);
-    try {
-      const snapshot = await window.desktop.market.getSnapshot(symbol);
-      setQuote(snapshot.quote);
-      if (snapshot.quote.price !== null) {
-        form.setFieldValue('price', snapshot.quote.price);
+  const loadQuote = useCallback(
+    async (symbol: string): Promise<void> => {
+      setQuoteLoading(true);
+      try {
+        const snapshot = await window.desktop.market.getSnapshot(symbol);
+        setQuote(snapshot.quote);
+        if (snapshot.quote.price !== null) {
+          form.setFieldValue('price', snapshot.quote.price);
+        }
+      } catch {
+        setQuote(null);
+      } finally {
+        setQuoteLoading(false);
       }
-    } catch {
-      setQuote(null);
-    } finally {
-      setQuoteLoading(false);
-    }
-  }, [form]);
+    },
+    [form],
+  );
 
   useEffect(() => {
-    if (!open) {
-      form.resetFields();
-      setResolved(null);
-      setResolving(false);
-      setQuote(null);
-      setQuoteLoading(false);
-      return;
-    }
+    if (!open) return;
     form.setFieldsValue({
       accountId: defaultAccountId,
       side: 'buy',
@@ -222,7 +217,16 @@ export function ExecutionEntryModal({
             <InputNumber min={0.0001} precision={4} />
           </Form.Item>
           <Form.Item label="费用" name="fees" rules={[{ required: true }]}>
-            <InputNumber min={0} precision={2} prefix="¥" addonAfter={<Button type="link" size="small" loading={estimating} onClick={() => void estimateFees()}>估算</Button>} />
+            <InputNumber
+              min={0}
+              precision={2}
+              prefix="¥"
+              addonAfter={
+                <Button type="link" size="small" loading={estimating} onClick={() => void estimateFees()}>
+                  估算
+                </Button>
+              }
+            />
           </Form.Item>
         </div>
 

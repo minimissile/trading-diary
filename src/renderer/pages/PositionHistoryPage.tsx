@@ -1,13 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Button, Empty, Segmented, Skeleton, Table, Tag } from 'antd';
+import { Button, Empty, Input, Select, Segmented, Skeleton, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, SearchOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router';
 import type { InstrumentKind } from '../../shared/market/types';
-import type {
-  ClosedPositionSummary,
-  RealizedTradeView,
-} from '../../shared/portfolio/types';
+import type { ClosedPositionSummary, RealizedTradeView } from '../../shared/portfolio/types';
 import { ALL_ACCOUNTS_ID } from '../../shared/accounts/constants';
 import { AccountSelect } from '../components/trading/AccountSelect';
 import { useRealizedHistoryQuery } from '../lib/queries';
@@ -37,6 +34,7 @@ export function PositionHistoryPage(): React.JSX.Element {
   const navigate = useNavigate();
   const [accountId, setAccountId] = useState<string>(ALL_ACCOUNTS_ID);
   const [year, setYear] = useState<number>(new Date().getFullYear());
+  const [query, setQuery] = useState('');
   const [tab, setTab] = useState<HistoryTab>('trades');
   const { history, isLoading: loading } = useRealizedHistoryQuery(accountId, year);
   const yearOptions = useMemo(() => {
@@ -113,16 +111,14 @@ export function PositionHistoryPage(): React.JSX.Element {
         dataIndex: 'tTradingPnl',
         width: 108,
         align: 'right',
-        render: (value: number | null) =>
-          value === null ? '—' : <ValueDisplay kind="pnl" value={value} />,
+        render: (value: number | null) => (value === null ? '—' : <ValueDisplay kind="pnl" value={value} />),
       },
       {
         title: '收益率',
         dataIndex: 'returnPercent',
         width: 96,
         align: 'right',
-        render: (value: number | null) =>
-          value === null ? '—' : <ValueDisplay kind="percent" value={value} />,
+        render: (value: number | null) => (value === null ? '—' : <ValueDisplay kind="percent" value={value} />),
       },
     ],
     [],
@@ -185,7 +181,11 @@ export function PositionHistoryPage(): React.JSX.Element {
   );
 
   const summary = history?.summary;
-  const tableData = tab === 'trades' ? (history?.trades ?? []) : (history?.closedPositions ?? []);
+  const matchesSearch = (row: { symbol: string; name: string }): boolean =>
+    `${row.symbol} ${row.name}`.toLowerCase().includes(query.trim().toLowerCase());
+  const trades = (history?.trades ?? []).filter(matchesSearch);
+  const closedPositions = (history?.closedPositions ?? []).filter(matchesSearch);
+  const resultCount = tab === 'trades' ? trades.length : closedPositions.length;
 
   return (
     <main className="workspace-page portfolio-page portfolio-history-page">
@@ -193,16 +193,13 @@ export function PositionHistoryPage(): React.JSX.Element {
         <div>
           <p className="page-kicker">REALIZED PNL</p>
           <h1>历史持仓</h1>
-          <p className="page-intro">
-            按每笔卖出记录已实现盈亏（移动加权成本）；「做 T 收益」为同日先买后卖配对；「已清仓」汇总完全退出的标的。
-          </p>
+          <p className="page-intro">回顾已实现盈亏，按卖出明细或已清仓标的查找历史交易。</p>
         </div>
         <div className="portfolio-header-actions">
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(routePaths.positions)}>
             返回持仓
           </Button>
           <AccountSelect value={accountId} onChange={setAccountId} includeAllOption className="portfolio-account-select" />
-          <Segmented<number> options={yearOptions} value={year} onChange={setYear} />
         </div>
       </header>
 
@@ -224,7 +221,9 @@ export function PositionHistoryPage(): React.JSX.Element {
             <article className="portfolio-metric-card">
               <small>卖出笔数</small>
               <strong>{summary?.tradeCount ?? 0}</strong>
-              <span>盈利 {summary?.winCount ?? 0} · 亏损 {summary?.lossCount ?? 0}</span>
+              <span>
+                盈利 {summary?.winCount ?? 0} · 亏损 {summary?.lossCount ?? 0}
+              </span>
             </article>
             <article className="portfolio-metric-card">
               <small>已清仓标的</small>
@@ -233,34 +232,68 @@ export function PositionHistoryPage(): React.JSX.Element {
             </article>
           </section>
 
-          <div className="page-toolbar portfolio-filters">
-            <Segmented<HistoryTab>
-              options={[
-                { label: '卖出明细', value: 'trades' },
-                { label: '已清仓汇总', value: 'closed' },
-              ]}
-              value={tab}
-              onChange={setTab}
-            />
-          </div>
+          <section className="history-results">
+            <div className="history-results-heading">
+              <div>
+                <h2>
+                  历史记录 <span>{resultCount}</span>
+                </h2>
+                <p>列表搜索不影响年度汇总</p>
+              </div>
+              <Select aria-label="统计年份" options={yearOptions} value={year} onChange={setYear} />
+            </div>
+            <div className="page-toolbar portfolio-filters">
+              <Segmented<HistoryTab>
+                options={[
+                  { label: '卖出明细', value: 'trades' },
+                  { label: '已清仓汇总', value: 'closed' },
+                ]}
+                value={tab}
+                onChange={setTab}
+              />
+              <Input
+                className="history-search"
+                allowClear
+                prefix={<SearchOutlined />}
+                aria-label="搜索历史持仓"
+                placeholder="搜索名称或代码"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
 
-          {tableData.length === 0 ? (
-            <Empty description={tab === 'trades' ? '暂无卖出记录' : '暂无已清仓标的'}>
-              <Link to={routePaths.positions}>
-                <Button type="primary">去持仓页</Button>
-              </Link>
-            </Empty>
-          ) : (
-            <Table
-              className="watchlist-table"
-              columns={tab === 'trades' ? tradeColumns : closedColumns}
-              dataSource={tableData}
-              rowKey={tab === 'trades' ? 'id' : (row) => `${row.accountId}:${row.symbol}`}
-              pagination={{ pageSize: 20, hideOnSinglePage: true }}
-              size="small"
-              scroll={{ x: tab === 'trades' ? 1220 : 900 }}
-            />
-          )}
+            {resultCount === 0 ? (
+              <Empty description={query.trim() ? '未找到匹配记录' : tab === 'trades' ? '暂无卖出记录' : '暂无已清仓标的'}>
+                <Link to={routePaths.positions}>
+                  <Button type="primary">去持仓页</Button>
+                </Link>
+              </Empty>
+            ) : tab === 'trades' ? (
+              <Table<RealizedTradeView>
+                className="watchlist-table"
+                columns={tradeColumns}
+                dataSource={trades}
+                rowKey="id"
+                pagination={{ pageSize: 20, hideOnSinglePage: true }}
+                size="small"
+                scroll={{ x: 1220 }}
+              />
+            ) : (
+              <Table<ClosedPositionSummary>
+                className="watchlist-table"
+                columns={closedColumns}
+                dataSource={closedPositions}
+                rowKey={(row) => `${row.accountId}:${row.symbol}`}
+                pagination={{ pageSize: 20, hideOnSinglePage: true }}
+                size="small"
+                scroll={{ x: 900 }}
+              />
+            )}
+            <details className="history-method">
+              <summary>查看统计口径</summary>
+              <p>每笔卖出的已实现盈亏使用移动加权成本；做 T 收益为同日先买后卖配对；已清仓汇总完全退出的标的。</p>
+            </details>
+          </section>
         </>
       )}
     </main>

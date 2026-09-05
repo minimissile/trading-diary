@@ -1,3 +1,4 @@
+import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useMemo, useState } from 'react';
 import { App, Button, Empty, Form, Input, Modal, Segmented, Select, Skeleton, Tag } from 'antd';
 import type {
@@ -24,13 +25,21 @@ export function PlaybookPage(): React.JSX.Element {
   const [form] = Form.useForm<RuleFormValues>();
   const { rules, isLoading: loading, refetch } = usePlaybookQuery();
   const [filter, setFilter] = useState<RuleFilter>('active');
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState<PlaybookRuleCategory | 'all'>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<PlaybookRule | null>(null);
   const [saving, setSaving] = useState(false);
 
   const visibleRules = useMemo(
-    () => rules.filter((rule) => rule.status === (filter === 'active' ? 'active' : 'archived')),
-    [filter, rules],
+    () =>
+      rules.filter(
+        (rule) =>
+          rule.status === filter &&
+          (category === 'all' || rule.category === category) &&
+          `${rule.content} ${rule.symbol ?? ''}`.toLowerCase().includes(query.trim().toLowerCase()),
+      ),
+    [filter, rules, category, query],
   );
 
   const openCreate = (): void => {
@@ -93,19 +102,23 @@ export function PlaybookPage(): React.JSX.Element {
   };
 
   return (
-    <main className="workspace-page">
+    <main className="workspace-page playbook-page">
       <header className="page-header">
         <div>
           <p className="page-kicker">PLAYBOOK</p>
           <h1>规则库</h1>
           <p className="page-intro">把复盘教训沉淀为可复用规则，激活计划前自动检查。</p>
         </div>
-        <Button type="primary" size="large" onClick={openCreate}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
           新建规则
         </Button>
       </header>
 
-      <div className="page-toolbar">
+      <section className="library-intro">
+        <h2>执行前检查，复盘后更新</h2>
+        <p>规则按适用标的和检查时机使用，保留具体、可执行的约束。</p>
+      </section>
+      <div className="library-toolbar">
         <Segmented<RuleFilter>
           options={[
             { label: `生效中 ${rules.filter((rule) => rule.status === 'active').length}`, value: 'active' },
@@ -114,15 +127,39 @@ export function PlaybookPage(): React.JSX.Element {
           value={filter}
           onChange={setFilter}
         />
+        <div className="library-search-controls">
+          <Select
+            aria-label="规则分类"
+            value={category}
+            onChange={setCategory}
+            options={[
+              { label: '全部分类', value: 'all' },
+              ...Object.entries(playbookCategoryLabels).map(([value, label]) => ({ value, label })),
+            ]}
+          />
+          <Input
+            prefix={<SearchOutlined />}
+            allowClear
+            placeholder="搜索规则或标的"
+            aria-label="搜索规则"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
       </div>
 
       {loading ? (
         <Skeleton active paragraph={{ rows: 10 }} />
       ) : visibleRules.length === 0 ? (
         <div className="empty-panel">
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有规则，完成复盘后会自动写入">
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              query.trim() || category !== 'all' ? '未找到匹配规则' : filter === 'archived' ? '暂无归档规则' : '还没有生效规则'
+            }
+          >
             <Button type="primary" onClick={openCreate}>
-              手动添加第一条
+              手动添加规则
             </Button>
           </Empty>
         </div>
@@ -140,11 +177,8 @@ export function PlaybookPage(): React.JSX.Element {
                 <span>{formatDateTime(rule.updatedAt)} 更新</span>
                 {rule.status === 'active' ? (
                   <div className="playbook-rule-card-actions">
-                    <Button size="small" onClick={() => openEdit(rule)}>
-                      编辑
-                    </Button>
+                    <Button onClick={() => openEdit(rule)}>编辑</Button>
                     <Button
-                      size="small"
                       onClick={() => {
                         modal.confirm(
                           withConfirmDefaults({

@@ -16,21 +16,20 @@ interface FormValues {
   executionScore: number;
 }
 
-export function SipReviewModal({ open, planId, onClose, onSaved }: SipReviewModalProps): React.JSX.Element {
+export function SipReviewModal(props: SipReviewModalProps): React.JSX.Element {
+  return props.open ? <SipReviewModalContent key={props.planId ?? undefined} {...props} /> : <></>;
+}
+
+function SipReviewModalContent({ open, planId, onClose, onSaved }: SipReviewModalProps): React.JSX.Element {
   const { message } = App.useApp();
   const [form] = Form.useForm<FormValues>();
   const [template, setTemplate] = useState<SipReviewTemplate | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!open || !planId) {
-      setTemplate(null);
-      form.resetFields();
-      return;
-    }
+    if (!open || !planId) return;
     let active = true;
-    setLoading(true);
     void window.desktop.sip
       .getReviewTemplate(planId)
       .then((next) => {

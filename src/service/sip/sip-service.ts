@@ -149,9 +149,7 @@ export class SipService {
     return buildSipReviewTemplate(
       plan,
       stats,
-      position
-        ? { quantity: position.quantity, avgCost: position.avgCost, unrealizedPnl: null }
-        : undefined,
+      position ? { quantity: position.quantity, avgCost: position.avgCost, unrealizedPnl: null } : undefined,
     );
   }
 
@@ -184,6 +182,8 @@ export class SipService {
     return this.sip.skipOccurrence(id, reason);
   }
 
+  // Service boundary intentionally converts synchronous database failures to rejected promises.
+  // eslint-disable-next-line @typescript-eslint/require-await
   async confirmOccurrence(input: ConfirmFundSipOccurrenceInput): Promise<ConfirmFundSipOccurrenceResult> {
     const occurrence = this.sip.getOccurrence(input.id);
     const plan = this.sip.getPlan(occurrence.planId);

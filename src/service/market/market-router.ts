@@ -1,14 +1,9 @@
-import type { InstrumentInfo, MarketQuote, MarketSearchHit } from '../../../shared/market/types';
+import type { InstrumentInfo, MarketQuote, MarketSearchHit } from '../../shared/market/types';
 import { parseInstrumentInput, instrumentPositionKey } from '../../shared/market/instrument-id';
 import type { InstrumentVenue } from '../../shared/market/venues';
 import { resolveInstrument, resolveEastMoneyByVenue, searchInstrumentsScoped } from './eastmoney/search-service';
 import { enrichEastMoneyInstrument, enrichEastMoneyQuote } from './eastmoney/enrich';
-import {
-  fetchYahooQuote,
-  fetchYahooQuotes,
-  resolveYahooInstrument,
-  searchYahooInstruments,
-} from './yahoo/quote-service';
+import { fetchYahooQuote, fetchYahooQuotes, resolveYahooInstrument, searchYahooInstruments } from './yahoo/quote-service';
 import { detectExchangeMarket, normalizeSymbol } from './eastmoney/symbols';
 
 function isOffshoreVenue(venue: InstrumentVenue): venue is Extract<InstrumentVenue, 'HK' | 'US'> {
@@ -35,10 +30,7 @@ async function resolveOffshoreInstrument(
   }
 }
 
-async function fetchOffshoreQuote(
-  venue: Extract<InstrumentVenue, 'HK' | 'US'>,
-  symbol: string,
-): Promise<MarketQuote> {
+async function fetchOffshoreQuote(venue: Extract<InstrumentVenue, 'HK' | 'US'>, symbol: string): Promise<MarketQuote> {
   try {
     const { getQuoteByVenue } = await import('./eastmoney/quote-service');
     return await getQuoteByVenue(venue, symbol);
@@ -57,11 +49,7 @@ export async function resolveInstrumentMulti(raw: string): Promise<InstrumentInf
   return enrichEastMoneyInstrument(info);
 }
 
-export async function searchInstrumentsMulti(
-  query: string,
-  scopes: readonly string[],
-  limit = 10,
-): Promise<MarketSearchHit[]> {
+export async function searchInstrumentsMulti(query: string, scopes: readonly string[], limit = 10): Promise<MarketSearchHit[]> {
   const includeCn = scopes.includes('CN_A');
   const includeHk = scopes.includes('HK');
   const includeUs = scopes.includes('US');
@@ -107,22 +95,18 @@ export async function getQuoteMulti(raw: string): Promise<MarketQuote> {
   const { getQuote } = await import('./eastmoney/quote-service');
   const quote = await getQuote(symbol);
   const market = detectExchangeMarket(symbol);
-  const venue: InstrumentVenue = quote.kind === 'otc_fund' ? 'OTC' : market ?? 'SH';
+  const venue: InstrumentVenue = quote.kind === 'otc_fund' ? 'OTC' : (market ?? 'SH');
   return enrichEastMoneyQuote(quote, venue);
 }
 
-export async function getQuotesMulti(
-  items: Array<{ symbol: string; venue?: InstrumentVenue }>,
-): Promise<MarketQuote[]> {
+export async function getQuotesMulti(items: Array<{ symbol: string; venue?: InstrumentVenue }>): Promise<MarketQuote[]> {
   const cnSymbols: string[] = [];
   const otcSymbols: string[] = [];
   const offshoreItems: Array<{ venue: Extract<InstrumentVenue, 'HK' | 'US'>; symbol: string }> = [];
   const yahooFallbackItems: Array<{ venue: Extract<InstrumentVenue, 'HK' | 'US'>; symbol: string }> = [];
 
   for (const item of items) {
-    const parsed = item.venue
-      ? { venue: item.venue, symbol: normalizeSymbol(item.symbol) }
-      : tryParseInput(item.symbol);
+    const parsed = item.venue ? { venue: item.venue, symbol: normalizeSymbol(item.symbol) } : tryParseInput(item.symbol);
     if (!parsed) {
       cnSymbols.push(normalizeSymbol(item.symbol));
       continue;
@@ -137,9 +121,7 @@ export async function getQuotesMulti(
   }
 
   const [cnQuotes, otcQuotes, offshoreQuotes] = await Promise.all([
-    cnSymbols.length > 0
-      ? import('./eastmoney/quote-service').then((mod) => mod.getQuotes(cnSymbols))
-      : Promise.resolve([]),
+    cnSymbols.length > 0 ? import('./eastmoney/quote-service').then((mod) => mod.getQuotes(cnSymbols)) : Promise.resolve([]),
     Promise.all(
       otcSymbols.map(async (symbol) => {
         try {
@@ -157,9 +139,7 @@ export async function getQuotesMulti(
       }),
     ).then((quotes) => quotes.filter((item): item is MarketQuote => item !== null)),
     offshoreItems.length > 0
-      ? import('./eastmoney/quote-service')
-          .then((mod) => mod.getQuotesByVenue(offshoreItems))
-          .catch(() => [] as MarketQuote[])
+      ? import('./eastmoney/quote-service').then((mod) => mod.getQuotesByVenue(offshoreItems)).catch(() => [] as MarketQuote[])
       : Promise.resolve([]),
   ]);
 
@@ -174,12 +154,11 @@ export async function getQuotesMulti(
     }
   }
 
-  const yahooQuotes =
-    yahooFallbackItems.length > 0 ? await fetchYahooQuotes(yahooFallbackItems) : [];
+  const yahooQuotes = yahooFallbackItems.length > 0 ? await fetchYahooQuotes(yahooFallbackItems) : [];
 
   const enrichedCn = cnQuotes.map((quote) => {
     const market = detectExchangeMarket(quote.symbol);
-    const venue: InstrumentVenue = quote.kind === 'otc_fund' ? 'OTC' : market ?? 'SH';
+    const venue: InstrumentVenue = quote.kind === 'otc_fund' ? 'OTC' : (market ?? 'SH');
     return enrichEastMoneyQuote(quote, venue);
   });
 

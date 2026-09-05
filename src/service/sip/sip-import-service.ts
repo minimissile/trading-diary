@@ -1,4 +1,3 @@
-import type { InstrumentKind } from '../../shared/market/types';
 import type {
   SipAiExtractedRecord,
   SipAiImportInput,
@@ -221,15 +220,7 @@ export class SipImportService {
     }
 
     const { value } = normalized;
-    if (
-      this.database.portfolio.hasSimilarSipImport(
-        accountId,
-        value.symbol,
-        value.tradeAt,
-        value.quantity,
-        value.nav,
-      )
-    ) {
+    if (this.database.portfolio.hasSimilarSipImport(accountId, value.symbol, value.tradeAt, value.quantity, value.nav)) {
       return {
         rowIndex,
         status: 'duplicate',
@@ -285,7 +276,7 @@ export class SipImportService {
         const input = inferSipPlanInputFromImport(rows, planHints);
         const plan = this.sip.createPlan(input, {
           name: instrument.name,
-          kind: instrument.kind as InstrumentKind,
+          kind: instrument.kind,
           accountId,
         });
         plans.set(symbol, plan);
@@ -319,15 +310,7 @@ export class SipImportService {
     );
 
     for (const { index, value } of normalizedRows) {
-      if (
-        this.database.portfolio.hasSimilarSipImport(
-          accountId,
-          value.symbol,
-          value.tradeAt,
-          value.quantity,
-          value.nav,
-        )
-      ) {
+      if (this.database.portfolio.hasSimilarSipImport(accountId, value.symbol, value.tradeAt, value.quantity, value.nav)) {
         skippedDuplicate += 1;
         continue;
       }
@@ -338,14 +321,13 @@ export class SipImportService {
           throw new Error('定投仅支持场外基金、ETF 与 LOF');
         }
 
-        const plan =
-          this.sip.findPlanForImport(accountId, value.symbol, planId) ?? autoCreatedPlans.get(value.symbol) ?? null;
+        const plan = this.sip.findPlanForImport(accountId, value.symbol, planId) ?? autoCreatedPlans.get(value.symbol) ?? null;
         const note = plan ? `定投 · ${plan.name}` : `定投导入 · ${instrument.name}`;
 
         const ledger = this.database.portfolio.addLedgerEntry({
           accountId,
           symbol: value.symbol,
-          kind: instrument.kind as InstrumentKind,
+          kind: instrument.kind,
           venue: instrument.kind === 'otc_fund' ? 'OTC' : instrument.venue,
           side: 'buy',
           quantity: value.quantity,
@@ -400,9 +382,7 @@ export class SipImportService {
   }
 }
 
-function normalizeExtractedRecord(
-  record: SipAiExtractedRecord,
-): ReturnType<typeof normalizeSipImportValues> {
+function normalizeExtractedRecord(record: SipAiExtractedRecord): ReturnType<typeof normalizeSipImportValues> {
   return normalizeSipImportValues({
     symbol: record.symbol,
     tradeAt: record.tradeAt,

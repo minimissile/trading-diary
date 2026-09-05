@@ -76,7 +76,7 @@ export function labelForVenue(venue: InstrumentVenue): string {
 }
 
 /** 展示用货币符号。 */
-export function currencySymbolFor(currency: QuoteCurrency | string): string {
+export function currencySymbolFor(currency: string): string {
   if (currency === 'CNY') return CURRENCY_SYMBOLS.CNY;
   if (currency === 'HKD') return CURRENCY_SYMBOLS.HKD;
   if (currency === 'USD') return CURRENCY_SYMBOLS.USD;

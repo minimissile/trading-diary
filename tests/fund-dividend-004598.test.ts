@@ -9,6 +9,8 @@ function buy(tradeAt: string, quantity = 1000): PortfolioLedgerEntry {
     accountId: 'default',
     symbol: '004598',
     kind: 'otc_fund',
+    venue: 'OTC',
+    cashOutflow: null,
     side: 'buy',
     quantity,
     price: 1.2,

@@ -1,4 +1,4 @@
-import type { KLineBar, KLinePeriod } from '../../../shared/market/types';
+import type { KLineBar, KLinePeriod } from '../../shared/market/types';
 
 function isIntradayPeriod(period: KLinePeriod): boolean {
   return period === '1m' || period === '5m' || period === '15m' || period === '30m' || period === '60m';
@@ -51,8 +51,7 @@ export function sliceKLineBars(
   beforeTimestamp?: number,
 ): { bars: KLineBar[]; hasMoreHistory: boolean } {
   const sorted = [...bars].sort((left, right) => left.timestamp - right.timestamp);
-  const pool =
-    beforeTimestamp === undefined ? sorted : sorted.filter((bar) => bar.timestamp < beforeTimestamp);
+  const pool = beforeTimestamp === undefined ? sorted : sorted.filter((bar) => bar.timestamp < beforeTimestamp);
 
   if (pool.length === 0) {
     return { bars: [], hasMoreHistory: false };

@@ -1,0 +1,187 @@
+.workspace-page.watchlist-page {
+  padding: 24px 32px 36px;
+  background: var(--ui-canvas);
+  color: var(--ui-text);
+}
+body[data-background] .workspace-page.watchlist-page {
+  background: rgb(14 24 31 / 28%);
+}
+.watchlist-page .page-header {
+  margin-bottom: 18px;
+  gap: 16px;
+}
+.watchlist-page .page-header h1 {
+  font-size: 30px;
+  line-height: 42px;
+}
+.watchlist-page .page-intro {
+  font-size: 13px;
+  color: var(--ui-secondary-text);
+  margin-top: 4px;
+}
+.watchlist-research,
+.watchlist-results {
+  border: 1px solid var(--ui-line);
+  border-radius: 16px;
+  background: var(--workspace-panel-glass, var(--ui-panel));
+  box-shadow: var(--ui-panel-shadow);
+  overflow: hidden;
+}
+.watchlist-research {
+  margin-bottom: 16px;
+  padding: 20px 24px;
+}
+.watchlist-research-heading,
+.watchlist-results-heading,
+.watchlist-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.watchlist-page :is(.watchlist-research, .watchlist-results) h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 28px;
+  color: var(--ui-text);
+}
+.watchlist-research-heading p {
+  margin: 2px 0 0;
+  color: var(--ui-secondary);
+  font-size: 12px;
+}
+.watchlist-context {
+  display: flex;
+  gap: 24px;
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+.watchlist-context span {
+  display: grid;
+  gap: 4px;
+}
+.watchlist-context strong {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ui-secondary-text);
+  font-variant-numeric: tabular-nums;
+}
+.watchlist-research-notes {
+  margin-top: 14px;
+  border-top: 1px solid var(--ui-line);
+  padding-top: 12px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ui-secondary-text);
+}
+.watchlist-research-notes summary {
+  cursor: pointer;
+  color: var(--ui-accent);
+}
+.watchlist-research-notes summary:focus-visible {
+  outline: 2px solid var(--ui-accent);
+  outline-offset: 4px;
+}
+.watchlist-research-notes p {
+  margin: 10px 0 0;
+}
+.watchlist-research-notes ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+.watchlist-results-heading {
+  padding: 20px 24px 0;
+}
+.watchlist-results-heading h2 span {
+  margin-left: 6px;
+  color: var(--ui-accent);
+  font-size: 14px;
+}
+.watchlist-results-heading > span {
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+.watchlist-controls {
+  padding: 16px 24px;
+}
+.watchlist-search {
+  width: 260px;
+  flex-shrink: 0;
+}
+.watchlist-results .ant-alert {
+  margin: 0 24px 16px;
+}
+.watchlist-results .watchlist-table {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+}
+.watchlist-page .watchlist-table .ant-table {
+  border-radius: 0;
+  background: transparent;
+}
+.watchlist-results .ant-table-thead > tr > th {
+  border-top: 1px solid var(--ui-line);
+  background: var(--ui-inset);
+}
+.watchlist-results .ant-table-tbody > tr:last-child > td {
+  border-bottom: 0;
+}
+.watchlist-page .watchlist-symbol-button {
+  gap: 2px;
+}
+.watchlist-page .watchlist-symbol-button strong {
+  color: var(--ui-text);
+  font-size: 13px;
+}
+.watchlist-page .watchlist-symbol-button small {
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+.watchlist-page .watchlist-symbol-button:hover strong {
+  color: var(--ui-accent);
+}
+.watchlist-results .ant-empty {
+  padding: 24px;
+}
+.watchlist-detail-drawer .watchlist-detail dl {
+  gap: 0;
+  border: 1px solid var(--ui-line);
+}
+.watchlist-detail-drawer .watchlist-detail dl div {
+  background: var(--ui-inset);
+  padding: 14px;
+  border-radius: 0;
+}
+.watchlist-detail-drawer .watchlist-detail dt {
+  color: var(--ui-muted);
+}
+.watchlist-detail-drawer .watchlist-detail dd {
+  color: var(--ui-text);
+}
+@media (max-width: 1000px) {
+  .watchlist-controls,
+  .watchlist-research-heading {
+    flex-wrap: wrap;
+  }
+  .watchlist-search {
+    flex: 1;
+    min-width: 200px;
+  }
+}
+@media (max-width: 680px) {
+  .workspace-page.watchlist-page {
+    padding: 20px 16px;
+  }
+  .watchlist-results-heading {
+    flex-wrap: wrap;
+  }
+  .watchlist-context {
+    flex-wrap: wrap;
+  }
+  .watchlist-controls .ant-segmented {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}

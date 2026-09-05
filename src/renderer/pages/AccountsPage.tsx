@@ -1,9 +1,6 @@
 import { useState } from 'react';
-import { App, Button, Empty, Skeleton, Switch, Tag } from 'antd';
-import type {
-  CreateTradingAccountInput,
-  UpdateTradingAccountInput,
-} from '../../shared/api.types';
+import { App, Button, Empty, Skeleton, Switch, Tag, Input } from 'antd';
+import type { CreateTradingAccountInput, UpdateTradingAccountInput } from '../../shared/api.types';
 import { getBrokerLabel } from '../../shared/accounts/brokers';
 import { getAccountAlias } from '../../shared/accounts/account-display';
 import { ValueDisplay } from '../lib/trading-format';
@@ -12,7 +9,7 @@ import { AccountFormModal } from '../components/trading/AccountFormModal';
 import { BrokerAvatar } from '../components/trading/BrokerAvatar';
 import { invalidateAccounts, useAccountsPageQuery } from '../lib/queries';
 
-import { EditOutlined, DeleteOutlined, PlusOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, PlusOutlined, StarFilled, StarOutlined, SearchOutlined } from '@ant-design/icons';
 import type { TradingAccountSummary } from '../../shared/api.types';
 
 const kindLabels = {
@@ -24,6 +21,10 @@ export function AccountsPage(): React.JSX.Element {
   const { message } = App.useApp();
   const [showArchived, setShowArchived] = useState(false);
   const { accounts, feeProfiles, isLoading: loading, refetch } = useAccountsPageQuery(showArchived);
+  const [query, setQuery] = useState('');
+  const visibleAccounts = accounts.filter((account) =>
+    `${getBrokerLabel(account.broker)} ${getAccountAlias(account)}`.toLowerCase().includes(query.trim().toLowerCase()),
+  );
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<TradingAccountSummary | null>(null);
   const [saving, setSaving] = useState(false);
@@ -60,10 +61,6 @@ export function AccountsPage(): React.JSX.Element {
           <p className="page-intro">按账户归类持仓资产，跟踪市值与成本，不管理现金余额。</p>
         </div>
         <div className="accounts-toolbar">
-          <label className="accounts-toolbar-filter">
-            <span>显示已归档</span>
-            <Switch checked={showArchived} onChange={setShowArchived} />
-          </label>
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -77,10 +74,38 @@ export function AccountsPage(): React.JSX.Element {
         </div>
       </header>
 
+      <section className="library-intro accounts-overview">
+        <div>
+          <h2>账户与持仓归属</h2>
+          <p>账户设置用于成交归属和费用计算，默认账户用于快捷录入。</p>
+        </div>
+        <strong>
+          {loading ? '—' : accounts.length}
+          <small> 个账户</small>
+        </strong>
+      </section>
+      <div className="library-toolbar">
+        <h2>账户列表</h2>
+        <div className="library-search-controls">
+          {' '}
+          <label className="accounts-toolbar-filter">
+            <span>显示已归档</span>
+            <Switch checked={showArchived} onChange={setShowArchived} />
+          </label>
+          <Input
+            prefix={<SearchOutlined />}
+            allowClear
+            aria-label="搜索账户"
+            placeholder="搜索券商或账户别名"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
+      </div>
       {loading ? (
         <Skeleton active paragraph={{ rows: 10 }} />
-      ) : accounts.length === 0 ? (
-        <Empty description="还没有账户，创建第一个交易账户">
+      ) : visibleAccounts.length === 0 ? (
+        <Empty description={query.trim() ? '未找到匹配账户' : '还没有账户，创建第一个交易账户'}>
           <Button
             type="primary"
             onClick={() => {
@@ -93,7 +118,7 @@ export function AccountsPage(): React.JSX.Element {
         </Empty>
       ) : (
         <section className="accounts-grid">
-          {accounts.map((account) => (
+          {visibleAccounts.map((account) => (
             <AccountCard
               key={account.id}
               account={account}
@@ -174,17 +199,16 @@ function AccountCard({ account, onEdit, onSetDefault, onArchive, onDelete }: Acc
         {!account.isArchived ? (
           <div className="account-card-actions">
             {account.isDefault ? <StarFilled className="account-card-default-icon" aria-label="默认账户" /> : null}
-            <Button type="text" icon={<EditOutlined />} onClick={onEdit}>
+            <Button icon={<EditOutlined />} onClick={onEdit}>
               编辑
             </Button>
             {!account.isDefault ? (
-              <Button type="text" icon={<StarOutlined />} onClick={onSetDefault}>
+              <Button icon={<StarOutlined />} onClick={onSetDefault}>
                 设为默认
               </Button>
             ) : null}
             {!account.isDefault ? (
               <Button
-                type="text"
                 danger
                 onClick={() => {
                   modal.confirm(
@@ -204,7 +228,6 @@ function AccountCard({ account, onEdit, onSetDefault, onArchive, onDelete }: Acc
         ) : (
           <div className="account-card-actions">
             <Button
-              type="text"
               danger
               icon={<DeleteOutlined />}
               onClick={() => {
@@ -225,11 +248,15 @@ function AccountCard({ account, onEdit, onSetDefault, onArchive, onDelete }: Acc
       <dl className="account-card-meta">
         <div className="account-card-meta-item account-card-meta-item--highlight">
           <dt>持仓市值</dt>
-          <dd><ValueDisplay kind="currency" value={account.totalMarketValue} /></dd>
+          <dd>
+            <ValueDisplay kind="currency" value={account.totalMarketValue} />
+          </dd>
         </div>
         <div className="account-card-meta-item">
           <dt>持仓成本</dt>
-          <dd><ValueDisplay kind="currency" value={account.totalCost} /></dd>
+          <dd>
+            <ValueDisplay kind="currency" value={account.totalCost} />
+          </dd>
         </div>
         <div className="account-card-meta-item">
           <dt>浮动盈亏</dt>

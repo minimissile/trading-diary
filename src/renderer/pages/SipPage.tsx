@@ -1,17 +1,14 @@
-import { CheckOutlined, DeleteOutlined, MoreOutlined, PauseOutlined, PlayCircleOutlined, PlusOutlined, StopOutlined, UploadOutlined } from '@ant-design/icons';
 import {
-  App,
-  Button,
-  Calendar,
-  Drawer,
-  Dropdown,
-  Empty,
-  Modal,
-  Segmented,
-  Skeleton,
-  Table,
-  Tag,
-} from 'antd';
+  CheckOutlined,
+  DeleteOutlined,
+  MoreOutlined,
+  PauseOutlined,
+  PlayCircleOutlined,
+  PlusOutlined,
+  StopOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
+import { App, Button, Calendar, Drawer, Dropdown, Empty, Modal, Segmented, Skeleton, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
@@ -70,11 +67,11 @@ export function SipPage(): React.JSX.Element {
   const [calendarMonth, setCalendarMonth] = useState(currentMonth());
   const { data, isLoading: loading, refetch } = useSipDashboardQuery(calendarMonth);
   const prefetchSipPlan = usePrefetchSipPlan();
-  const plans = data?.plans ?? [];
+  const plans = useMemo(() => data?.plans ?? [], [data?.plans]);
   const summary = data?.summary ?? null;
-  const dueOccurrences = data?.dueOccurrences ?? [];
-  const historyOccurrences = data?.historyOccurrences ?? [];
-  const calendarDays = data?.calendarDays ?? [];
+  const dueOccurrences = useMemo(() => data?.dueOccurrences ?? [], [data?.dueOccurrences]);
+  const historyOccurrences = useMemo(() => data?.historyOccurrences ?? [], [data?.historyOccurrences]);
+  const calendarDays = useMemo(() => data?.calendarDays ?? [], [data?.calendarDays]);
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [reviewPlanId, setReviewPlanId] = useState<string | null>(null);
@@ -88,26 +85,29 @@ export function SipPage(): React.JSX.Element {
     if (!state?.confirmOccurrenceId && !state?.highlightSymbol && !state?.openPlanId) return;
 
     if (state.highlightSymbol) {
+      // Consume the router command once before clearing location.state.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHighlightSymbol(state.highlightSymbol);
       setTab('plans');
     }
     if (state.openPlanId) {
-      void prefetchSipPlan(state.openPlanId).then((plan) => setDetailPlan(plan)).catch(() => undefined);
+      void prefetchSipPlan(state.openPlanId)
+        .then((plan) => setDetailPlan(plan))
+        .catch(() => undefined);
       setTab('plans');
     }
 
     const targetId = state.confirmOccurrenceId;
     if (targetId) {
       const target =
-        dueOccurrences.find((item) => item.id === targetId) ??
-        historyOccurrences.find((item) => item.id === targetId);
+        dueOccurrences.find((item) => item.id === targetId) ?? historyOccurrences.find((item) => item.id === targetId);
       if (target) {
         setConfirmTarget(target);
         setTab('due');
       }
     }
     void navigate(location.pathname, { replace: true, state: null });
-  }, [dueOccurrences, historyOccurrences, location.pathname, location.state, navigate]);
+  }, [dueOccurrences, historyOccurrences, location.pathname, location.state, navigate, prefetchSipPlan]);
 
   const visiblePlans = useMemo(() => {
     const scoped = filter === 'all' ? plans : plans.filter((plan) => plan.status === filter);
@@ -213,8 +213,7 @@ export function SipPage(): React.JSX.Element {
   const buildPlanActionItems = (plan: FundSipPlanView): MenuProps['items'] => {
     const items: MenuProps['items'] = [];
     const today = new Date().toISOString().slice(0, 10);
-    const hasScheduledPause =
-      plan.status === 'active' && plan.pauseFromDate !== null && plan.pauseFromDate > today;
+    const hasScheduledPause = plan.status === 'active' && plan.pauseFromDate !== null && plan.pauseFromDate > today;
 
     if (plan.status === 'draft') {
       items.push({
@@ -227,12 +226,7 @@ export function SipPage(): React.JSX.Element {
     if (plan.status === 'active' || plan.status === 'paused') {
       items.push({
         key: 'pause',
-        label:
-          plan.status === 'paused'
-            ? '调整暂停日'
-            : hasScheduledPause
-              ? '修改暂停日期'
-              : '暂停',
+        label: plan.status === 'paused' ? '调整暂停日' : hasScheduledPause ? '修改暂停日期' : '暂停',
         icon: <PauseOutlined />,
         onClick: () => setPauseTarget(plan),
       });
@@ -275,182 +269,167 @@ export function SipPage(): React.JSX.Element {
     if (!items?.length) return null;
     return (
       <Dropdown trigger={['click']} menu={{ items }}>
-        <Button type="text" size="small" icon={<MoreOutlined />} aria-label="操作菜单" />
+        <Button className="ui-icon-button" icon={<MoreOutlined />} aria-label="操作菜单" />
       </Dropdown>
     );
   };
 
-  const dueColumns = useMemo<ColumnsType<FundSipOccurrenceView>>(
-    () => [
-      {
-        title: '计划',
-        key: 'plan',
-        render: (_, row) => (
-          <span className="watchlist-symbol-button">
-            <strong>{row.planName}</strong>
-            <small>{row.symbol}</small>
-          </span>
-        ),
-      },
-      { title: '扣款日', dataIndex: 'scheduledDate', width: 120 },
-      {
-        title: '计划金额',
-        width: 110,
-        align: 'right',
-        render: (_, row) => <ValueDisplay kind="currency" value={row.plannedAmount} />,
-      },
-      {
-        title: '状态',
-        dataIndex: 'status',
-        width: 88,
-        render: (status: keyof typeof sipOccurrenceStatusLabels) => (
-          <Tag color={occurrenceStatusColors[status]}>{sipOccurrenceStatusLabels[status]}</Tag>
-        ),
-      },
-      {
-        title: '操作',
-        key: 'actions',
-        width: 64,
-        fixed: 'right',
-        align: 'center',
-        render: (_, row) => renderActionMenu(buildOccurrenceActionItems(row)),
-      },
-    ],
-    [],
-  );
+  const dueColumns: ColumnsType<FundSipOccurrenceView> = [
+    {
+      title: '计划',
+      key: 'plan',
+      render: (_, row) => (
+        <span className="watchlist-symbol-button">
+          <strong>{row.planName}</strong>
+          <small>{row.symbol}</small>
+        </span>
+      ),
+    },
+    { title: '扣款日', dataIndex: 'scheduledDate', width: 120 },
+    {
+      title: '计划金额',
+      width: 110,
+      align: 'right',
+      render: (_, row) => <ValueDisplay kind="currency" value={row.plannedAmount} />,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 88,
+      render: (status: keyof typeof sipOccurrenceStatusLabels) => (
+        <Tag color={occurrenceStatusColors[status]}>{sipOccurrenceStatusLabels[status]}</Tag>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 64,
+      fixed: 'right',
+      align: 'center',
+      render: (_, row) => renderActionMenu(buildOccurrenceActionItems(row)),
+    },
+  ];
 
-  const planColumns = useMemo<ColumnsType<FundSipPlanView>>(
-    () => [
-      {
-        title: '计划',
-        key: 'name',
-        render: (_, row) => (
-          <button className="link-button watchlist-symbol-button" type="button" onClick={() => void openPlanDetail(row.id)}>
-            <strong>{row.name}</strong>
-            <small>
-              {row.symbol} · {sipFrequencyLabels[row.frequency]} · {formatSipSchedule(row)}
-            </small>
-          </button>
-        ),
-      },
-      {
-        title: '每期',
-        dataIndex: 'amount',
-        width: 100,
-        align: 'right',
-        render: (value: number) => <ValueDisplay kind="currency" value={value} />,
-      },
-      {
-        title: '状态',
-        dataIndex: 'status',
-        width: 132,
-        render: (_, row) => {
-          const today = new Date().toISOString().slice(0, 10);
-          const scheduledPause =
-            row.status === 'active' && row.pauseFromDate !== null && row.pauseFromDate > today;
-          return (
-            <span className="sip-plan-status-tags">
-              <Tag color={sipPlanStatusColors[row.status]}>{sipPlanStatusLabels[row.status]}</Tag>
-              {scheduledPause ? <Tag color="orange">{row.pauseFromDate} 起暂停</Tag> : null}
-            </span>
-          );
-        },
-      },
-      {
-        title: '连续完成',
-        dataIndex: 'currentStreak',
-        width: 96,
-        align: 'right',
-        render: (value: number) => `${value} 期`,
-      },
-      {
-        title: '纪律率',
-        key: 'discipline',
-        width: 88,
-        align: 'right',
-        render: (_, row) =>
-          row.disciplineRate === null ? '—' : `${Math.round(row.disciplineRate * 100)}%`,
-      },
-      {
-        title: '待执行',
-        dataIndex: 'dueCount',
-        width: 80,
-        align: 'right',
-      },
-      {
-        title: '操作',
-        key: 'actions',
-        width: 64,
-        fixed: 'right',
-        align: 'center',
-        render: (_, row) => renderActionMenu(buildPlanActionItems(row)),
-      },
-    ],
-    [],
-  );
-
-  const historyColumns = useMemo<ColumnsType<FundSipOccurrenceView>>(
-    () => [
-      { title: '扣款日', dataIndex: 'scheduledDate', width: 108 },
-      {
-        title: '计划',
-        key: 'plan',
-        render: (_, row) => (
-          <span>
-            <strong>{row.planName}</strong>
-            <br />
-            <small>{row.symbol}</small>
+  const planColumns: ColumnsType<FundSipPlanView> = [
+    {
+      title: '计划',
+      key: 'name',
+      render: (_, row) => (
+        <button className="link-button watchlist-symbol-button" type="button" onClick={() => void openPlanDetail(row.id)}>
+          <strong>{row.name}</strong>
+          <small>
+            {row.symbol} · {sipFrequencyLabels[row.frequency]} · {formatSipSchedule(row)}
+          </small>
+        </button>
+      ),
+    },
+    {
+      title: '每期',
+      dataIndex: 'amount',
+      width: 100,
+      align: 'right',
+      render: (value: number) => <ValueDisplay kind="currency" value={value} />,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 132,
+      render: (_, row) => {
+        const today = new Date().toISOString().slice(0, 10);
+        const scheduledPause = row.status === 'active' && row.pauseFromDate !== null && row.pauseFromDate > today;
+        return (
+          <span className="sip-plan-status-tags">
+            <Tag color={sipPlanStatusColors[row.status]}>{sipPlanStatusLabels[row.status]}</Tag>
+            {scheduledPause ? <Tag color="orange">{row.pauseFromDate} 起暂停</Tag> : null}
           </span>
-        ),
+        );
       },
-      {
-        title: '金额',
-        key: 'amount',
-        width: 100,
-        align: 'right',
-        render: (_, row) => <ValueDisplay kind="currency" value={row.amount ?? row.plannedAmount} />,
-      },
-      {
-        title: '份额',
-        dataIndex: 'quantity',
-        width: 88,
-        align: 'right',
-        render: (value: number | null, row) =>
-          value === null ? (
-            '—'
-          ) : (
-            <ValueDisplay kind={quantityPresetForKind(row.kind)} value={value} />
-          ),
-      },
-      {
-        title: '状态',
-        dataIndex: 'status',
-        width: 88,
-        render: (status: keyof typeof sipOccurrenceStatusLabels) => (
-          <Tag color={occurrenceStatusColors[status]}>{sipOccurrenceStatusLabels[status]}</Tag>
-        ),
-      },
-      {
-        title: '操作',
-        key: 'actions',
-        width: 64,
-        fixed: 'right',
-        align: 'center',
-        render: (_, row) =>
-          row.status === 'due' || row.status === 'scheduled'
-            ? renderActionMenu([
-                {
-                  key: 'confirm',
-                  label: '确认扣款',
-                  icon: <CheckOutlined />,
-                  onClick: () => setConfirmTarget(row),
-                },
-              ])
-            : null,
-      },
-    ],
-    [],
-  );
+    },
+    {
+      title: '连续完成',
+      dataIndex: 'currentStreak',
+      width: 96,
+      align: 'right',
+      render: (value: number) => `${value} 期`,
+    },
+    {
+      title: '纪律率',
+      key: 'discipline',
+      width: 88,
+      align: 'right',
+      render: (_, row) => (row.disciplineRate === null ? '—' : `${Math.round(row.disciplineRate * 100)}%`),
+    },
+    {
+      title: '待执行',
+      dataIndex: 'dueCount',
+      width: 80,
+      align: 'right',
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 64,
+      fixed: 'right',
+      align: 'center',
+      render: (_, row) => renderActionMenu(buildPlanActionItems(row)),
+    },
+  ];
+
+  const historyColumns: ColumnsType<FundSipOccurrenceView> = [
+    { title: '扣款日', dataIndex: 'scheduledDate', width: 108 },
+    {
+      title: '计划',
+      key: 'plan',
+      render: (_, row) => (
+        <span>
+          <strong>{row.planName}</strong>
+          <br />
+          <small>{row.symbol}</small>
+        </span>
+      ),
+    },
+    {
+      title: '金额',
+      key: 'amount',
+      width: 100,
+      align: 'right',
+      render: (_, row) => <ValueDisplay kind="currency" value={row.amount ?? row.plannedAmount} />,
+    },
+    {
+      title: '份额',
+      dataIndex: 'quantity',
+      width: 88,
+      align: 'right',
+      render: (value: number | null, row) =>
+        value === null ? '—' : <ValueDisplay kind={quantityPresetForKind(row.kind)} value={value} />,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 88,
+      render: (status: keyof typeof sipOccurrenceStatusLabels) => (
+        <Tag color={occurrenceStatusColors[status]}>{sipOccurrenceStatusLabels[status]}</Tag>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 64,
+      fixed: 'right',
+      align: 'center',
+      render: (_, row) =>
+        row.status === 'due' || row.status === 'scheduled'
+          ? renderActionMenu([
+              {
+                key: 'confirm',
+                label: '确认扣款',
+                icon: <CheckOutlined />,
+                onClick: () => setConfirmTarget(row),
+              },
+            ])
+          : null,
+    },
+  ];
 
   return (
     <main className="workspace-page portfolio-page sip-page">
@@ -491,16 +470,6 @@ export function SipPage(): React.JSX.Element {
               <span>已确认扣款期次</span>
             </article>
             <article className="portfolio-metric-card">
-              <small>连续完成</small>
-              <strong>{summary?.currentStreak ?? 0}</strong>
-              <span>当前连续执行</span>
-            </article>
-            <article className="portfolio-metric-card">
-              <small>最长连续</small>
-              <strong>{summary?.longestStreak ?? 0}</strong>
-              <span>历史最佳记录</span>
-            </article>
-            <article className="portfolio-metric-card">
               <small>累计投入</small>
               <ValueDisplay as="strong" kind="currency" value={summary?.totalInvested ?? 0} />
               <span>已确认扣款总额</span>
@@ -515,6 +484,23 @@ export function SipPage(): React.JSX.Element {
               <span>完成 / 应执行期次</span>
             </article>
           </section>
+
+          <details className="sip-discipline-details">
+            <summary>查看连续执行记录</summary>
+            <div className="sip-streak-grid">
+              {' '}
+              <article className="portfolio-metric-card">
+                <small>连续完成</small>
+                <strong>{summary?.currentStreak ?? 0}</strong>
+                <span>当前连续执行</span>
+              </article>
+              <article className="portfolio-metric-card">
+                <small>最长连续</small>
+                <strong>{summary?.longestStreak ?? 0}</strong>
+                <span>历史最佳记录</span>
+              </article>
+            </div>
+          </details>
 
           {highlightSymbol ? (
             <div className="sip-filter-banner">
@@ -639,12 +625,7 @@ export function SipPage(): React.JSX.Element {
         </>
       )}
 
-      <Drawer
-        title={detailPlan?.name ?? '计划详情'}
-        open={detailPlan !== null}
-        onClose={() => setDetailPlan(null)}
-        width={520}
-      >
+      <Drawer title={detailPlan?.name ?? '计划详情'} open={detailPlan !== null} onClose={() => setDetailPlan(null)} width={520}>
         {detailPlan ? (
           <div className="sip-plan-detail">
             <p>
@@ -662,10 +643,7 @@ export function SipPage(): React.JSX.Element {
             <p className="sip-plan-thesis">{detailPlan.thesis}</p>
             <div className="sip-plan-stats">
               <span>连续完成 {detailPlan.currentStreak} 期</span>
-              <span>
-                纪律率{' '}
-                {detailPlan.disciplineRate === null ? '—' : `${Math.round(detailPlan.disciplineRate * 100)}%`}
-              </span>
+              <span>纪律率 {detailPlan.disciplineRate === null ? '—' : `${Math.round(detailPlan.disciplineRate * 100)}%`}</span>
             </div>
             <div className="sip-plan-detail-actions">
               <Button size="small" onClick={() => setReviewPlanId(detailPlan.id)}>

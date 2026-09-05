@@ -67,7 +67,10 @@ export function useLofWatchMonitorQuery(enabled = true): {
   };
 }
 
-export function useLofMarketScanQuery(limit: number, enabled = false): {
+export function useLofMarketScanQuery(
+  limit: number,
+  enabled = false,
+): {
   snapshots: LofArbitrageSnapshot[];
   isLoading: boolean;
   refetch: () => Promise<LofArbitrageSnapshot[] | undefined>;
@@ -100,7 +103,7 @@ export function useHomeOverlapPoolQuery(): {
     },
     staleTime: PORTFOLIO_QUOTE_STALE_MS,
   });
-  return { items: (query.data ?? []) as OverlapPoolItemLive[], isLoading: query.isLoading };
+  return { items: query.data ?? [], isLoading: query.isLoading };
 }
 
 export function useHomeLofPreviewQuery(): {

@@ -15,9 +15,9 @@ const ledgerAiExtractedRecordSchema = z
     note: z.string().trim().max(500).nullable(),
     rawType: z.string().trim().max(64).nullable(),
     recordKind: z.enum(['trade', 'sip_deduction', 'dividend', 'skip']),
-    tradeChannel: z.enum(['exchange', 'otc']).nullable().optional(),
-    confirmAt: z.string().trim().max(64).nullable().optional(),
-    amountIsNetConfirmed: z.boolean().optional(),
+    tradeChannel: z.enum(['exchange', 'otc']).nullable().default(null),
+    confirmAt: z.string().trim().max(64).nullable().default(null),
+    amountIsNetConfirmed: z.boolean().default(false),
     sourceImageIndex: z.number().int().nonnegative(),
     sourceFileName: z.string().trim().max(256).nullable(),
   })
@@ -34,13 +34,13 @@ const ledgerAiImportParamsSchema = z
     sipPlanModeLabel: z.string().trim().max(64).nullable().optional(),
     sipPlanHints: z
       .object({
-        symbol: z.string().trim().max(32).nullable().optional(),
-        fundName: z.string().trim().max(120).nullable().optional(),
-        amount: z.number().finite().nullable().optional(),
-        startDate: z.string().trim().max(64).nullable().optional(),
-        frequency: z.string().trim().max(32).nullable().optional(),
-        dayOfMonth: z.number().int().nullable().optional(),
-        dayOfWeek: z.number().int().nullable().optional(),
+        symbol: z.string().trim().max(32).nullable().default(null),
+        fundName: z.string().trim().max(120).nullable().default(null),
+        amount: z.number().finite().nullable().default(null),
+        startDate: z.string().trim().max(64).nullable().default(null),
+        frequency: z.string().trim().max(32).nullable().default(null),
+        dayOfMonth: z.number().int().nullable().default(null),
+        dayOfWeek: z.number().int().nullable().default(null),
       })
       .strict()
       .nullable()
@@ -49,6 +49,16 @@ const ledgerAiImportParamsSchema = z
   .strict();
 
 export const portfolioServiceRequests = [
+  z.object({
+    id: z.uuid(),
+    method: z.literal('portfolio.syncPnlCalendarBars'),
+    params: z.object({ accountId: z.string().trim().min(1).max(64).optional() }).strict(),
+  }),
+  z.object({
+    id: z.uuid(),
+    method: z.literal('portfolio.syncPnlCalendarBar'),
+    params: z.object({ accountId: z.string().trim().min(1).max(64).optional(), symbol: symbolSchema }).strict(),
+  }),
   z.object({
     id: z.uuid(),
     method: z.literal('portfolio.listPositions'),
@@ -133,7 +143,10 @@ export const portfolioServiceRequests = [
     params: z
       .object({
         accountId: z.string().trim().min(1).max(64).optional(),
-        month: z.string().regex(/^\d{4}-\d{2}$/u).optional(),
+        month: z
+          .string()
+          .regex(/^\d{4}-\d{2}$/u)
+          .optional(),
       })
       .strict(),
   }),

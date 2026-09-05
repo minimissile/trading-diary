@@ -202,14 +202,14 @@ export function HomePage(): React.JSX.Element {
           <span>
             <i /> 本地数据已就绪
           </span>
-          <strong>{actionItems.length} 项待处理</strong>
+          <strong>{realActionItems.length ? `${realActionItems.length} 项待处理` : '当前展示示例队列'}</strong>
         </div>
       </header>
       <div className="command-grid">
         <CommandPanel
           className="queue-panel"
           number="1."
-          title="下一步动作 / 今日执行队列"
+          title="今日执行队列"
           meta={`(${actionItems.length})`}
           extra={<SettingOutlined />}
         >
@@ -259,7 +259,7 @@ export function HomePage(): React.JSX.Element {
                   <small className={item.change.startsWith('-') ? 'market-down' : 'market-up'}>{item.change}</small>
                 </span>
                 <span className={`status-pill status-pill--${item.statusTone}`}>{item.status}</span>
-                <Button size="small" className="row-action-button" onClick={() => void handleAction(item)}>
+                <Button size="small" className="queue-action-button" onClick={() => void handleAction(item)}>
                   {item.action}
                 </Button>
               </div>
@@ -274,7 +274,7 @@ export function HomePage(): React.JSX.Element {
           className="stage-panel"
           number="2."
           title="计划阶段看板"
-          meta="(总计 28)"
+          meta="（示例）"
           extra={
             <button type="button" onClick={() => void navigate(routePaths.plans)}>
               查看全部计划 <RightOutlined />
@@ -308,7 +308,7 @@ export function HomePage(): React.JSX.Element {
         <CommandPanel
           className="timeline-panel"
           number="3."
-          title="交易回合时间线"
+          title="交易回合时间线 · 示例"
           meta="(腾讯控股 0700.HK)"
           extra={
             <span className="timeline-id">
@@ -341,7 +341,7 @@ export function HomePage(): React.JSX.Element {
           </div>
         </CommandPanel>
 
-        <CommandPanel className="risk-panel" number="4." title="账户与风险预算">
+        <CommandPanel className="risk-panel" number="4." title="账户与风险预算 · 示例">
           <div className="risk-balance">
             <span>账户净值（CNY）</span>
             <strong>512,340.60</strong>
@@ -398,7 +398,7 @@ export function HomePage(): React.JSX.Element {
         <CommandPanel
           className="review-panel"
           number="5."
-          title="本周复盘摘要"
+          title="本周复盘摘要 · 示例"
           meta="(05.12 - 05.16)"
           extra={
             <button type="button" onClick={() => void navigate(routePaths.journal)}>
@@ -468,7 +468,7 @@ export function HomePage(): React.JSX.Element {
         <CommandPanel
           className="rules-panel"
           number="6."
-          title="规则检查面板"
+          title="规则检查面板 · 示例"
           meta="(交易前自检)"
           extra={<span>全部通过可提交订单</span>}
         >
@@ -572,7 +572,7 @@ export function HomePage(): React.JSX.Element {
           </div>
         </CommandPanel>
 
-        <CommandPanel className="system-panel" number="8." title="数据状态">
+        <CommandPanel className="system-panel" number="8." title="数据状态 · 示例">
           <div className="system-list">
             <span>
               <CloudSyncOutlined />

@@ -10,6 +10,7 @@ function entry(
     id: partial.id ?? '1',
     accountId: partial.accountId ?? 'acc-1',
     venue: partial.venue ?? 'SH',
+    cashOutflow: null,
     kind: 'stock',
     price: 10,
     fees: 0,
@@ -47,10 +48,7 @@ describe('buildPnlCalendar', () => {
       }),
     ];
 
-    const bars = indexDailyBars([
-      bar('600941', '2026-08-03', 10.5, 10),
-      bar('600941', '2026-08-04', 11, 10.5),
-    ]);
+    const bars = indexDailyBars([bar('600941', '2026-08-03', 10.5, 10), bar('600941', '2026-08-04', 11, 10.5)]);
 
     const result = buildPnlCalendar({
       ledger,
@@ -97,9 +95,9 @@ describe('buildPnlCalendar', () => {
           cashAmount: 10,
           status: 'confirmed',
           source: 'manual',
-          confirmedAt: null,
-          createdAt: '2026-08-05T00:00:00.000Z',
-          updatedAt: '2026-08-05T00:00:00.000Z',
+          payoutMode: 'cash',
+          reinvestLedgerId: null,
+          reinvestQuantity: null,
         },
       ],
       barsBySymbol: bars,
@@ -151,12 +149,8 @@ describe('buildPnlCalendar', () => {
 
 describe('pnl calendar window', () => {
   it('limits window to one year', async () => {
-    const {
-      pnlCalendarWindowStart,
-      pnlCalendarWindowEnd,
-      isDateInPnlCalendarWindow,
-      resolvePnlCalendarPanelDate,
-    } = await import('../src/shared/portfolio/pnl-calendar-window');
+    const { pnlCalendarWindowStart, pnlCalendarWindowEnd, isDateInPnlCalendarWindow, resolvePnlCalendarPanelDate } =
+      await import('../src/shared/portfolio/pnl-calendar-window');
     const asOf = new Date('2026-08-30T12:00:00+08:00');
     const start = pnlCalendarWindowStart(asOf);
     const end = pnlCalendarWindowEnd(asOf);

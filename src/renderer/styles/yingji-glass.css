@@ -1,29 +1,17 @@
 /*
  * Yingji dark frosted-glass layer.
- * Loaded last so the product can keep its existing feature styles while every
- * route shares one calm, spacious visual system.
+ * Shell and legacy layout compatibility. Shared controls live in ui-components.css;
+ * theme-config.json owns colors, geometry and shadows.
  */
 
 :root {
   color-scheme: dark;
-  --yingji-canvas: #07122f;
-  --yingji-canvas-deep: #040b21;
-  --yingji-surface: #111e42;
-  --yingji-glass: rgb(24 38 77 / 72%);
-  --yingji-glass-soft: rgb(20 34 71 / 58%);
-  --yingji-glass-strong: rgb(19 32 68 / 92%);
-  --yingji-border: rgb(210 224 255 / 14%);
-  --yingji-border-strong: rgb(210 224 255 / 24%);
-  --yingji-text: #f5f7ff;
-  --yingji-muted: #96a2c3;
-  --yingji-subtle: #65739a;
-  --yingji-primary: #5b7cff;
-  --yingji-violet: #8b5cf6;
-  --yingji-mint: #39d3c3;
-  --yingji-coral: #ff5e73;
-  --yingji-warning: #ffb24a;
-  --yingji-panel-shadow: inset 0 1px 0 rgb(255 255 255 / 5.5%), 0 18px 50px rgb(0 5 25 / 28%);
-  --yingji-soft-shadow: inset 0 1px 0 rgb(255 255 255 / 4%), 0 10px 30px rgb(0 5 25 / 19%);
+  --yingji-canvas-deep: var(--ui-inset);
+  --yingji-glass: var(--workspace-panel-glass, var(--ui-panel));
+  --yingji-glass-soft: var(--workspace-panel-glass, var(--ui-inset));
+  --yingji-mint: var(--ui-success);
+  --yingji-coral: var(--ui-danger);
+  --yingji-warning: var(--ui-secondary);
 }
 
 html,
@@ -40,34 +28,6 @@ body {
   color: var(--yingji-text);
   background: var(--ui-canvas);
   background-attachment: fixed;
-}
-
-body::before,
-body::after {
-  position: fixed;
-  z-index: -1;
-  width: 54vw;
-  height: 18vw;
-  border-radius: 50%;
-  content: '';
-  filter: blur(34px);
-  opacity: 0.42;
-  pointer-events: none;
-  transform: rotate(-18deg);
-  display: none;
-}
-
-body::before {
-  top: -14vw;
-  left: 18vw;
-  background: linear-gradient(90deg, #193989, #6e42df 60%, #244fad);
-  display: none;
-}
-
-body::after {
-  right: -18vw;
-  bottom: -10vw;
-  background: linear-gradient(90deg, #6e245e, #df315c 52%, #ff725e);
 }
 
 button,
@@ -107,9 +67,10 @@ select {
 }
 
 .trading-app {
+  --sidebar-motion: 240ms cubic-bezier(0.2, 0, 0, 1);
   position: relative;
   isolation: isolate;
-  grid-template-columns: 232px minmax(0, 1fr);
+  grid-template-columns: 216px minmax(0, 1fr);
   width: 100vw;
   height: 100vh;
   margin: 0;
@@ -119,6 +80,7 @@ select {
   background: var(--ui-canvas);
   box-shadow: none;
   backdrop-filter: none;
+  transition: grid-template-columns var(--sidebar-motion);
 }
 
 .trading-app--collapsed {
@@ -160,6 +122,9 @@ select {
   height: 112px;
   padding: 0 22px;
   border-bottom: 0;
+  transition:
+    height var(--sidebar-motion),
+    padding var(--sidebar-motion);
 }
 
 .brand-mark {
@@ -210,12 +175,16 @@ select {
 }
 
 .primary-nav {
+  grid-template-columns: minmax(0, 1fr);
   gap: 3px;
   align-content: start;
   padding: 10px 14px 16px;
+  scrollbar-gutter: stable both-edges;
+  transition: padding var(--sidebar-motion);
 }
 
 .primary-nav button {
+  justify-self: center;
   grid-template-columns: 22px minmax(0, 1fr) auto;
   gap: 8px;
   height: 40px;
@@ -226,6 +195,8 @@ select {
   font-size: 13px;
   font-weight: 590;
   transition:
+    width var(--sidebar-motion),
+    padding var(--sidebar-motion),
     color 160ms ease,
     border-color 160ms ease,
     background 160ms ease,
@@ -265,13 +236,18 @@ select {
 }
 
 .sidebar-footer {
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px;
+  overflow: hidden;
   padding: 12px 14px 16px;
+  scrollbar-gutter: stable both-edges;
   border-top-color: var(--yingji-border);
-  background: linear-gradient(180deg, transparent, rgb(7 18 47 / 24%));
+  background: linear-gradient(180deg, transparent, rgb(17 29 37 / 24%));
+  transition: padding var(--sidebar-motion);
 }
 
 .sidebar-footer-link {
+  justify-self: center;
   grid-template-columns: 22px minmax(0, 1fr);
   gap: 8px;
   height: 40px;
@@ -279,6 +255,31 @@ select {
   border-radius: 8px;
   color: var(--yingji-muted);
   font-size: 13px;
+  transition:
+    width var(--sidebar-motion),
+    padding var(--sidebar-motion),
+    color 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.app-sidebar .nav-label,
+.app-sidebar .brand-copy,
+.app-sidebar .sidebar-footer-meta {
+  white-space: nowrap;
+  animation: sidebar-label-enter var(--sidebar-motion) both;
+}
+
+@keyframes sidebar-label-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .sidebar-footer-link:hover,
@@ -300,11 +301,14 @@ select {
 
 .trading-app--collapsed .primary-nav,
 .trading-app--collapsed .sidebar-footer {
+  grid-template-columns: minmax(0, 1fr);
   padding-inline: 12px;
 }
 
 .trading-app--collapsed .primary-nav button,
 .trading-app--collapsed .sidebar-footer-link {
+  justify-self: center;
+  width: 40px;
   height: 40px;
   border-radius: 8px;
 }
@@ -357,7 +361,7 @@ select {
   border-color: var(--yingji-border);
   border-radius: 12px;
   color: var(--yingji-muted);
-  background: rgb(7 18 47 / 38%);
+  background: rgb(17 29 37 / 38%);
   transition:
     border-color 160ms ease,
     box-shadow 160ms ease,
@@ -494,8 +498,8 @@ select {
   margin-bottom: 24px;
   padding: 14px 16px;
   border: 1px solid var(--yingji-border);
-  border-radius: 16px;
-  background: rgb(17 30 66 / 42%);
+  border-radius: var(--ui-panel-radius);
+  background: rgb(22 36 45 / 42%);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
   backdrop-filter: blur(20px) saturate(120%);
 }
@@ -512,7 +516,7 @@ select {
 
 .section-label,
 .symbol-label {
-  color: #91aaff;
+  color: var(--ui-accent);
 }
 
 .workspace-page
@@ -547,13 +551,9 @@ select {
   border: 1px solid var(--yingji-border);
   border-radius: var(--td-radius-panel);
   color: var(--yingji-text);
-  background: var(
-    --workspace-panel-glass,
-    linear-gradient(145deg, rgb(39 57 108 / 30%), rgb(12 24 54 / 54%)),
-    rgb(17 30 66 / 66%)
-  );
+  background: var(--workspace-panel-glass, var(--ui-panel));
   box-shadow: var(--yingji-panel-shadow);
-  backdrop-filter: blur(24px) saturate(125%);
+  backdrop-filter: none;
 }
 
 .workspace-page
@@ -572,8 +572,8 @@ select {
     .ledger-ai-import-panel
   ) {
   border-color: var(--yingji-border);
-  border-radius: 16px;
-  background: rgb(7 18 47 / 30%);
+  border-radius: var(--ui-panel-radius);
+  background: rgb(17 29 37 / 30%);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 3%);
 }
 
@@ -586,16 +586,10 @@ select {
 }
 
 .workspace-page :is(.plan-card, .review-card, .alert-card, .action-row, .plan-row, .playbook-rule-card, .account-card):hover {
-  border-color: rgb(123 155 255 / 28%);
-  background: var(
-    --workspace-panel-glass,
-    linear-gradient(145deg, rgb(50 70 126 / 34%), rgb(15 29 65 / 60%)),
-    rgb(17 30 66 / 72%)
-  );
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 6%),
-    0 20px 48px rgb(0 5 25 / 24%);
-  transform: translateY(-1px);
+  border-color: rgb(120 211 216 / 28%);
+  background: var(--workspace-panel-glass, var(--ui-panel));
+  box-shadow: var(--ui-panel-shadow);
+  transform: none;
 }
 
 .empty-panel {
@@ -625,13 +619,9 @@ select {
   margin-bottom: 24px;
   border: 1px solid var(--yingji-border);
   border-radius: var(--td-radius-panel);
-  background: var(
-    --workspace-panel-glass,
-    linear-gradient(145deg, rgb(39 57 108 / 30%), rgb(12 24 54 / 54%)),
-    rgb(17 30 66 / 66%)
-  );
+  background: var(--workspace-panel-glass, var(--ui-panel));
   box-shadow: var(--yingji-panel-shadow);
-  backdrop-filter: blur(24px) saturate(125%);
+  backdrop-filter: none;
 }
 
 .dashboard-metrics > article,
@@ -652,7 +642,7 @@ select {
 .analysis-hero > article:first-child,
 .portfolio-metric-card--primary {
   grid-column: auto;
-  background: linear-gradient(135deg, rgb(91 124 255 / 13%), rgb(139 92 246 / 6%));
+  background: linear-gradient(135deg, rgb(17 105 118 / 13%), rgb(227 187 115 / 6%));
 }
 
 .portfolio-metrics {
@@ -745,7 +735,7 @@ select {
   border: 1px solid var(--yingji-border);
   border-radius: 12px;
   color: var(--yingji-muted);
-  background: rgb(17 30 66 / 38%);
+  background: rgb(22 36 45 / 38%);
   font-size: 12px;
   backdrop-filter: blur(18px);
 }
@@ -767,7 +757,7 @@ select {
 }
 
 .command-welcome-status strong {
-  color: #dfe5f7;
+  color: var(--ui-text);
   font-weight: 620;
 }
 
@@ -783,30 +773,24 @@ select {
   overflow: hidden;
   border: 1px solid var(--yingji-border);
   border-radius: var(--td-radius-panel);
-  background: var(
-    --workspace-panel-glass,
-    linear-gradient(145deg, rgb(39 57 108 / 30%), rgb(12 24 54 / 54%)),
-    rgb(17 30 66 / 66%)
-  );
+  background: var(--workspace-panel-glass, var(--ui-panel));
   box-shadow: var(--yingji-panel-shadow);
-  backdrop-filter: blur(24px) saturate(125%);
+  backdrop-filter: none;
   transition:
     border-color 180ms ease,
     box-shadow 180ms ease;
 }
 
 .command-panel:hover {
-  border-color: rgb(210 224 255 / 20%);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 7%),
-    0 22px 56px rgb(0 5 25 / 31%);
+  border-color: rgb(189 205 209 / 20%);
+  box-shadow: var(--ui-panel-shadow);
 }
 
 .command-panel-header {
   height: 58px;
   padding: 0 20px;
   border-bottom: 1px solid var(--yingji-border);
-  background: rgb(7 18 47 / 18%);
+  background: rgb(17 29 37 / 18%);
 }
 
 .command-panel-header h2 {
@@ -817,7 +801,7 @@ select {
 }
 
 .command-panel-header h2 > span {
-  color: #91aaff;
+  color: var(--ui-accent);
   font-variant-numeric: tabular-nums;
 }
 
@@ -829,7 +813,7 @@ select {
 }
 
 .command-panel-extra button:hover {
-  color: #91aaff;
+  color: var(--ui-accent);
 }
 
 .command-panel-body {
@@ -895,9 +879,9 @@ select {
 
 .queue-tabs button:hover,
 .queue-tabs button.active {
-  border-color: rgb(123 155 255 / 22%);
+  border-color: rgb(120 211 216 / 22%);
   color: #fff;
-  background: rgb(91 124 255 / 15%);
+  background: rgb(17 105 118 / 15%);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
 }
 
@@ -915,17 +899,17 @@ select {
 .action-table-head {
   height: 34px;
   color: var(--yingji-muted);
-  background: rgb(91 124 255 / 6%);
+  background: rgb(17 105 118 / 6%);
 }
 
 .action-table-row {
   height: 48px;
-  border-bottom-color: rgb(210 224 255 / 9%);
-  color: #b9c3dc;
+  border-bottom-color: rgb(189 205 209 / 9%);
+  color: var(--ui-secondary-text);
 }
 
 .action-table-row:hover {
-  background: rgb(91 124 255 / 7%);
+  background: rgb(17 105 118 / 7%);
 }
 
 .priority {
@@ -963,24 +947,24 @@ select {
 }
 
 .status-pill--violet {
-  border-color: rgb(139 92 246 / 20%);
-  color: #b99aff;
-  background: rgb(139 92 246 / 13%);
+  border-color: rgb(227 187 115 / 20%);
+  color: var(--ui-secondary);
+  background: rgb(227 187 115 / 13%);
 }
 
 .status-pill--blue {
-  border-color: rgb(91 124 255 / 20%);
-  color: #91aaff;
-  background: rgb(91 124 255 / 13%);
+  border-color: rgb(17 105 118 / 20%);
+  color: var(--ui-accent);
+  background: rgb(17 105 118 / 13%);
 }
 
 .action-type {
-  color: #91aaff;
+  color: var(--ui-accent);
 }
 
 .action-type--due,
 .action-type--review {
-  color: #b99aff;
+  color: var(--ui-secondary);
 }
 
 .action-type--risk {
@@ -989,7 +973,7 @@ select {
 
 .security-name strong,
 .market-price strong {
-  color: #e8ecf9;
+  color: var(--ui-text);
 }
 
 .security-name small,
@@ -1001,28 +985,28 @@ select {
 .row-action-button.ant-btn {
   height: 28px;
   padding: 0 10px;
-  border-color: rgb(123 155 255 / 30%);
+  border-color: rgb(120 211 216 / 30%);
   border-radius: 9px;
-  color: #a8baff;
-  background: rgb(91 124 255 / 12%);
+  color: var(--ui-accent);
+  background: rgb(17 105 118 / 12%);
   font-size: 10px;
 }
 
 .row-action-button.ant-btn:hover {
-  border-color: rgb(123 155 255 / 58%);
+  border-color: rgb(120 211 216 / 58%);
   color: #fff;
-  background: rgb(91 124 255 / 24%);
+  background: rgb(17 105 118 / 24%);
 }
 
 .panel-footer-link {
   height: 38px;
-  color: #91aaff;
+  color: var(--ui-accent);
   font-size: 11px;
 }
 
 .panel-footer-link:hover {
-  color: #c0cbff;
-  background: rgb(91 124 255 / 7%);
+  color: var(--ui-accent);
+  background: rgb(17 105 118 / 7%);
 }
 
 .stage-board {
@@ -1035,12 +1019,12 @@ select {
   padding: 0;
   border: 1px solid var(--yingji-border);
   border-radius: 15px;
-  background: rgb(7 18 47 / 26%);
+  background: rgb(17 29 37 / 26%);
 }
 
 .stage-column:hover {
-  border-color: rgb(123 155 255 / 32%);
-  background: rgb(91 124 255 / 7%);
+  border-color: rgb(120 211 216 / 32%);
+  background: rgb(17 105 118 / 7%);
 }
 
 .stage-heading {
@@ -1056,14 +1040,14 @@ select {
 .stage-card {
   margin-inline: 8px;
   padding: 8px 9px;
-  border: 1px solid rgb(210 224 255 / 9%);
+  border: 1px solid rgb(189 205 209 / 9%);
   border-radius: 10px;
-  background: rgb(17 30 66 / 42%);
+  background: rgb(22 36 45 / 42%);
 }
 
 .stage-card:hover {
-  border-color: rgb(123 155 255 / 24%);
-  background: rgb(91 124 255 / 10%);
+  border-color: rgb(120 211 216 / 24%);
+  background: rgb(17 105 118 / 10%);
 }
 
 .trade-timeline {
@@ -1071,14 +1055,14 @@ select {
 }
 
 .trade-timeline::before {
-  background: linear-gradient(90deg, rgb(91 124 255 / 14%), #6c8dff 42%, #44d2c4 100%);
+  background: linear-gradient(90deg, rgb(17 105 118 / 14%), var(--ui-accent) 42%, #44d2c4 100%);
 }
 
 .timeline-icon {
-  border-color: rgb(123 155 255 / 55%);
-  color: #c4d0ff;
-  background: rgb(91 124 255 / 18%);
-  box-shadow: 0 0 0 5px rgb(91 124 255 / 7%);
+  border-color: rgb(120 211 216 / 55%);
+  color: var(--ui-accent);
+  background: rgb(17 105 118 / 18%);
+  box-shadow: 0 0 0 5px rgb(17 105 118 / 7%);
 }
 
 .timeline-step:nth-last-child(-n + 3) .timeline-icon {
@@ -1090,14 +1074,14 @@ select {
 .timeline-detail {
   border-color: var(--yingji-border);
   border-radius: 12px;
-  background: rgb(7 18 47 / 24%);
+  background: rgb(17 29 37 / 24%);
 }
 
 .timeline-result,
 .system-footer,
 .review-metrics {
   border-top-color: var(--yingji-border);
-  background: rgb(7 18 47 / 20%);
+  background: rgb(17 29 37 / 20%);
 }
 
 .risk-balance,
@@ -1160,7 +1144,7 @@ select {
 .review-top-list > div,
 .system-list > span {
   border-color: var(--yingji-border);
-  background: rgb(7 18 47 / 18%);
+  background: rgb(17 29 37 / 18%);
 }
 
 .risk-stat-row > span {
@@ -1171,7 +1155,7 @@ select {
 
 .risk-stat-row strong {
   margin-top: 4px;
-  color: #e1e7f6;
+  color: var(--ui-text);
   font-size: 13px;
 }
 
@@ -1216,21 +1200,21 @@ select {
 
 .rule-row {
   min-height: 45px;
-  border-bottom-color: rgb(210 224 255 / 9%);
+  border-bottom-color: rgb(189 205 209 / 9%);
 }
 
 .rule-button.ant-btn {
-  border-color: rgb(139 92 246 / 34%);
-  background: rgb(139 92 246 / 18%);
+  border-color: rgb(227 187 115 / 34%);
+  background: rgb(227 187 115 / 18%);
 }
 
 .watch-head,
 .watch-row {
-  border-bottom-color: rgb(210 224 255 / 9%);
+  border-bottom-color: rgb(189 205 209 / 9%);
 }
 
 .watch-row:hover {
-  background: rgb(91 124 255 / 7%);
+  background: rgb(17 105 118 / 7%);
 }
 
 .watch-stars .active {
@@ -1265,8 +1249,8 @@ select {
 }
 
 .watchlist-disclaimer.ant-alert {
-  border-color: rgb(91 124 255 / 22%);
-  background: rgb(91 124 255 / 8%);
+  border-color: rgb(17 105 118 / 22%);
+  background: rgb(17 105 118 / 8%);
 }
 
 .portfolio-calendar-wrap .ant-picker-calendar,
@@ -1277,17 +1261,17 @@ select {
 }
 
 .portfolio-calendar-wrap .ant-picker-cell .ant-picker-calendar-date {
-  border-color: rgb(210 224 255 / 9%) !important;
-  background: rgb(7 18 47 / 16%) !important;
+  border-color: rgb(189 205 209 / 9%) !important;
+  background: rgb(17 29 37 / 16%) !important;
 }
 
 .portfolio-calendar-wrap .ant-picker-cell:hover .ant-picker-calendar-date {
-  background: rgb(91 124 255 / 8%) !important;
+  background: rgb(17 105 118 / 8%) !important;
 }
 
 .portfolio-calendar-wrap .ant-picker-cell-today .ant-picker-calendar-date {
-  border-color: rgb(123 155 255 / 52%) !important;
-  background: rgb(91 124 255 / 11%) !important;
+  border-color: rgb(120 211 216 / 52%) !important;
+  background: rgb(17 105 118 / 11%) !important;
 }
 
 .portfolio-milestone,
@@ -1295,8 +1279,8 @@ select {
 .account-card-meta,
 .about-principles article {
   border-color: var(--yingji-border);
-  border-radius: 16px;
-  background: rgb(7 18 47 / 24%);
+  border-radius: var(--ui-panel-radius);
+  background: rgb(17 29 37 / 24%);
 }
 
 .portfolio-milestone.lit,
@@ -1310,14 +1294,14 @@ select {
 .account-card-default-icon,
 .account-select-icon,
 .broker-select-icon {
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgb(91 124 255 / 26%), rgb(139 92 246 / 18%));
+  border-radius: 0;
+  background: transparent;
 }
 
 .about-qr-frame {
   border-color: var(--yingji-border);
-  border-radius: 18px;
-  background: rgb(7 18 47 / 26%);
+  border-radius: var(--ui-panel-radius);
+  background: rgb(17 29 37 / 26%);
 }
 
 .symbol-chart-page {
@@ -1329,8 +1313,8 @@ select {
 .symbol-chart-stage,
 .symbol-chart-indicator-panel {
   border-color: var(--yingji-border);
-  border-radius: 18px;
-  background: linear-gradient(145deg, rgb(39 57 108 / 24%), rgb(12 24 54 / 44%)), rgb(17 30 66 / 58%);
+  border-radius: var(--ui-panel-radius);
+  background: var(--workspace-panel-glass, var(--ui-panel));
   box-shadow: var(--yingji-soft-shadow);
   backdrop-filter: blur(22px) saturate(122%);
 }
@@ -1352,16 +1336,17 @@ select {
 
 .splash-screen__backdrop {
   background:
-    radial-gradient(circle at 50% 38%, rgb(91 124 255 / 24%), transparent 40%),
+    radial-gradient(circle at 50% 38%, rgb(17 105 118 / 24%), transparent 40%),
     radial-gradient(circle at 20% 90%, rgb(255 94 115 / 10%), transparent 34%),
-    radial-gradient(circle at 80% 92%, rgb(139 92 246 / 12%), transparent 36%), linear-gradient(160deg, #09183b, #060d27 70%);
+    radial-gradient(circle at 80% 92%, rgb(227 187 115 / 12%), transparent 36%),
+    linear-gradient(160deg, var(--ui-canvas), var(--ui-inset) 70%);
 }
 
 .splash-screen__grid {
   opacity: 0.18;
   background-image:
-    linear-gradient(rgb(123 155 255 / 6%) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(123 155 255 / 6%) 1px, transparent 1px);
+    linear-gradient(rgb(120 211 216 / 6%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(120 211 216 / 6%) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
@@ -1372,9 +1357,9 @@ select {
 
 .splash-logo-ring {
   inset: -12px;
-  border-color: rgb(123 155 255 / 18%);
+  border-color: rgb(120 211 216 / 18%);
   border-radius: 50%;
-  box-shadow: 0 0 44px rgb(91 124 255 / 12%);
+  box-shadow: 0 0 44px rgb(17 105 118 / 12%);
 }
 
 .splash-logo {
@@ -1389,14 +1374,14 @@ select {
 }
 
 .splash-timeline-track {
-  background: linear-gradient(90deg, transparent, rgb(91 124 255 / 72%), rgb(57 211 195 / 28%), transparent);
+  background: linear-gradient(90deg, transparent, rgb(17 105 118 / 72%), rgb(57 211 195 / 28%), transparent);
 }
 
 .splash-timeline-dot {
   background: var(--yingji-primary);
   box-shadow:
-    0 0 0 4px rgb(91 124 255 / 16%),
-    0 0 18px rgb(91 124 255 / 42%);
+    0 0 0 4px rgb(17 105 118 / 16%),
+    0 0 18px rgb(17 105 118 / 42%);
 }
 
 .access-lock-screen {
@@ -1409,7 +1394,7 @@ select {
   padding: 32px;
   border: 1px solid var(--yingji-border-strong);
   border-radius: 24px;
-  background: linear-gradient(145deg, rgb(39 57 108 / 28%), rgb(12 24 54 / 46%)), var(--yingji-glass-strong);
+  background: linear-gradient(145deg, rgb(27 46 55 / 28%), rgb(17 29 37 / 46%)), var(--yingji-glass-strong);
   box-shadow: 0 32px 72px rgb(0 4 24 / 48%);
   backdrop-filter: blur(28px) saturate(130%);
 }
@@ -1417,9 +1402,9 @@ select {
 .access-lock-icon {
   width: 52px;
   height: 52px;
-  border: 1px solid rgb(123 155 255 / 24%);
-  color: #9cb0ff;
-  background: rgb(91 124 255 / 14%);
+  border: 1px solid rgb(120 211 216 / 24%);
+  color: var(--ui-accent);
+  background: rgb(17 105 118 / 14%);
 }
 
 /* Responsive desktop behavior */
@@ -1507,13 +1492,16 @@ select {
 
   .trading-app:not(.trading-app--collapsed) .primary-nav,
   .trading-app:not(.trading-app--collapsed) .sidebar-footer {
+    grid-template-columns: minmax(0, 1fr);
     padding-inline: 12px;
   }
 
   .trading-app:not(.trading-app--collapsed) .primary-nav button,
   .trading-app:not(.trading-app--collapsed) .sidebar-footer-link {
     grid-template-columns: 1fr;
+    justify-self: center;
     justify-items: center;
+    width: 40px;
     height: 40px;
     padding: 0;
   }

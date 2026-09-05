@@ -1,29 +1,15 @@
-import { app, dialog, ipcMain, shell } from 'electron';
-import type {
-  CreateTradeAlertInput,
-  CreateTradeReviewInput,
-  CreateTradingPlanInput,
-  LlmUserSettings,
-  ReviewAiDraftInput,
-  TradeAlertStatus,
-  TradingPlanStatus,
-} from '../../../shared/api.types';
+import { app, dialog, ipcMain } from 'electron';
 import type { CreateTradingAccountInput, FeeEstimateInput, UpdateTradingAccountInput } from '../../../shared/accounts/types';
+import type { AlertEventUserAction } from '../../../shared/alerts/event-types';
 import type { CreateExecutionInput } from '../../../shared/episodes/types';
 import type { ExecutionImportInput } from '../../../shared/import/types';
-import type { AlertEventUserAction } from '../../../shared/alerts/event-types';
-import type {
-  CreatePlaybookRuleInput,
-  PlaybookRuleStatus,
-  UpdatePlaybookRuleInput,
-} from '../../../shared/playbook/types';
-import type { KLineAdjust, KLinePeriod } from '../../../shared/market/types';
 import { ipcChannels } from '../../../shared/ipc-channels';
+import type { CreatePlaybookRuleInput, PlaybookRuleStatus, UpdatePlaybookRuleInput } from '../../../shared/playbook/types';
+import { notifyTriggeredAlerts } from '../notifications';
+import { assertTrustedSender } from '../shared';
 import type { IpcHandlerContext } from '../types';
-import { assertDevOnly, assertTrustedSender, activeStreamCancels, sendStreamEvent } from '../shared';
-import { notifyDueSipOccurrences, notifyTriggeredAlerts } from '../notifications';
 
-export function registerAccountsHandlers({ window, service, updater }: IpcHandlerContext): void {
+export function registerAccountsHandlers({ window, service }: IpcHandlerContext): void {
   ipcMain.handle(ipcChannels.licenseGetStatus, (event) => {
     assertTrustedSender(event, window);
     return service.request('license.getStatus', {});
@@ -49,13 +35,10 @@ export function registerAccountsHandlers({ window, service, updater }: IpcHandle
     return service.request('accounts.create', input);
   });
 
-  ipcMain.handle(
-    ipcChannels.accountsUpdate,
-    (event, input: { id: string; input: UpdateTradingAccountInput }) => {
-      assertTrustedSender(event, window);
-      return service.request('accounts.update', input);
-    },
-  );
+  ipcMain.handle(ipcChannels.accountsUpdate, (event, input: { id: string; input: UpdateTradingAccountInput }) => {
+    assertTrustedSender(event, window);
+    return service.request('accounts.update', input);
+  });
 
   ipcMain.handle(ipcChannels.accountsSetDefault, (event, input: { id: string }) => {
     assertTrustedSender(event, window);
@@ -215,5 +198,4 @@ export function registerAccountsHandlers({ window, service, updater }: IpcHandle
     notifyTriggeredAlerts(window, result.newlyTriggered);
     return result;
   });
-
 }

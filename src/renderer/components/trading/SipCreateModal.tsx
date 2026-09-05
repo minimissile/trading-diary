@@ -25,12 +25,11 @@ interface FormValues {
   activateNow: boolean;
 }
 
-export function SipCreateModal({
-  open,
-  defaultAccountId,
-  onClose,
-  onSaved,
-}: SipCreateModalProps): React.JSX.Element {
+export function SipCreateModal(props: SipCreateModalProps): React.JSX.Element {
+  return props.open ? <SipCreateModalContent key={props.defaultAccountId} {...props} /> : <></>;
+}
+
+function SipCreateModalContent({ open, defaultAccountId, onClose, onSaved }: SipCreateModalProps): React.JSX.Element {
   const { message } = App.useApp();
   const [form] = Form.useForm<FormValues>();
   const [saving, setSaving] = useState(false);
@@ -38,11 +37,7 @@ export function SipCreateModal({
   const frequency = Form.useWatch('frequency', form) ?? 'monthly';
 
   useEffect(() => {
-    if (!open) {
-      form.resetFields();
-      setPreview([]);
-      return;
-    }
+    if (!open) return;
     form.setFieldsValue({
       accountId: defaultAccountId,
       frequency: 'monthly',
@@ -59,8 +54,7 @@ export function SipCreateModal({
     symbol: values.symbol.trim().toUpperCase(),
     amount: values.amount,
     frequency: values.frequency,
-    dayOfWeek:
-      values.frequency === 'weekly' || values.frequency === 'biweekly' ? values.dayOfWeek : undefined,
+    dayOfWeek: values.frequency === 'weekly' || values.frequency === 'biweekly' ? values.dayOfWeek : undefined,
     dayOfMonth: values.frequency === 'monthly' ? values.dayOfMonth : undefined,
     startDate: values.startDate.format('YYYY-MM-DD'),
     thesis: values.thesis.trim(),
@@ -69,8 +63,16 @@ export function SipCreateModal({
 
   const refreshPreview = async (): Promise<void> => {
     try {
-      const values = await form.validateFields(['symbol', 'amount', 'frequency', 'dayOfWeek', 'dayOfMonth', 'startDate', 'thesis']);
-      setPreview(await window.desktop.sip.previewSchedule(buildInput(values as FormValues)));
+      const values = await form.validateFields([
+        'symbol',
+        'amount',
+        'frequency',
+        'dayOfWeek',
+        'dayOfMonth',
+        'startDate',
+        'thesis',
+      ]);
+      setPreview(await window.desktop.sip.previewSchedule(buildInput(values)));
     } catch {
       setPreview([]);
     }

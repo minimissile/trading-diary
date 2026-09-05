@@ -24,6 +24,7 @@
     "src/service/**/*.ts",
     "src/shared/**/*.ts",
     "src/shared/**/*.d.ts",
-    "tests/**/*.ts"
+    "tests/**/*.ts",
+    "src/renderer/lib/animated-value-cache.ts"
   ]
 }

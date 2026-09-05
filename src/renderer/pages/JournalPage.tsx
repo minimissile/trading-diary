@@ -9,13 +9,14 @@ import {
   Modal,
   Radio,
   Select,
+  Segmented,
   Skeleton,
   Space,
   Statistic,
   Switch,
   Tag,
 } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useLocation, useNavigate } from 'react-router';
 import type { CreateTradeReviewInput, TradeDirection, TradeEpisodeView, TradingPlan } from '../../shared/api.types';
 import { ExecutionEntryModal } from '../components/trading/ExecutionEntryModal';
@@ -64,6 +65,8 @@ export function JournalPage(): React.JSX.Element {
   const requestedOpenReview = state?.openReview ?? false;
   const requestedOpenExecution = state?.openExecution ?? false;
 
+  const [view, setView] = useState<'reviews' | 'pending' | 'open'>('reviews');
+  const [reviewQuery, setReviewQuery] = useState('');
   const [executionOpen, setExecutionOpen] = useState(requestedOpenExecution);
   const [reviewOpen, setReviewOpen] = useState(
     Boolean(requestedPlanId || requestedEpisodeId || requestedReviewDraft || requestedOpenReview),
@@ -82,6 +85,8 @@ export function JournalPage(): React.JSX.Element {
 
   useEffect(() => {
     if (!state?.reviewDraft && !state?.openReview && !state?.openExecution && !state?.episodeId && !state?.planId) return;
+    // Consume the router command once before clearing location.state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setInitialReviewDraft(state.reviewDraft ?? null);
     setInitialPlanId(state.planId ?? null);
     setInitialEpisodeId(state.episodeId ?? null);
@@ -100,6 +105,13 @@ export function JournalPage(): React.JSX.Element {
     () => episodes.filter((episode) => episode.status === 'closed' && episode.reviewId === null),
     [episodes],
   );
+
+  const visibleReviews = useMemo(() => {
+    const query = reviewQuery.trim().toLowerCase();
+    return reviews.filter(
+      (review) => !query || `${review.symbol} ${review.title} ${review.summary} ${review.lesson}`.toLowerCase().includes(query),
+    );
+  }, [reviews, reviewQuery]);
 
   const totalPnl = reviews.reduce((total, review) => total + review.pnl, 0);
   const averageScore =
@@ -153,15 +165,42 @@ export function JournalPage(): React.JSX.Element {
           />
         </article>
         <article>
-          <Statistic title="待复盘回合" value={pendingEpisodes.length + reviewablePlans.length} suffix="笔" />
+          <Statistic title="待复盘事项" value={pendingEpisodes.length + reviewablePlans.length} suffix="笔" />
         </article>
       </section>
+
+      <div className="journal-navigation">
+        <Segmented
+          options={[
+            { label: `复盘记录 ${reviews.length}`, value: 'reviews' },
+            { label: `待复盘 ${pendingEpisodes.length + reviewablePlans.length}`, value: 'pending' },
+            { label: `持仓回合 ${openEpisodes.length}`, value: 'open' },
+          ]}
+          value={view}
+          onChange={setView}
+        />
+        {view === 'reviews' ? (
+          <Input
+            className="journal-search"
+            allowClear
+            prefix={<SearchOutlined />}
+            aria-label="搜索复盘"
+            placeholder="搜索标的、总结或规则"
+            value={reviewQuery}
+            onChange={(event) => setReviewQuery(event.target.value)}
+          />
+        ) : (
+          <span className="journal-view-hint">
+            {view === 'pending' ? '回顾交易过程，提炼下一次执行的规则' : '当前交易账户的成交回合'}
+          </span>
+        )}
+      </div>
 
       {loading ? (
         <Skeleton active paragraph={{ rows: 10 }} />
       ) : (
         <>
-          {openEpisodes.length > 0 ? (
+          {view === 'open' && openEpisodes.length > 0 ? (
             <section className="journal-section">
               <header className="section-inline-header">
                 <h2>持仓中的回合</h2>
@@ -191,21 +230,22 @@ export function JournalPage(): React.JSX.Element {
                         <ValueDisplay as="strong" kind="currency" value={episode.totalFees} />
                       </div>
                     </div>
-                    <EpisodeTimeline executions={episode.executions} />
-                    <Button size="small" onClick={() => setExecutionOpen(true)}>
-                      继续录入
-                    </Button>
+                    <details className="journal-executions">
+                      <summary>成交明细 · {episode.executions.length} 笔</summary>
+                      <EpisodeTimeline executions={episode.executions} />
+                    </details>
+                    <Button onClick={() => setExecutionOpen(true)}>继续录入</Button>
                   </article>
                 ))}
               </div>
             </section>
           ) : null}
 
-          {pendingEpisodes.length > 0 ? (
+          {view === 'pending' && pendingEpisodes.length > 0 ? (
             <section className="journal-section">
               <header className="section-inline-header">
                 <h2>待复盘回合</h2>
-                <span>平仓后 48 小时内完成复盘效果最好</span>
+                <span>交易已结束，记录执行偏差与改进规则</span>
               </header>
               <div className="episode-list">
                 {pendingEpisodes.map((episode) => (
@@ -234,8 +274,11 @@ export function JournalPage(): React.JSX.Element {
                         <ValueDisplay as="strong" kind="pnl" value={episode.realizedPnl} />
                       </div>
                     </div>
-                    <EpisodeTimeline executions={episode.executions} />
-                    <Button type="primary" size="small" onClick={() => openReviewForEpisode(episode)}>
+                    <details className="journal-executions">
+                      <summary>成交明细 · {episode.executions.length} 笔</summary>
+                      <EpisodeTimeline executions={episode.executions} />
+                    </details>
+                    <Button type="primary" onClick={() => openReviewForEpisode(episode)}>
                       开始复盘
                     </Button>
                   </article>
@@ -244,26 +287,83 @@ export function JournalPage(): React.JSX.Element {
             </section>
           ) : null}
 
-          {reviews.length === 0 && pendingEpisodes.length === 0 && openEpisodes.length === 0 ? (
-            <div className="empty-panel">
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有成交记录，先录入一笔买卖">
-                <Button type="primary" onClick={() => setExecutionOpen(true)}>
-                  记录第一笔成交
-                </Button>
-              </Empty>
-            </div>
-          ) : reviews.length > 0 ? (
+          {view === 'pending' && reviewablePlans.length > 0 ? (
             <section className="journal-section">
               <header className="section-inline-header">
-                <h2>已完成复盘</h2>
+                <h2>已结束的计划</h2>
+                <span>{reviewablePlans.length} 份待复盘</span>
+              </header>
+              <div className="journal-pending-plans">
+                {reviewablePlans.map((plan) => (
+                  <article key={plan.id}>
+                    <div>
+                      <h3>{plan.name}</h3>
+                      <span>
+                        {plan.symbol} · {formatDateTime(plan.updatedAt)} 更新
+                      </span>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        setInitialPlanId(plan.id);
+                        setInitialEpisodeId(null);
+                        setInitialReviewDraft(null);
+                        setReviewOpen(true);
+                      }}
+                    >
+                      复盘计划
+                    </Button>
+                  </article>
+                ))}
+              </div>
+            </section>
+          ) : null}
+          {(view === 'reviews' && visibleReviews.length === 0) ||
+          (view === 'pending' && pendingEpisodes.length + reviewablePlans.length === 0) ||
+          (view === 'open' && openEpisodes.length === 0) ? (
+            <div className="empty-panel">
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  view === 'reviews'
+                    ? reviewQuery.trim()
+                      ? '未找到匹配的复盘'
+                      : '还没有复盘记录'
+                    : view === 'pending'
+                      ? '暂无待复盘事项'
+                      : '当前账户暂无持仓回合'
+                }
+              >
+                {view === 'reviews' && reviewQuery.trim() ? (
+                  <Button onClick={() => setReviewQuery('')}>清除搜索</Button>
+                ) : (
+                  <p>
+                    {view === 'reviews'
+                      ? '点击右上角新建复盘，记录交易结果与经验。'
+                      : view === 'pending'
+                        ? '回合或计划结束后，会在这里列出。'
+                        : '记录真实成交后，在这里跟踪交易过程。'}
+                  </p>
+                )}
+              </Empty>
+            </div>
+          ) : null}
+          {view === 'reviews' && visibleReviews.length > 0 ? (
+            <section className="journal-section">
+              <header className="section-inline-header">
+                <h2>
+                  复盘记录 <span>{visibleReviews.length}</span>
+                </h2>
+                <span>盈亏反映结果，纪律评分反映执行</span>
               </header>
               <div className="review-list">
-                {reviews.map((review) => (
+                {visibleReviews.map((review) => (
                   <article className="review-card" key={review.id}>
                     <div className="review-card-header">
                       <div>
-                        <span className="symbol-label">{review.symbol}</span>
-                        <h2>{review.title}</h2>
+                        <h3>{review.title}</h3>
+                        <span className="symbol-label">
+                          {review.symbol} · {formatDateTime(review.createdAt)}
+                        </span>
                       </div>
                       <div className="review-tags">
                         <Tag color={review.planned ? 'blue' : 'orange'}>{review.planned ? '计划内交易' : '计划外交易'}</Tag>
@@ -302,7 +402,6 @@ export function JournalPage(): React.JSX.Element {
                         <p>{review.lesson}</p>
                       </div>
                     </div>
-                    <time>{formatDateTime(review.createdAt)} 完成复盘</time>
                   </article>
                 ))}
               </div>

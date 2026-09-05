@@ -1,29 +1,18 @@
-import { app, dialog, ipcMain, shell } from 'electron';
+import { dialog, ipcMain, shell } from 'electron';
 import type {
   CreateTradeAlertInput,
   CreateTradeReviewInput,
   CreateTradingPlanInput,
-  LlmUserSettings,
   ReviewAiDraftInput,
   TradeAlertStatus,
   TradingPlanStatus,
 } from '../../../shared/api.types';
-import type { CreateTradingAccountInput, FeeEstimateInput, UpdateTradingAccountInput } from '../../../shared/accounts/types';
-import type { CreateExecutionInput } from '../../../shared/episodes/types';
-import type { ExecutionImportInput } from '../../../shared/import/types';
-import type { AlertEventUserAction } from '../../../shared/alerts/event-types';
-import type {
-  CreatePlaybookRuleInput,
-  PlaybookRuleStatus,
-  UpdatePlaybookRuleInput,
-} from '../../../shared/playbook/types';
-import type { KLineAdjust, KLinePeriod } from '../../../shared/market/types';
 import { ipcChannels } from '../../../shared/ipc-channels';
+import { notifyTriggeredAlerts } from '../notifications';
+import { activeStreamCancels, assertTrustedSender, sendStreamEvent } from '../shared';
 import type { IpcHandlerContext } from '../types';
-import { assertDevOnly, assertTrustedSender, activeStreamCancels, sendStreamEvent } from '../shared';
-import { notifyDueSipOccurrences, notifyTriggeredAlerts } from '../notifications';
 
-export function registerWorkspaceHandlers({ window, service, updater }: IpcHandlerContext): void {
+export function registerWorkspaceHandlers({ window, service }: IpcHandlerContext): void {
   ipcMain.handle(ipcChannels.health, async (event) => {
     assertTrustedSender(event, window);
     return service.request('system.health', {});
@@ -129,5 +118,4 @@ export function registerWorkspaceHandlers({ window, service, updater }: IpcHandl
     activeStreamCancels.set(input.streamId, session.cancel);
     return { streamId: input.streamId };
   });
-
 }

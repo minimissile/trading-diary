@@ -104,9 +104,7 @@ export class SipDatabase {
   }
 
   getPlan(id: string): FundSipPlan {
-    const row = this.db.prepare('SELECT * FROM fund_sip_plans WHERE id = ?').get(id) as unknown as
-      | FundSipPlanRow
-      | undefined;
+    const row = this.db.prepare('SELECT * FROM fund_sip_plans WHERE id = ?').get(id) as unknown as FundSipPlanRow | undefined;
     if (!row) throw new Error('定投计划不存在');
     return this.mapPlan(row);
   }
@@ -191,12 +189,7 @@ export class SipDatabase {
         : frequency === 'weekly' || frequency === 'biweekly'
           ? current.dayOfWeek
           : null;
-    const dayOfMonth =
-      input.dayOfMonth !== undefined
-        ? input.dayOfMonth
-        : frequency === 'monthly'
-          ? current.dayOfMonth
-          : null;
+    const dayOfMonth = input.dayOfMonth !== undefined ? input.dayOfMonth : frequency === 'monthly' ? current.dayOfMonth : null;
     const endDate = input.endDate !== undefined ? input.endDate : current.endDate;
     const thesis = input.thesis?.trim() ?? current.thesis;
 
@@ -245,7 +238,10 @@ export class SipDatabase {
     return this.getPlan(id);
   }
 
-  schedulePlanPause(id: string, fromDate: string): { plan: FundSipPlan; removedOccurrences: number; removedLedgerEntries: number } {
+  schedulePlanPause(
+    id: string,
+    fromDate: string,
+  ): { plan: FundSipPlan; removedOccurrences: number; removedLedgerEntries: number } {
     const plan = this.getPlan(id);
     if (plan.status !== 'active' && plan.status !== 'paused') {
       throw new Error('只能暂停执行中或已暂停的计划');
@@ -286,7 +282,6 @@ export class SipDatabase {
       throw new Error('预约暂停已生效，请直接恢复计划');
     }
 
-    const fromDate = plan.pauseFromDate;
     const now = new Date().toISOString();
     this.db.prepare(`UPDATE fund_sip_plans SET pause_from_date = NULL, updated_at = ? WHERE id = ?`).run(now, id);
     const next = this.getPlan(id);
@@ -418,8 +413,7 @@ export class SipDatabase {
 
   getOccurrence(id: string): FundSipOccurrence {
     const row = this.db.prepare('SELECT * FROM fund_sip_occurrences WHERE id = ?').get(id) as unknown as
-      | FundSipOccurrenceRow
-      | undefined;
+      FundSipOccurrenceRow | undefined;
     if (!row) throw new Error('定投期次不存在');
     return this.mapOccurrence(row);
   }

@@ -19,7 +19,9 @@ function clampScrollTop(container: HTMLElement, target: number): number {
 export function useScrollRestoration(containerRef: RefObject<HTMLElement | null>): void {
   const { pathname } = useLocation();
   const pathnameRef = useRef(pathname);
-  pathnameRef.current = pathname;
+  useLayoutEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
 
   useEffect(() => {
     const container = containerRef.current;

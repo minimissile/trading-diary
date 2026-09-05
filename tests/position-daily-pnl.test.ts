@@ -2,11 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PortfolioLedgerEntry } from '../src/shared/portfolio/types';
 import { FEE_PROFILE_A_SHARE_STANDARD } from '../src/shared/accounts/fee-presets';
 import { computeReferenceUnrealizedPnl } from '../src/service/portfolio/reference-unrealized-pnl';
-import {
-  computePositionDailyPnl,
-  resolveDayChangePerShare,
-  sumDailyPnl,
-} from '../src/service/portfolio/position-daily-pnl';
+import { computePositionDailyPnl, resolveDayChangePerShare, sumDailyPnl } from '../src/service/portfolio/position-daily-pnl';
 
 function entry(
   partial: Partial<PortfolioLedgerEntry> & Pick<PortfolioLedgerEntry, 'side' | 'quantity' | 'price' | 'tradeAt'>,
@@ -16,6 +12,8 @@ function entry(
     accountId: 'default',
     symbol: '601519',
     kind: 'stock',
+    venue: 'SH',
+    cashOutflow: null,
     fees: 0,
     planId: null,
     note: '',
@@ -30,7 +28,7 @@ describe('resolveDayChangePerShare', () => {
   it('prefers price minus prevClose when prevClose is plausible', () => {
     expect(
       resolveDayChangePerShare(
-        { change: -0.0222, changePercent: 2.95, price: 7.32, prevClose: 7.11 },
+        { nav: null, navDate: null, change: -0.0222, changePercent: 2.95, price: 7.32, prevClose: 7.11 },
         7.32,
       ),
     ).toBeCloseTo(0.21, 2);
@@ -39,7 +37,7 @@ describe('resolveDayChangePerShare', () => {
   it('derives move from change percent when prevClose is unreliable', () => {
     expect(
       resolveDayChangePerShare(
-        { change: -0.0222, changePercent: 2.95, price: 7.32, prevClose: 140821225.99 },
+        { nav: null, navDate: null, change: -0.0222, changePercent: 2.95, price: 7.32, prevClose: 140821225.99 },
         7.32,
       ),
     ).toBeCloseTo(0.21, 2);
@@ -48,7 +46,7 @@ describe('resolveDayChangePerShare', () => {
   it('derives fund daily move from change percent when nav is flat', () => {
     expect(
       resolveDayChangePerShare(
-        { change: null, changePercent: 1.05, price: 1.1611, prevClose: 1.1611 },
+        { nav: null, navDate: null, change: null, changePercent: 1.05, price: 1.1611, prevClose: 1.1611 },
         1.1611,
       ),
     ).toBeCloseTo((1.1611 * 1.05) / 101.05, 4);
@@ -72,7 +70,7 @@ describe('position daily pnl', () => {
       kind: 'stock',
       entries: [entry({ side: 'buy', quantity, price: 8.77, fees: 5.05, tradeAt: '2026-08-28T00:00:00+08:00' })],
       marketPrice: 8.9,
-      quote: { change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
+      quote: { nav: null, navDate: null, change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
       referenceUnrealizedPnl: referenceUnrealized,
       firstBuyAt: '2026-08-28T00:00:00+08:00',
       asOf: new Date('2026-08-28T15:22:00+08:00'),
@@ -98,7 +96,7 @@ describe('position daily pnl', () => {
       kind: 'stock',
       entries: [entry({ side: 'buy', quantity, price: 8.77, fees: 5.05, tradeAt: '2026-08-28T00:00:00+08:00' })],
       marketPrice: 8.9,
-      quote: { change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
+      quote: { nav: null, navDate: null, change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
       referenceUnrealizedPnl: referenceUnrealized,
       firstBuyAt: '2026-08-28T00:00:00+08:00',
       asOf: new Date('2026-08-30T01:00:00+08:00'),
@@ -112,7 +110,7 @@ describe('position daily pnl', () => {
       kind: 'stock',
       entries: [entry({ side: 'buy', quantity: 600, price: 8.79, tradeAt: '2026-08-25T00:00:00+08:00' })],
       marketPrice: 8.9,
-      quote: { change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
+      quote: { nav: null, navDate: null, change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
       referenceUnrealizedPnl: 50,
       firstBuyAt: '2026-08-25T00:00:00+08:00',
       asOf: new Date('2026-08-30T01:00:00+08:00'),
@@ -125,7 +123,7 @@ describe('position daily pnl', () => {
       kind: 'stock',
       entries: [entry({ side: 'buy', quantity: 600, price: 8.79, tradeAt: '2026-08-25T00:00:00+08:00' })],
       marketPrice: 8.9,
-      quote: { change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
+      quote: { nav: null, navDate: null, change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
       referenceUnrealizedPnl: 50,
       firstBuyAt: '2026-08-25T00:00:00+08:00',
       asOf: new Date('2026-08-28T15:22:00+08:00'),
@@ -137,11 +135,27 @@ describe('position daily pnl', () => {
     const pnl = computePositionDailyPnl({
       kind: 'stock',
       entries: [
-        entry({ id: '1', symbol: '002575', side: 'buy', quantity: 800, price: 5.32, fees: 0.45, tradeAt: '2026-08-20T00:00:00+08:00' }),
-        entry({ id: '2', symbol: '002575', side: 'buy', quantity: 400, price: 5.35, fees: 0.23, tradeAt: '2026-08-28T00:00:00+08:00' }),
+        entry({
+          id: '1',
+          symbol: '002575',
+          side: 'buy',
+          quantity: 800,
+          price: 5.32,
+          fees: 0.45,
+          tradeAt: '2026-08-20T00:00:00+08:00',
+        }),
+        entry({
+          id: '2',
+          symbol: '002575',
+          side: 'buy',
+          quantity: 400,
+          price: 5.35,
+          fees: 0.23,
+          tradeAt: '2026-08-28T00:00:00+08:00',
+        }),
       ],
       marketPrice: 5.31,
-      quote: { change: 0.09, changePercent: 1.724, price: 5.31, prevClose: 5.22 },
+      quote: { nav: null, navDate: null, change: 0.09, changePercent: 1.724, price: 5.31, prevClose: 5.22 },
       referenceUnrealizedPnl: -28.64,
       firstBuyAt: '2026-08-20T00:00:00+08:00',
       asOf: new Date('2026-08-28T15:22:00+08:00'),
@@ -153,11 +167,27 @@ describe('position daily pnl', () => {
     const pnl = computePositionDailyPnl({
       kind: 'stock',
       entries: [
-        entry({ id: '1', symbol: '002575', side: 'buy', quantity: 800, price: 5.32, fees: 0.45, tradeAt: '2026-08-20T00:00:00+08:00' }),
-        entry({ id: '2', symbol: '002575', side: 'buy', quantity: 400, price: 5.35, fees: 0.23, tradeAt: '2026-08-28T00:00:00+08:00' }),
+        entry({
+          id: '1',
+          symbol: '002575',
+          side: 'buy',
+          quantity: 800,
+          price: 5.32,
+          fees: 0.45,
+          tradeAt: '2026-08-20T00:00:00+08:00',
+        }),
+        entry({
+          id: '2',
+          symbol: '002575',
+          side: 'buy',
+          quantity: 400,
+          price: 5.35,
+          fees: 0.23,
+          tradeAt: '2026-08-28T00:00:00+08:00',
+        }),
       ],
       marketPrice: 5.31,
-      quote: { change: 0.09, changePercent: 1.724, price: 5.31, prevClose: 5.22 },
+      quote: { nav: null, navDate: null, change: 0.09, changePercent: 1.724, price: 5.31, prevClose: 5.22 },
       referenceUnrealizedPnl: -28.64,
       firstBuyAt: '2026-08-20T00:00:00+08:00',
       asOf: new Date('2026-08-28T01:00:00+08:00'),
@@ -170,7 +200,7 @@ describe('position daily pnl', () => {
       kind: 'stock',
       entries: [entry({ side: 'buy', quantity: 600, price: 8.79, tradeAt: '2026-08-25T00:00:00+08:00' })],
       marketPrice: 8.9,
-      quote: { change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
+      quote: { nav: null, navDate: null, change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
       referenceUnrealizedPnl: 50,
       firstBuyAt: '2026-08-25T00:00:00+08:00',
       asOf: new Date('2026-08-31T00:11:00+08:00'),
@@ -182,11 +212,27 @@ describe('position daily pnl', () => {
     const pnl = computePositionDailyPnl({
       kind: 'stock',
       entries: [
-        entry({ id: '1', symbol: '002575', side: 'buy', quantity: 800, price: 5.32, fees: 0.45, tradeAt: '2026-08-20T00:00:00+08:00' }),
-        entry({ id: '2', symbol: '002575', side: 'buy', quantity: 400, price: 5.35, fees: 0.23, tradeAt: '2026-08-28T00:00:00+08:00' }),
+        entry({
+          id: '1',
+          symbol: '002575',
+          side: 'buy',
+          quantity: 800,
+          price: 5.32,
+          fees: 0.45,
+          tradeAt: '2026-08-20T00:00:00+08:00',
+        }),
+        entry({
+          id: '2',
+          symbol: '002575',
+          side: 'buy',
+          quantity: 400,
+          price: 5.35,
+          fees: 0.23,
+          tradeAt: '2026-08-28T00:00:00+08:00',
+        }),
       ],
       marketPrice: 5.31,
-      quote: { change: 0.09, changePercent: 1.724, price: 5.31, prevClose: 5.22 },
+      quote: { nav: null, navDate: null, change: 0.09, changePercent: 1.724, price: 5.31, prevClose: 5.22 },
       referenceUnrealizedPnl: -28.64,
       firstBuyAt: '2026-08-20T00:00:00+08:00',
       asOf: new Date('2026-08-30T01:00:00+08:00'),
@@ -197,9 +243,11 @@ describe('position daily pnl', () => {
   it('returns zero on weekend for long-held stock', () => {
     const pnl = computePositionDailyPnl({
       kind: 'stock',
-      entries: [entry({ symbol: '002387', side: 'buy', quantity: 500, price: 9.01, fees: 0.47, tradeAt: '2026-07-01T00:00:00+08:00' })],
+      entries: [
+        entry({ symbol: '002387', side: 'buy', quantity: 500, price: 9.01, fees: 0.47, tradeAt: '2026-07-01T00:00:00+08:00' }),
+      ],
       marketPrice: 7.32,
-      quote: { change: 0.21, changePercent: 2.95, price: 7.32, prevClose: 7.11 },
+      quote: { nav: null, navDate: null, change: 0.21, changePercent: 2.95, price: 7.32, prevClose: 7.11 },
       referenceUnrealizedPnl: -847.79,
       firstBuyAt: '2026-07-01T00:00:00+08:00',
       asOf: new Date('2026-08-30T01:00:00+08:00'),
@@ -212,7 +260,7 @@ describe('position daily pnl', () => {
       kind: 'stock',
       entries: [entry({ side: 'buy', quantity: 600, price: 8.79, tradeAt: '2026-08-28T00:00:00+08:00' })],
       marketPrice: 8.90358,
-      quote: { change: 0.08, changePercent: 0.91, price: 8.90358, prevClose: 8.82 },
+      quote: { nav: null, navDate: null, change: 0.08, changePercent: 0.91, price: 8.90358, prevClose: 8.82 },
       referenceUnrealizedPnl: 68.15,
       firstBuyAt: '2026-08-28T00:00:00+08:00',
       asOf: new Date('2026-08-28T15:22:00+08:00'),
@@ -228,7 +276,7 @@ describe('position daily pnl', () => {
         entry({ id: '2', side: 'buy', quantity: 200, price: 8.79, tradeAt: '2026-08-28T00:00:00+08:00' }),
       ],
       marketPrice: 8.9,
-      quote: { change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
+      quote: { nav: null, navDate: null, change: 0.08, changePercent: 0.91, price: 8.9, prevClose: 8.82 },
       referenceUnrealizedPnl: 100,
       firstBuyAt: '2026-08-25T00:00:00+08:00',
       asOf: new Date('2026-08-28T15:22:00+08:00'),
@@ -349,7 +397,7 @@ describe('position daily pnl', () => {
         kind: 'stock',
         entries: [entry({ side: 'buy', quantity: 100, price: 10, tradeAt: '2026-08-25T00:00:00+08:00' })],
         marketPrice: 10.5,
-        quote: { change: null, changePercent: null, price: null, prevClose: null },
+        quote: { nav: null, navDate: null, change: null, changePercent: null, price: null, prevClose: null },
         asOf: new Date('2026-08-28T12:00:00+08:00'),
       }),
     ).toBeNull();

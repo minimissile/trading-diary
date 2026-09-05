@@ -1,6 +1,6 @@
-import { Checkbox, Modal } from 'antd';
-import { useEffect, useState } from 'react';
-import type { PlaybookRule } from '../../../shared/playbook/types';
+import { Alert, Button, Checkbox, Modal } from 'antd';
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import type { TradingPlan } from '../../../shared/api.types';
 
 interface PlanActivationModalProps {
@@ -10,29 +10,20 @@ interface PlanActivationModalProps {
   onConfirm: () => void;
 }
 
-export function PlanActivationModal({ open, plan, onClose, onConfirm }: PlanActivationModalProps): React.JSX.Element {
-  const [rules, setRules] = useState<PlaybookRule[]>([]);
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
-  const [loading, setLoading] = useState(false);
+export function PlanActivationModal(props: PlanActivationModalProps): React.JSX.Element {
+  return props.open ? <PlanActivationModalContent key={props.plan?.id} {...props} /> : <></>;
+}
 
-  useEffect(() => {
-    if (!open || !plan) return;
-    let active = true;
-    setLoading(true);
-    void window.desktop.playbook
-      .activationChecklist(plan.symbol)
-      .then((checklist) => {
-        if (!active) return;
-        setRules(checklist);
-        setChecked(Object.fromEntries(checklist.map((rule) => [rule.id, false])));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [open, plan]);
+function PlanActivationModalContent({ open, plan, onClose, onConfirm }: PlanActivationModalProps): React.JSX.Element {
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const query = useQuery({
+    queryKey: ['playbook', 'activation-checklist', plan?.symbol],
+    queryFn: () => window.desktop.playbook.activationChecklist(plan!.symbol),
+    enabled: open && Boolean(plan),
+    retry: false,
+  });
+  const rules = query.data ?? [];
+  const loading = query.isPending || query.isFetching;
 
   const allChecked = rules.length === 0 || rules.every((rule) => checked[rule.id]);
 
@@ -43,16 +34,29 @@ export function PlanActivationModal({ open, plan, onClose, onConfirm }: PlanActi
       title={plan ? `激活计划 · ${plan.symbol}` : '激活计划'}
       okText="确认激活"
       cancelText="返回"
-      okButtonProps={{ disabled: !allChecked || loading }}
+      okButtonProps={{ disabled: !allChecked || loading || query.isError }}
       onCancel={onClose}
       onOk={onConfirm}
     >
       <p className="dialog-intro">激活前请确认以下交易规则。这些规则来自你的历史复盘。</p>
+      {query.isError ? (
+        <Alert
+          type="error"
+          showIcon
+          title="规则清单加载失败"
+          description="请重试并核对规则后再激活。"
+          action={
+            <Button size="small" onClick={() => void query.refetch()}>
+              重试
+            </Button>
+          }
+        />
+      ) : null}
       {loading ? <p>加载检查清单…</p> : null}
-      {!loading && rules.length === 0 ? (
+      {!loading && !query.isError && rules.length === 0 ? (
         <p className="playbook-checklist-empty">暂无相关规则，可直接激活。完成复盘后教训会自动写入规则库。</p>
       ) : null}
-      {!loading && rules.length > 0 ? (
+      {!loading && !query.isError && rules.length > 0 ? (
         <ul className="playbook-checklist">
           {rules.map((rule) => (
             <li key={rule.id}>

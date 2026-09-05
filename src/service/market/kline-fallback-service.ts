@@ -257,7 +257,7 @@ export async function listKlinesFromFallback(
   beforeTimestamp?: number,
 ): Promise<KLineListResult> {
   const clampedLimit = Math.min(Math.max(limit, 1), 1023);
-  let bars: KLineBar[] = [];
+  let bars: KLineBar[];
 
   if (TENCENT_PERIOD[period]) {
     try {

@@ -1,29 +1,10 @@
-import { app, dialog, ipcMain, shell } from 'electron';
-import type {
-  CreateTradeAlertInput,
-  CreateTradeReviewInput,
-  CreateTradingPlanInput,
-  LlmUserSettings,
-  ReviewAiDraftInput,
-  TradeAlertStatus,
-  TradingPlanStatus,
-} from '../../../shared/api.types';
-import type { CreateTradingAccountInput, FeeEstimateInput, UpdateTradingAccountInput } from '../../../shared/accounts/types';
-import type { CreateExecutionInput } from '../../../shared/episodes/types';
-import type { ExecutionImportInput } from '../../../shared/import/types';
-import type { AlertEventUserAction } from '../../../shared/alerts/event-types';
-import type {
-  CreatePlaybookRuleInput,
-  PlaybookRuleStatus,
-  UpdatePlaybookRuleInput,
-} from '../../../shared/playbook/types';
-import type { KLineAdjust, KLinePeriod } from '../../../shared/market/types';
+import { ipcMain } from 'electron';
 import { ipcChannels } from '../../../shared/ipc-channels';
+import type { KLineAdjust, KLinePeriod } from '../../../shared/market/types';
+import { assertTrustedSender } from '../shared';
 import type { IpcHandlerContext } from '../types';
-import { assertDevOnly, assertTrustedSender, activeStreamCancels, sendStreamEvent } from '../shared';
-import { notifyDueSipOccurrences, notifyTriggeredAlerts } from '../notifications';
 
-export function registerMarketHandlers({ window, service, updater }: IpcHandlerContext): void {
+export function registerMarketHandlers({ window, service }: IpcHandlerContext): void {
   ipcMain.handle(ipcChannels.marketResolve, (event, input: { symbol: string }) => {
     assertTrustedSender(event, window);
     return service.request('market.resolve', input);
@@ -49,13 +30,10 @@ export function registerMarketHandlers({ window, service, updater }: IpcHandlerC
     return service.request('market.getSnapshot', input);
   });
 
-  ipcMain.handle(
-    ipcChannels.marketListDividends,
-    (event, input: { symbol: string; page?: number; pageSize?: number }) => {
-      assertTrustedSender(event, window);
-      return service.request('market.listDividends', input);
-    },
-  );
+  ipcMain.handle(ipcChannels.marketListDividends, (event, input: { symbol: string; page?: number; pageSize?: number }) => {
+    assertTrustedSender(event, window);
+    return service.request('market.listDividends', input);
+  });
 
   ipcMain.handle(ipcChannels.marketListNews, (event, input: { symbol: string; pageSize?: number }) => {
     assertTrustedSender(event, window);
@@ -88,5 +66,4 @@ export function registerMarketHandlers({ window, service, updater }: IpcHandlerC
     assertTrustedSender(event, window);
     return service.request('watchlist.getPoolSnapshot', input);
   });
-
 }

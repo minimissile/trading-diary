@@ -17,8 +17,7 @@
   height: 0;
 }
 
-/* Reserve space before vertical overflow so scrollbars never shift content. */
-:root,
+/* Reserve space inside scroll containers only; the app viewport stays full width. */
 .app-page-scroll,
 .primary-nav,
 .ant-table-body,

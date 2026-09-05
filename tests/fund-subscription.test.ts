@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { quantityPresetForKind, priceListPresetForKind } from '../src/shared/format/display-presets';
 import { nextTradingDay } from '../src/shared/trade-calendar';
-import {
-  computeFundQuantityFromAmount,
-  resolveFundConfirmationNavDate,
-} from '../src/service/portfolio/fund-subscription';
+import { computeFundQuantityFromAmount, resolveFundConfirmationNavDate } from '../src/service/portfolio/fund-subscription';
 import { computeOtcFundHoldMetrics } from '../src/service/portfolio/ledger-service';
 import { computeReferenceUnrealizedPnl } from '../src/service/portfolio/reference-unrealized-pnl';
 import { FEE_PROFILE_A_SHARE_STANDARD } from '../src/shared/accounts/fee-presets';
@@ -67,7 +64,7 @@ describe('otc fund-app alignment', () => {
       quantity: 116.5,
       totalCost: hold.totalCost,
       kind: 'otc_fund',
-      market: 'OTC',
+      market: null,
       feeProfile: FEE_PROFILE_A_SHARE_STANDARD,
     });
 

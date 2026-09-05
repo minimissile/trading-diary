@@ -1,3 +1,4 @@
+import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { useMemo, useState } from 'react';
 import { Alert, App, Button, Empty, Form, Input, InputNumber, Modal, Radio, Segmented, Skeleton, Space, Tag } from 'antd';
 import type { CreateTradeAlertInput, TradeAlert, TradeAlertCondition, TradeAlertStatus } from '../../shared/api.types';
@@ -17,27 +18,39 @@ interface QuoteFormValues {
   price: number;
 }
 
-type AlertFilter = 'open' | 'history' | 'events';
+type AlertFilter = 'open' | 'triggered' | 'history' | 'events';
 
 export function AlertsPage(): React.JSX.Element {
   const { message } = App.useApp();
   const [quoteForm] = Form.useForm<QuoteFormValues>();
   const [createForm] = Form.useForm<CreateTradeAlertInput>();
   const { alerts, events, isLoading: loading, refetch } = useAlertsDashboardQuery();
-  const [filter, setFilter] = useState<AlertFilter>('open');
+  const [filter, setFilter] = useState<AlertFilter>('triggered');
+  const [query, setQuery] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lastEvaluation, setLastEvaluation] = useState<string | null>(null);
 
+  const activeCount = alerts.filter((alert) => alert.status === 'active').length;
+  const triggeredCount = alerts.filter((alert) => alert.status === 'triggered').length;
+  const historyCount = alerts.filter((alert) => alert.status === 'completed' || alert.status === 'disabled').length;
   const visibleAlerts = useMemo(
     () =>
-      alerts.filter((alert) =>
-        filter === 'open'
-          ? alert.status === 'active' || alert.status === 'triggered'
-          : alert.status === 'completed' || alert.status === 'disabled',
-      ),
-    [alerts, filter],
+      alerts.filter((alert) => {
+        const matchesStatus =
+          filter === 'open'
+            ? alert.status === 'active'
+            : filter === 'triggered'
+              ? alert.status === 'triggered'
+              : alert.status === 'completed' || alert.status === 'disabled';
+        return matchesStatus && `${alert.symbol} ${alert.title}`.toLowerCase().includes(query.trim().toLowerCase());
+      }),
+    [alerts, filter, query],
+  );
+  const visibleEvents = useMemo(
+    () => events.filter((event) => `${event.symbol} ${event.title}`.toLowerCase().includes(query.trim().toLowerCase())),
+    [events, query],
   );
 
   const evaluate = async (values: QuoteFormValues): Promise<void> => {
@@ -89,66 +102,90 @@ export function AlertsPage(): React.JSX.Element {
   };
 
   return (
-    <main className="workspace-page">
+    <main className="workspace-page alerts-page">
       <header className="page-header">
         <div>
           <p className="page-kicker">ALERT ENGINE</p>
-          <h1>买卖点提醒</h1>
+          <h1>提醒中心</h1>
           <p className="page-intro">提醒执行你的计划，不替你做投资决策。</p>
         </div>
-        <Button type="primary" size="large" onClick={() => setCreateOpen(true)}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
           新建价格提醒
         </Button>
       </header>
 
-      <section className="quote-evaluator">
-        <div>
-          <span className="section-label">快速验收</span>
-          <h2>输入一笔最新价，运行提醒引擎</h2>
-          <p>后续接入行情源后会复用同一套判断逻辑；本轮无需依赖外部服务即可验收。</p>
-        </div>
+      <section className="alerts-overview" aria-label="提醒状态概览">
+        <article>
+          <small>待处理</small>
+          <strong>{loading ? '—' : triggeredCount}</strong>
+          <span>已满足触发条件，等待确认</span>
+        </article>
+        <article>
+          <small>监控中</small>
+          <strong>{loading ? '—' : activeCount}</strong>
+          <span>按设定的价格条件持续观察</span>
+        </article>
+        <article>
+          <small>触发记录</small>
+          <strong>{loading ? '—' : events.length}</strong>
+          <span>保留每次触发时的价格与时间</span>
+        </article>
+      </section>
+      <details className="alerts-manual-check">
+        <summary>手动检查价格</summary>
+        <p>输入标的与价格，检查当前监控条件。满足条件时会触发提醒并发送系统通知。</p>
         <Form<QuoteFormValues>
           className="quote-form"
           form={quoteForm}
           layout="inline"
           onFinish={(values) => void evaluate(values)}
         >
-          <Form.Item name="symbol" rules={[{ required: true, message: '请输入代码' }]}>
+          <Form.Item label="标的" name="symbol" rules={[{ required: true, message: '请输入代码' }]}>
             <SymbolSearchInput placeholder="标的代码" maxLength={32} resolveOnBlur={false} />
           </Form.Item>
-          <Form.Item name="price" rules={[{ required: true, message: '请输入最新价' }]}>
+          <Form.Item label="最新价" name="price" rules={[{ required: true, message: '请输入最新价' }]}>
             <InputNumber min={0.0001} precision={4} placeholder="最新价" />
           </Form.Item>
           <Button htmlType="submit" type="primary" loading={evaluating}>
             检查并触发
           </Button>
         </Form>
-      </section>
+      </details>
 
       {lastEvaluation ? <Alert className="evaluation-result" type="info" title={lastEvaluation} showIcon closable /> : null}
 
-      <div className="page-toolbar">
+      <div className="alerts-toolbar">
         <Segmented<AlertFilter>
           options={[
-            { label: '监控与触发', value: 'open' },
-            { label: '处理历史', value: 'history' },
-            { label: `触发事实 ${events.length}`, value: 'events' },
+            { label: `待处理 ${triggeredCount}`, value: 'triggered' },
+            { label: `监控中 ${activeCount}`, value: 'open' },
+            { label: `历史 ${historyCount}`, value: 'history' },
+            { label: `触发记录 ${events.length}`, value: 'events' },
           ]}
           value={filter}
           onChange={setFilter}
+        />
+        <Input
+          className="alerts-search"
+          allowClear
+          prefix={<SearchOutlined />}
+          placeholder="搜索代码或提醒名称"
+          aria-label="搜索提醒"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
         />
       </div>
 
       {loading ? (
         <Skeleton active paragraph={{ rows: 8 }} />
       ) : filter === 'events' ? (
-        events.length === 0 ? (
+        visibleEvents.length === 0 ? (
           <div className="empty-panel">
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="还没有不可变的触发记录" />
+            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={query.trim() ? '未找到匹配记录' : '还没有触发记录'} />
           </div>
         ) : (
           <div className="alert-event-list">
-            {events.map((event) => (
+            {visibleEvents.map((event) => (
               <article className="alert-event-card" key={event.id}>
                 <div className="alert-card-title">
                   <strong>{event.symbol}</strong>
@@ -169,14 +206,21 @@ export function AlertsPage(): React.JSX.Element {
         <div className="empty-panel">
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={filter === 'open' ? '还没有正在监控的提醒' : '还没有提醒历史'}
+            description={
+              query.trim()
+                ? '未找到匹配提醒'
+                : filter === 'triggered'
+                  ? '暂无待处理提醒'
+                  : filter === 'open'
+                    ? '暂无监控中的提醒'
+                    : '暂无处理历史'
+            }
           />
         </div>
       ) : (
         <div className="alert-list">
           {visibleAlerts.map((tradeAlert) => (
             <article className={`alert-card alert-card--${tradeAlert.status}`} key={tradeAlert.id}>
-              <span className="signal-square" aria-hidden="true" />
               <div className="alert-card-main">
                 <div className="alert-card-title">
                   <strong>{tradeAlert.symbol}</strong>

@@ -9,6 +9,8 @@ function entry(partial: Partial<PortfolioLedgerEntry> & Pick<PortfolioLedgerEntr
     accountId: 'default',
     symbol: '600941',
     kind: 'stock',
+    venue: 'SH',
+    cashOutflow: null,
     side: 'buy',
     quantity: 200,
     price: 10,

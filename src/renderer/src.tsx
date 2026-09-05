@@ -20,6 +20,12 @@ import './styles/ui-tokens.css';
 import './styles/ui-components.css';
 import './styles/window-titlebar.css';
 import './styles/workspace-refinement.css';
+import './styles/positions.css';
+import './styles/plans.css';
+import './styles/journal.css';
+import './styles/watchlist.css';
+import './styles/alerts.css';
+import './styles/library-pages.css';
 import './styles/dividends.css';
 import { APP_NAME } from '../shared/brand';
 

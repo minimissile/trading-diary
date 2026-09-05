@@ -16,6 +16,8 @@ function ledgerEntry(
     accountId: 'default',
     symbol: '000158',
     kind: 'stock',
+    venue: 'SH',
+    cashOutflow: null,
     fees: 0,
     planId: null,
     note: '',

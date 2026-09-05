@@ -62,7 +62,7 @@ export function parseInstrumentInput(
   const trimmed = raw.trim();
   if (!trimmed) throw new Error('标的代码不能为空');
 
-  let upper = trimmed.toUpperCase();
+  const upper = trimmed.toUpperCase();
 
   if (options.kind === 'otc_fund') {
     const code = upper.replace(CN_SUFFIX, '');

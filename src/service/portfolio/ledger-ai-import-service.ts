@@ -18,7 +18,8 @@ import {
 } from './ledger-ai-import-parser';
 import { enrichLedgerExtractedRecords } from './ledger-import-enrichment';
 import { resolveImportTradeChannel } from './ledger-import-instrument';
-import { createLedgerImportService, LedgerImportService, toSipExtractedRecord } from './ledger-import-service';
+import type { LedgerImportService } from './ledger-import-service';
+import { createLedgerImportService, toSipExtractedRecord } from './ledger-import-service';
 import type { AppDatabase } from '../database/database';
 import type { PortfolioService } from './portfolio-service';
 
@@ -91,8 +92,8 @@ export class LedgerAiImportService {
   private readonly ledgerImportService: LedgerImportService;
 
   constructor(
-    private readonly database: AppDatabase,
-    private readonly portfolioService: PortfolioService,
+    database: AppDatabase,
+    portfolioService: PortfolioService,
     private readonly sipImportService: SipImportService,
     private readonly llmRunner: LlmRunner,
   ) {
@@ -119,11 +120,7 @@ export class LedgerAiImportService {
     for (let index = 0; index < sourcePaths.length; index += 1) {
       const sourcePath = sourcePaths[index]!;
       const fileName = basename(sourcePath);
-      const result = await this.llmRunner.runVision(
-        PROMPT_IDS.PORTFOLIO_LEDGER_IMPORT_SCREENSHOT,
-        promptVariables,
-        sourcePath,
-      );
+      const result = await this.llmRunner.runVision(PROMPT_IDS.PORTFOLIO_LEDGER_IMPORT_SCREENSHOT, promptVariables, sourcePath);
       lastModel = result.model;
       const parsed = parseLedgerAiImportResponse(result.content, index, fileName);
       allRecords.push(...parsed.records);
@@ -135,9 +132,7 @@ export class LedgerAiImportService {
     }
 
     const merged = mergeLedgerExtractedRecords(allRecords);
-    const importable = merged.filter(
-      (record) => record.recordKind === 'trade' || record.recordKind === 'sip_deduction',
-    );
+    const importable = merged.filter((record) => record.recordKind === 'trade' || record.recordKind === 'sip_deduction');
 
     if (importable.length === 0) {
       throw new Error(
@@ -194,9 +189,7 @@ export class LedgerAiImportService {
       };
     }
 
-    const sipRecords = input.records
-      .filter((record) => record.recordKind === 'sip_deduction')
-      .map(toSipExtractedRecord);
+    const sipRecords = input.records.filter((record) => record.recordKind === 'sip_deduction').map(toSipExtractedRecord);
 
     if (sipRecords.length === 0) {
       return tradeResult;

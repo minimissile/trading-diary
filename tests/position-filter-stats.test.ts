@@ -9,11 +9,7 @@ function isFundKind(kind: InstrumentKind): boolean {
   return kind === 'otc_fund' || kind === 'etf' || kind === 'lof';
 }
 
-function matchesAssetFilter(
-  position: PortfolioPositionView,
-  category: AssetCategory,
-  stockSubKind: StockSubKind,
-): boolean {
+function matchesAssetFilter(position: PortfolioPositionView, category: AssetCategory, stockSubKind: StockSubKind): boolean {
   if (category === 'all') return true;
   if (category === 'fund') {
     if (!isFundKind(position.kind)) return false;
@@ -55,6 +51,9 @@ function position(
     dailyPnl: 5,
     expectedDividend: 0,
     fundProfile: null,
+    firstBuyAt: null,
+    ytdDividendReceived: 0,
+    dividendYieldTtm: null,
     ...partial,
   };
 }

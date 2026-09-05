@@ -132,7 +132,11 @@ export function LofArbitragePage(): React.JSX.Element {
         dataIndex: 'referenceNav',
         align: 'right',
         render: (value: number | null, row) => (
-          <Tooltip title={row.navDate ? `公布日 ${row.navDate}${row.referenceNavSource === 'estimated' ? ' · 盘中估值' : ''}` : undefined}>
+          <Tooltip
+            title={
+              row.navDate ? `公布日 ${row.navDate}${row.referenceNavSource === 'estimated' ? ' · 盘中估值' : ''}` : undefined
+            }
+          >
             <ValueDisplay kind={priceListPresetForKind('lof')} value={value} />
           </Tooltip>
         ),
@@ -231,7 +235,7 @@ export function LofArbitragePage(): React.JSX.Element {
   };
 
   return (
-    <div className="page-stack">
+    <div className="page-stack lof-page">
       <header className="page-header">
         <div>
           <h1>LOF 套利监控</h1>
@@ -242,12 +246,6 @@ export function LofArbitragePage(): React.JSX.Element {
         <Space wrap>
           <Button icon={<PlusOutlined />} onClick={() => setAddWatchOpen(true)}>
             添加监控
-          </Button>
-          <Button icon={<PlusOutlined />} onClick={() => setRuleOpen(true)}>
-            折溢价提醒
-          </Button>
-          <Button icon={<ScanOutlined />} loading={scanning} onClick={() => void scanMarket()}>
-            全市场扫描
           </Button>
           <Button icon={<ReloadOutlined />} loading={refreshing} onClick={() => void refreshWatchlist()}>
             刷新
@@ -268,45 +266,61 @@ export function LofArbitragePage(): React.JSX.Element {
         />
       ) : null}
 
-      <Segmented
-        value={viewMode}
-        onChange={(value) => setViewMode(value as ViewMode)}
-        options={[
-          { label: `监控池 (${watchItems.length})`, value: 'watchlist' },
-          { label: `全市场 (${marketSnapshots.length})`, value: 'market' },
-        ]}
-      />
-
-      {loading ? (
-        <Skeleton active paragraph={{ rows: 8 }} />
-      ) : (
-        <Table
-          rowKey="symbol"
-          columns={columns}
-          dataSource={tableData}
-          pagination={{ pageSize: 20, showSizeChanger: false }}
-          locale={{
-            emptyText:
-              viewMode === 'watchlist'
-                ? '暂无监控项。全市场可执行套利由后台自动扫描；此处可额外关注个别 LOF，或依赖持仓自动纳入。'
-                : '点击「全市场扫描」立即查看当前折溢价排行（含暂不可执行的标的）。',
-          }}
-        />
-      )}
-
-      {rules.length > 0 ? (
-        <section className="panel-card">
-          <h3>活跃提醒规则</h3>
+      <section className="lof-workspace">
+        <div className="lof-list-heading">
+          <div>
+            <h2>折溢价观察</h2>
+            <p>监控池与全市场扫描结果分开查看</p>
+          </div>
           <Space wrap>
-            {rules.map((rule) => (
-              <Tag key={rule.id} color={rule.status === 'active' ? 'blue' : 'default'}>
-                {rule.symbol ?? '全市场'} · {(rule.thresholdRate * 100).toFixed(1)}% · {rule.direction}
-              </Tag>
-            ))}
+            {' '}
+            <Button icon={<PlusOutlined />} onClick={() => setRuleOpen(true)}>
+              折溢价提醒
+            </Button>
+            <Button icon={<ScanOutlined />} loading={scanning} onClick={() => void scanMarket()}>
+              全市场扫描
+            </Button>
           </Space>
-        </section>
-      ) : null}
+        </div>
+        <Segmented
+          value={viewMode}
+          onChange={(value) => setViewMode(value as ViewMode)}
+          options={[
+            { label: `监控池 (${watchItems.length})`, value: 'watchlist' },
+            { label: `全市场 (${marketSnapshots.length})`, value: 'market' },
+          ]}
+        />
 
+        {loading ? (
+          <Skeleton active paragraph={{ rows: 8 }} />
+        ) : (
+          <Table
+            rowKey="symbol"
+            columns={columns}
+            dataSource={tableData}
+            pagination={{ pageSize: 20, showSizeChanger: false }}
+            locale={{
+              emptyText:
+                viewMode === 'watchlist'
+                  ? '暂无监控项。全市场可执行套利由后台自动扫描；此处可额外关注个别 LOF，或依赖持仓自动纳入。'
+                  : '点击「全市场扫描」立即查看当前折溢价排行（含暂不可执行的标的）。',
+            }}
+          />
+        )}
+
+        {rules.length > 0 ? (
+          <section className="panel-card">
+            <h3>活跃提醒规则</h3>
+            <Space wrap>
+              {rules.map((rule) => (
+                <Tag key={rule.id} color={rule.status === 'active' ? 'blue' : 'default'}>
+                  {rule.symbol ?? '全市场'} · {(rule.thresholdRate * 100).toFixed(1)}% · {rule.direction}
+                </Tag>
+              ))}
+            </Space>
+          </section>
+        ) : null}
+      </section>
       <Drawer
         title={detail ? `${detail.symbol} ${detail.name}` : '详情'}
         open={detail !== null}
@@ -331,8 +345,7 @@ export function LofArbitragePage(): React.JSX.Element {
               </dd>
               <dt>申购 / 赎回</dt>
               <dd>
-                {subscriptionTag(detail.subscriptionStatus, detail.subscriptionStatusLabel)}{' '}
-                {detail.redemptionStatusLabel ?? '—'}
+                {subscriptionTag(detail.subscriptionStatus, detail.subscriptionStatusLabel)} {detail.redemptionStatusLabel ?? '—'}
               </dd>
             </dl>
 
@@ -343,7 +356,8 @@ export function LofArbitragePage(): React.JSX.Element {
                 {path.feasible ? <Tag color="green">可行</Tag> : <Tag>不可行</Tag>}
                 {path.estimatedNetSpread != null ? (
                   <div>
-                    扣费后净空间：<ValueDisplay kind="percent" value={path.estimatedNetSpread} />
+                    扣费后净空间：
+                    <ValueDisplay kind="percent" value={path.estimatedNetSpread} />
                   </div>
                 ) : null}
                 {path.blockers.length > 0 ? (

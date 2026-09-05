@@ -1,31 +1,12 @@
+import type { SipPlanStatus } from '../../../shared/sip/types';
+import { dialog, ipcMain } from 'electron';
 import path from 'node:path';
-import { app, dialog, ipcMain, shell } from 'electron';
-import type {
-  CreateTradeAlertInput,
-  CreateTradeReviewInput,
-  CreateTradingPlanInput,
-  LlmUserSettings,
-  ReviewAiDraftInput,
-  TradeAlertStatus,
-  TradingPlanStatus,
-} from '../../../shared/api.types';
-import type { CreateTradingAccountInput, FeeEstimateInput, UpdateTradingAccountInput } from '../../../shared/accounts/types';
-import type { CreateExecutionInput } from '../../../shared/episodes/types';
-import type { ExecutionImportInput } from '../../../shared/import/types';
-import type { AlertEventUserAction } from '../../../shared/alerts/event-types';
-import type {
-  CreatePlaybookRuleInput,
-  PlaybookRuleStatus,
-  UpdatePlaybookRuleInput,
-} from '../../../shared/playbook/types';
-import type { KLineAdjust, KLinePeriod } from '../../../shared/market/types';
 import { ipcChannels } from '../../../shared/ipc-channels';
+import { assertTrustedSender } from '../shared';
 import type { IpcHandlerContext } from '../types';
-import { assertDevOnly, assertTrustedSender, activeStreamCancels, sendStreamEvent } from '../shared';
-import { notifyDueSipOccurrences, notifyTriggeredAlerts } from '../notifications';
 
-export function registerSipHandlers({ window, service, updater }: IpcHandlerContext): void {
-  ipcMain.handle(ipcChannels.sipListPlans, (event, input?: { statuses?: import('../shared/sip/types').SipPlanStatus[] }) => {
+export function registerSipHandlers({ window, service }: IpcHandlerContext): void {
+  ipcMain.handle(ipcChannels.sipListPlans, (event, input?: { statuses?: SipPlanStatus[] }) => {
     assertTrustedSender(event, window);
     return service.request('sip.listPlans', input ?? {});
   });
@@ -42,7 +23,7 @@ export function registerSipHandlers({ window, service, updater }: IpcHandlerCont
 
   ipcMain.handle(ipcChannels.sipUpdatePlan, (event, input: { id: string; input: Record<string, unknown> }) => {
     assertTrustedSender(event, window);
-    return service.request('sip.updatePlan', input as never);
+    return service.request('sip.updatePlan', input);
   });
 
   ipcMain.handle(ipcChannels.sipSetStatus, (event, input: { id: string; status: string }) => {
@@ -76,21 +57,15 @@ export function registerSipHandlers({ window, service, updater }: IpcHandlerCont
     return service.request('sip.previewSchedule', input as never);
   });
 
-  ipcMain.handle(
-    ipcChannels.sipListOccurrences,
-    (event, input?: { planId?: string; from?: string; to?: string }) => {
-      assertTrustedSender(event, window);
-      return service.request('sip.listOccurrences', input ?? {});
-    },
-  );
+  ipcMain.handle(ipcChannels.sipListOccurrences, (event, input?: { planId?: string; from?: string; to?: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.listOccurrences', input ?? {});
+  });
 
-  ipcMain.handle(
-    ipcChannels.sipListOccurrenceViews,
-    (event, input?: { planId?: string; from?: string; to?: string }) => {
-      assertTrustedSender(event, window);
-      return service.request('sip.listOccurrenceViews', input ?? {});
-    },
-  );
+  ipcMain.handle(ipcChannels.sipListOccurrenceViews, (event, input?: { planId?: string; from?: string; to?: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.listOccurrenceViews', input ?? {});
+  });
 
   ipcMain.handle(ipcChannels.sipConfirmOccurrence, async (event, input: Record<string, unknown>) => {
     assertTrustedSender(event, window);
@@ -136,13 +111,10 @@ export function registerSipHandlers({ window, service, updater }: IpcHandlerCont
     return service.request('sip.getPlanPositionLink', input);
   });
 
-  ipcMain.handle(
-    ipcChannels.sipListPlansBySymbol,
-    (event, input: { accountId: string; symbol: string }) => {
-      assertTrustedSender(event, window);
-      return service.request('sip.listPlansBySymbol', input);
-    },
-  );
+  ipcMain.handle(ipcChannels.sipListPlansBySymbol, (event, input: { accountId: string; symbol: string }) => {
+    assertTrustedSender(event, window);
+    return service.request('sip.listPlansBySymbol', input);
+  });
 
   ipcMain.handle(ipcChannels.sipParseImportCsv, (event, input: { sourcePath: string }) => {
     assertTrustedSender(event, window);

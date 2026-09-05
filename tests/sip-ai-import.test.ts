@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PROMPT_IDS } from '../src/shared/llm/prompt-id';
 import { AppDatabase } from '../src/service/database/database';
 import { createLlmRunner } from '../src/service/llm/llm-runner';
@@ -10,9 +10,28 @@ import { marketService } from '../src/service/market/market-service';
 import { createSipAiImportService } from '../src/service/sip/sip-ai-import-service';
 import { createSipImportService } from '../src/service/sip/sip-import-service';
 
+beforeEach(() => {
+  vi.spyOn(marketService, 'resolve').mockImplementation((symbol) =>
+    Promise.resolve({
+      symbol,
+      name: '测试基金',
+      kind: 'otc_fund',
+      market: null,
+      venue: 'OTC',
+      quoteCurrency: 'CNY',
+      secid: null,
+      f10Code: symbol,
+      securityTypeName: '基金',
+      source: 'eastmoney',
+    }),
+  );
+  vi.spyOn(marketService, 'lookupHistoricalPriceOnDate').mockResolvedValue(null);
+});
+
 const tempDirs: string[] = [];
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const dir of tempDirs.splice(0)) {
     fs.rmSync(dir, { recursive: true, force: true });
   }

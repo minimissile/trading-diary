@@ -1,3 +1,4 @@
+import type { MarketDailyBar } from './market-daily-bar-database';
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
@@ -30,10 +31,10 @@ function barTradeDate(bar: KLineBar): string {
   return dayjs(bar.timestamp).tz(TRADE_MARKET_TIMEZONE).format('YYYY-MM-DD');
 }
 
-function buildDailyBarsFromKlines(bars: readonly KLineBar[]): Array<Omit<import('./market-daily-bar-database').MarketDailyBar, 'symbol' | 'kind'>> {
+function buildDailyBarsFromKlines(bars: readonly KLineBar[]): Array<Omit<MarketDailyBar, 'venue' | 'symbol' | 'kind'>> {
   const sorted = [...bars].sort((left, right) => left.timestamp - right.timestamp);
   const fetchedAt = new Date().toISOString();
-  const output: Array<Omit<import('./market-daily-bar-database').MarketDailyBar, 'symbol' | 'kind'>> = [];
+  const output: Array<Omit<MarketDailyBar, 'venue' | 'symbol' | 'kind'>> = [];
 
   for (let index = 0; index < sorted.length; index += 1) {
     const bar = sorted[index];
@@ -51,9 +52,9 @@ function buildDailyBarsFromKlines(bars: readonly KLineBar[]): Array<Omit<import(
 }
 
 function filterBarsToWindow(
-  bars: Array<Omit<import('./market-daily-bar-database').MarketDailyBar, 'symbol' | 'kind'>>,
+  bars: Array<Omit<MarketDailyBar, 'venue' | 'symbol' | 'kind'>>,
   windowStart: string,
-): Array<Omit<import('./market-daily-bar-database').MarketDailyBar, 'symbol' | 'kind'>> {
+): Array<Omit<MarketDailyBar, 'venue' | 'symbol' | 'kind'>> {
   return bars.filter((bar) => bar.tradeDate >= windowStart);
 }
 
@@ -91,10 +92,7 @@ export class DailyBarSyncService {
     return this.chain;
   }
 
-  async syncSymbolsNow(
-    symbols: readonly string[],
-    kinds: ReadonlyMap<string, InstrumentKind>,
-  ): Promise<DailyBarSyncResult[]> {
+  async syncSymbolsNow(symbols: readonly string[], kinds: ReadonlyMap<string, InstrumentKind>): Promise<DailyBarSyncResult[]> {
     const unique = [...new Set(symbols.map((item) => item.trim().toUpperCase()).filter(Boolean))];
     const sorted = unique.sort((left, right) => {
       const leftCached = this.bars.getSyncMeta(left) ? 1 : 0;
@@ -130,11 +128,7 @@ export class DailyBarSyncService {
     const meta = this.bars.getSyncMeta(normalized, kindHint ?? 'stock');
     const now = Date.now();
 
-    if (
-      meta &&
-      now - Date.parse(meta.lastSyncedAt) < DAILY_BAR_SYNC_MIN_INTERVAL_MS &&
-      meta.latestDate >= yesterday
-    ) {
+    if (meta && now - Date.parse(meta.lastSyncedAt) < DAILY_BAR_SYNC_MIN_INTERVAL_MS && meta.latestDate >= yesterday) {
       return {
         symbol: normalized,
         synced: false,
@@ -143,12 +137,10 @@ export class DailyBarSyncService {
       };
     }
 
-    let kind = kindHint ?? meta?.kind ?? 'stock';
-    let bars: KLineBar[] = [];
+    let kind: InstrumentKind;
+    let bars: KLineBar[];
     const useIncremental =
-      meta !== null &&
-      now - Date.parse(meta.lastSyncedAt) < DAILY_BAR_SYNC_MIN_INTERVAL_MS &&
-      meta.latestDate < yesterday;
+      meta !== null && now - Date.parse(meta.lastSyncedAt) < DAILY_BAR_SYNC_MIN_INTERVAL_MS && meta.latestDate < yesterday;
 
     if (useIncremental) {
       const incremental = await marketService.listKlines(normalized, '1d', 'none', DAILY_BAR_INCREMENTAL_LIMIT);
@@ -172,7 +164,7 @@ export class DailyBarSyncService {
     const earliestDate = stored[0]?.tradeDate ?? mapped[0]?.tradeDate ?? windowStart;
     const latestDate = stored[stored.length - 1]?.tradeDate ?? mapped[mapped.length - 1]?.tradeDate ?? earliestDate;
 
-    const venue: InstrumentVenue = kind === 'otc_fund' ? 'OTC' : inferCnVenueFromSymbol(normalized) ?? 'SH';
+    const venue: InstrumentVenue = kind === 'otc_fund' ? 'OTC' : (inferCnVenueFromSymbol(normalized) ?? 'SH');
     this.bars.upsertSyncMeta({
       venue,
       symbol: normalized,

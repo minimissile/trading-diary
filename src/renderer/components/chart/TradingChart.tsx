@@ -102,18 +102,20 @@ export function TradingChart({
   const showTradeMarkersRef = useRef(showTradeMarkers);
   const onLoadErrorRef = useRef(onLoadError);
 
-  loadContextRef.current = {
-    symbol,
-    name,
-    kind,
-    period,
-    adjust,
-    mainIndicators,
-    subIndicators,
-  };
-  tradeMarkersRef.current = tradeMarkers;
-  showTradeMarkersRef.current = showTradeMarkers;
-  onLoadErrorRef.current = onLoadError;
+  useLayoutEffect(() => {
+    loadContextRef.current = {
+      symbol,
+      name,
+      kind,
+      period,
+      adjust,
+      mainIndicators,
+      subIndicators,
+    };
+    tradeMarkersRef.current = tradeMarkers;
+    showTradeMarkersRef.current = showTradeMarkers;
+    onLoadErrorRef.current = onLoadError;
+  }, [symbol, name, kind, period, adjust, mainIndicators, subIndicators, tradeMarkers, showTradeMarkers, onLoadError]);
 
   const refreshTradeMarkers = useCallback((chart: Chart): void => {
     if (chart.getDataList().length === 0) return;
@@ -149,13 +151,7 @@ export function TradingChart({
         const beforeTimestamp = type === 'forward' && timestamp ? timestamp : undefined;
 
         void window.desktop.market
-          .listKlines(
-            ctx.symbol,
-            ctx.kind === 'otc_fund' ? '1d' : ctx.period,
-            ctx.adjust,
-            CHART_BAR_LIMIT,
-            beforeTimestamp,
-          )
+          .listKlines(ctx.symbol, ctx.kind === 'otc_fund' ? '1d' : ctx.period, ctx.adjust, CHART_BAR_LIMIT, beforeTimestamp)
           .then(
             (result) => {
               if (!mountedRef.current || currentRequestId !== requestIdRef.current) return;

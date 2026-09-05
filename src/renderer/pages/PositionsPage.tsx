@@ -203,22 +203,7 @@ export function PositionsPage(): React.JSX.Element {
   const positionColumns = useMemo<ColumnsType<PortfolioPositionView>>(
     () => [
       {
-        title: (
-          <div className="portfolio-symbol-column-head">
-            <span>标的</span>
-            <Input
-              allowClear
-              size="small"
-              placeholder="搜索代码/名称"
-              prefix={<SearchOutlined aria-hidden="true" />}
-              value={symbolQuery}
-              onChange={(event) => setSymbolQuery(event.target.value)}
-              onClick={(event) => event.stopPropagation()}
-              onKeyDown={(event) => event.stopPropagation()}
-              aria-label="搜索标的"
-            />
-          </div>
-        ),
+        title: '标的',
         key: 'symbol',
         fixed: 'left',
         width: 260,
@@ -385,7 +370,7 @@ export function PositionsPage(): React.JSX.Element {
         ),
       },
     ],
-    [accountId, deletePosition, deletingSymbol, modal, navigate, symbolQuery],
+    [accountId, deletePosition, deletingSymbol, modal, navigate],
   );
 
   const unrealizedPnl = filteredStats.unrealizedPnl;
@@ -405,18 +390,6 @@ export function PositionsPage(): React.JSX.Element {
         </div>
         <div className="portfolio-header-actions">
           <AccountSelect value={accountId} onChange={setAccountId} includeAllOption className="portfolio-account-select" />
-          <Button icon={<ReloadOutlined spin={refreshing} />} loading={refreshing} onClick={() => void refreshQuotes()}>
-            刷新行情
-          </Button>
-          <Link to={routePaths.positionHistory}>
-            <Button icon={<HistoryOutlined />}>历史持仓</Button>
-          </Link>
-          <Link to={routePaths.positionPnlCalendar}>
-            <Button icon={<CalendarOutlined />}>收益日历</Button>
-          </Link>
-          <Button icon={<PictureOutlined />} onClick={() => setAiImportOpen(true)}>
-            AI 识图导入
-          </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setLedgerOpen(true)}>
             录入流水
           </Button>
@@ -427,105 +400,154 @@ export function PositionsPage(): React.JSX.Element {
         <Skeleton active paragraph={{ rows: 10 }} />
       ) : (
         <>
-          <section className="portfolio-metrics" key={statsCacheKey}>
-            <article className="portfolio-metric-card portfolio-metric-card--primary">
-              <small>持仓市值</small>
-              <ValueDisplay as="strong" kind="currency" value={filteredStats.totalMarketValue} />
+          <section className="positions-overview" aria-label="资产概览">
+            <div className="positions-overview-heading">
+              <h2>资产概览</h2>
               <span>
-                成本 <ValueDisplay kind="currency" value={filteredStats.totalCost} />
+                {assetCategory === 'all' ? '全部持仓' : assetCategory === 'fund' ? '基金持仓' : '股票持仓'} ·{' '}
+                {filteredStats.positionCount} 个标的
               </span>
-            </article>
-            <article className="portfolio-metric-card">
-              <small>浮动盈亏</small>
-              <ValueDisplay as="strong" kind="pnl" value={unrealizedPnl} />
-              <span>{formatFloatingPnlCaption(unrealizedPnl, { missingQuoteCount })}</span>
-            </article>
-            <article className="portfolio-metric-card">
-              <small>日收益</small>
-              <ValueDisplay as="strong" kind="pnl" value={dailyPnl} />
-              <span>{formatDailyPnlCaption(dailyPnl, { missingQuoteCount: missingDailyPnlCount })}</span>
-            </article>
-            <article className="portfolio-metric-card">
-              <small>持仓数量</small>
-              <strong>{filteredStats.positionCount}</strong>
-              <span>
-                {assetCategory === 'all' && stockSubKind === 'all' ? '当前有效标的' : `筛选后 / 共 ${positions.length}`}
-              </span>
-            </article>
-            <article className="portfolio-metric-card">
-              <small>行情更新</small>
-              <strong>{summary?.lastRefreshedAt ? '已同步' : '待刷新'}</strong>
-              <span>{formatQuoteRefreshTime(summary?.lastRefreshedAt)}</span>
-            </article>
+            </div>
+            <div className="positions-summary" key={statsCacheKey}>
+              <article className="positions-summary-primary">
+                <small>持仓市值</small>
+                <ValueDisplay as="strong" kind="currency" value={filteredStats.totalMarketValue} />
+                <span>
+                  投入成本 <ValueDisplay kind="currency" value={filteredStats.totalCost} />
+                </span>
+              </article>
+              <article>
+                <small>浮动盈亏</small>
+                <ValueDisplay as="strong" kind="pnl" value={unrealizedPnl} />
+                <span>{formatFloatingPnlCaption(unrealizedPnl, { missingQuoteCount })}</span>
+              </article>
+              <article>
+                <small>日收益</small>
+                <ValueDisplay as="strong" kind="pnl" value={dailyPnl} />
+                <span>{formatDailyPnlCaption(dailyPnl, { missingQuoteCount: missingDailyPnlCount })}</span>
+              </article>
+            </div>
+            <div className="positions-overview-footer">
+              <div className="positions-quote-status">
+                <span>
+                  {summary?.lastRefreshedAt ? '行情更新' : '行情待刷新'} · {formatQuoteRefreshTime(summary?.lastRefreshedAt)}
+                </span>
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<ReloadOutlined spin={refreshing} />}
+                  loading={refreshing}
+                  onClick={() => void refreshQuotes()}
+                >
+                  刷新行情
+                </Button>
+              </div>
+              <nav aria-label="持仓分析" className="positions-related-links">
+                <Link to={routePaths.positionHistory}>
+                  <HistoryOutlined /> 历史持仓
+                </Link>
+                <Link to={routePaths.positionPnlCalendar}>
+                  <CalendarOutlined /> 收益日历
+                </Link>
+              </nav>
+            </div>
           </section>
 
-          <div className="page-toolbar portfolio-filters">
-            <Segmented<AssetCategory>
-              options={[
-                { label: '全部', value: 'all' },
-                { label: '基金', value: 'fund' },
-                { label: '股票', value: 'stock' },
-              ]}
-              value={assetCategory}
-              onChange={(value) => {
-                setAssetCategory(value);
-                setStockSubKind('all');
-              }}
-            />
-            {assetCategory === 'fund' ? (
-              <div className="portfolio-filters__stock">
-                <Segmented<StockSubKind>
+          <section className="positions-holdings" aria-labelledby="positions-holdings-title">
+            <div className="positions-holdings-heading">
+              <div>
+                <h2 id="positions-holdings-title">
+                  持仓明细 <span>{filteredPositions.length}</span>
+                </h2>
+                <p>
+                  {symbolQuery.trim()
+                    ? `匹配 ${filteredPositions.length} / ${tabFilteredPositions.length} 个标的 · 搜索不影响上方资产统计`
+                    : '查看行情与收益，点击标的进入详情'}
+                </p>
+              </div>
+              <Button icon={<PictureOutlined />} onClick={() => setAiImportOpen(true)}>
+                AI 识图导入
+              </Button>
+            </div>
+            <div className="positions-list-toolbar">
+              <div className="positions-category-filters">
+                <Segmented<AssetCategory>
                   options={[
                     { label: '全部', value: 'all' },
-                    { label: '场外', value: 'stock' },
-                    { label: '场内', value: 'listed_fund' },
+                    { label: '基金', value: 'fund' },
+                    { label: '股票', value: 'stock' },
                   ]}
-                  value={stockSubKind}
-                  onChange={setStockSubKind}
+                  value={assetCategory}
+                  onChange={(value) => {
+                    setAssetCategory(value);
+                    setStockSubKind('all');
+                  }}
                 />
+                {assetCategory === 'fund' ? (
+                  <div className="portfolio-filters__stock">
+                    <Segmented<StockSubKind>
+                      options={[
+                        { label: '全部', value: 'all' },
+                        { label: '场外', value: 'stock' },
+                        { label: '场内', value: 'listed_fund' },
+                      ]}
+                      value={stockSubKind}
+                      onChange={setStockSubKind}
+                    />
+                  </div>
+                ) : null}
+                {assetCategory === 'stock' ? (
+                  <div className="portfolio-filters__stock">
+                    <Segmented<StockSubKind>
+                      options={[
+                        { label: '全部', value: 'all' },
+                        { label: 'A股', value: 'stock' },
+                      ]}
+                      value={stockSubKind}
+                      onChange={setStockSubKind}
+                    />
+                  </div>
+                ) : null}
               </div>
-            ) : null}
-            {assetCategory === 'stock' ? (
-              <div className="portfolio-filters__stock">
-                <Segmented<StockSubKind>
-                  options={[
-                    { label: '全部', value: 'all' },
-                    { label: 'A股', value: 'stock' },
-                  ]}
-                  value={stockSubKind}
-                  onChange={setStockSubKind}
-                />
-              </div>
-            ) : null}
-          </div>
+              <Input
+                className="positions-search"
+                allowClear
+                placeholder="搜索代码或名称"
+                prefix={<SearchOutlined aria-hidden="true" />}
+                value={symbolQuery}
+                onChange={(event) => setSymbolQuery(event.target.value)}
+                aria-label="搜索标的"
+              />
+            </div>
 
-          {filteredPositions.length === 0 ? (
-            <Empty
-              description={
-                positions.length === 0
-                  ? '还没有持仓，录入第一笔买入流水开始跟踪'
-                  : symbolQuery.trim()
-                    ? '未找到匹配的标的'
-                    : '当前筛选条件下暂无持仓'
-              }
-            >
-              {positions.length === 0 ? (
-                <Button type="primary" onClick={() => setLedgerOpen(true)}>
-                  录入买入
-                </Button>
-              ) : null}
-            </Empty>
-          ) : (
-            <Table<PortfolioPositionView>
-              className="watchlist-table"
-              columns={positionColumns}
-              dataSource={filteredPositions}
-              pagination={false}
-              rowKey="symbol"
-              size="small"
-              scroll={{ x: 1024 }}
-            />
-          )}
+            {filteredPositions.length === 0 ? (
+              <Empty
+                description={
+                  positions.length === 0
+                    ? '还没有持仓，录入第一笔买入流水开始跟踪'
+                    : symbolQuery.trim()
+                      ? '未找到匹配的标的'
+                      : '当前筛选条件下暂无持仓'
+                }
+              >
+                {positions.length === 0 ? (
+                  <Button type="primary" onClick={() => setLedgerOpen(true)}>
+                    录入买入
+                  </Button>
+                ) : null}
+              </Empty>
+            ) : (
+              <Table<PortfolioPositionView>
+                className="watchlist-table"
+                columns={positionColumns}
+                dataSource={filteredPositions}
+                pagination={false}
+                rowKey="symbol"
+                size="small"
+                scroll={{ x: 1024 }}
+              />
+            )}
+          </section>
         </>
       )}
 

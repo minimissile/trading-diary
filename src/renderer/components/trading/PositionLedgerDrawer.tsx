@@ -27,7 +27,11 @@ const sideLabels = {
 /**
  * 展示某标的的持仓流水，并支持编辑与删除。
  */
-export function PositionLedgerDrawer({
+export function PositionLedgerDrawer(props: PositionLedgerDrawerProps): React.JSX.Element {
+  return props.open ? <PositionLedgerDrawerContent key={props.position?.symbol + ':' + props.accountId} {...props} /> : <></>;
+}
+
+function PositionLedgerDrawerContent({
   open,
   position,
   accountId,
@@ -61,11 +65,9 @@ export function PositionLedgerDrawer({
   }, [accountId, message, position]);
 
   useEffect(() => {
-    if (!open || !position) {
-      setEntries([]);
-      setEditingEntry(null);
-      return;
-    }
+    if (!open || !position) return;
+    // Start the external IPC request and expose its pending state in the same lifecycle.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load, open, position]);
 
@@ -118,9 +120,7 @@ export function PositionLedgerDrawer({
       dataIndex: 'side',
       width: 72,
       render: (side: PortfolioLedgerEntry['side']) => (
-        <Tag color={side === 'buy' ? 'green' : side === 'sell' ? 'orange' : 'blue'}>
-          {sideLabels[side]}
-        </Tag>
+        <Tag color={side === 'buy' ? 'green' : side === 'sell' ? 'orange' : 'blue'}>{sideLabels[side]}</Tag>
       ),
     },
     {
@@ -184,13 +184,7 @@ export function PositionLedgerDrawer({
             ],
           }}
         >
-          <Button
-            type="text"
-            size="small"
-            icon={<MoreOutlined />}
-            loading={deletingId === row.id}
-            aria-label="操作菜单"
-          />
+          <Button type="text" size="small" icon={<MoreOutlined />} loading={deletingId === row.id} aria-label="操作菜单" />
         </Dropdown>
       ),
     },

@@ -37,7 +37,7 @@ export interface PnlCalendarBuildResult {
 export type DailyBarSeries = ReadonlyMap<string, { close: number; prevClose: number | null }>;
 
 export function indexDailyBars(bars: readonly MarketDailyBar[]): Map<string, DailyBarSeries> {
-  const bySymbol = new Map<string, DailyBarSeries>();
+  const bySymbol = new Map<string, Map<string, { close: number; prevClose: number | null }>>();
 
   for (const bar of bars) {
     const series = bySymbol.get(bar.symbol) ?? new Map<string, { close: number; prevClose: number | null }>();
@@ -80,6 +80,8 @@ export function computeSymbolDailyPnlForDate(
     marketPrice: bar.close,
     quote: {
       price: bar.close,
+      nav: kind === 'otc_fund' ? bar.close : null,
+      navDate: kind === 'otc_fund' ? date : null,
       prevClose,
       change: dayChange,
       changePercent: prevClose !== 0 ? (dayChange / prevClose) * 100 : null,
@@ -117,9 +119,7 @@ function symbolActiveDates(
     return day < min ? day : min;
   }, tradeCalendarDate(entries[0]!.tradeAt));
 
-  return [...series.keys()]
-    .filter((date) => date >= windowStart && date <= windowEnd && date >= firstTradeDay)
-    .sort();
+  return [...series.keys()].filter((date) => date >= windowStart && date <= windowEnd && date >= firstTradeDay).sort();
 }
 
 export function buildPnlCalendar(input: {

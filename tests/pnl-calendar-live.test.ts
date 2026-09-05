@@ -1,14 +1,15 @@
+import { snapshotTestDatabase } from './database-snapshot';
 import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { AppDatabase } from '../src/service/database/database';
 import { PortfolioService } from '../src/service/portfolio/portfolio-service';
 import { currentMonthPrefix } from '../src/shared/portfolio/pnl-calendar-window';
 
-const DB_PATH = '/Users/nuke/Library/Application Support/交易日记/database/app.sqlite';
+const DB_PATH = process.env.TRADING_DIARY_TEST_DB ?? '';
 
 describe.skipIf(!existsSync(DB_PATH))('pnl calendar live', () => {
   it('getPnlCalendar does not throw for current and edge months', async () => {
-    const db = new AppDatabase(DB_PATH);
+    const db = new AppDatabase(await snapshotTestDatabase(DB_PATH));
     const svc = new PortfolioService(db);
     const current = currentMonthPrefix();
     const view = await svc.getPnlCalendar(undefined, current);

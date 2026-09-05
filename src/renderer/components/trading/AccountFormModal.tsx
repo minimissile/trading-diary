@@ -10,10 +10,7 @@ import type {
   UpdateTradingAccountInput,
 } from '../../../shared/api.types';
 import { getAccountAlias } from '../../../shared/accounts/account-display';
-import {
-  defaultMarketSettingsForAccount,
-  suggestCurrencyForMarketScope,
-} from '../../../shared/accounts/market-defaults';
+import { defaultMarketSettingsForAccount, suggestCurrencyForMarketScope } from '../../../shared/accounts/market-defaults';
 import type { AccountMarketScope, QuoteCurrency } from '../../../shared/market/venues';
 import { ACCOUNT_MARKET_SCOPES, labelForMarketScope } from '../../../shared/market/venues';
 import {
@@ -26,10 +23,7 @@ import {
   resolveEtfMarketFormRates,
   resolveOffshoreMarketFormRates,
 } from '../../../shared/accounts/fee-utils';
-import {
-  defaultBrokerForAccountKind,
-  isBrokerAllowedForAccountKind,
-} from '../../../shared/accounts/brokers';
+import { defaultBrokerForAccountKind, isBrokerAllowedForAccountKind } from '../../../shared/accounts/brokers';
 import { BrokerSelect } from './BrokerSelect';
 
 interface AccountFormValues {
@@ -203,9 +197,7 @@ function toCustomFee(values: AccountFormValues): AccountCustomFeeInput {
   const hasHk = values.marketScope.includes('HK');
   const hasUs = values.marketScope.includes('US');
   const customFee: AccountCustomFeeInput = {
-    commissionWan: hasCnA
-      ? Number(values.commissionWan) || 0
-      : Number(values.hkCommissionWan) || 0,
+    commissionWan: hasCnA ? Number(values.commissionWan) || 0 : Number(values.hkCommissionWan) || 0,
     commissionMinYuan: hasCnA
       ? values.noCommissionMin
         ? 0
@@ -219,27 +211,19 @@ function toCustomFee(values: AccountFormValues): AccountCustomFeeInput {
   if (values.accountKind === 'securities') {
     if (hasCnA) {
       customFee.etfShCommissionWan = Number(values.etfShCommissionWan) || 0;
-      customFee.etfShCommissionMinYuan = values.etfShNoCommissionMin
-        ? 0
-        : Number(values.etfShCommissionMinYuan) || 0;
+      customFee.etfShCommissionMinYuan = values.etfShNoCommissionMin ? 0 : Number(values.etfShCommissionMinYuan) || 0;
       customFee.etfShNoCommissionMin = values.etfShNoCommissionMin;
       customFee.etfSzCommissionWan = Number(values.etfSzCommissionWan) || 0;
-      customFee.etfSzCommissionMinYuan = values.etfSzNoCommissionMin
-        ? 0
-        : Number(values.etfSzCommissionMinYuan) || 0;
+      customFee.etfSzCommissionMinYuan = values.etfSzNoCommissionMin ? 0 : Number(values.etfSzCommissionMinYuan) || 0;
       customFee.etfSzNoCommissionMin = values.etfSzNoCommissionMin;
     }
     if (hasHk) {
       customFee.hkCommissionWan = Number(values.hkCommissionWan) || 0;
-      customFee.hkCommissionMinYuan = values.hkNoCommissionMin
-        ? 0
-        : Number(values.hkCommissionMinYuan) || 0;
+      customFee.hkCommissionMinYuan = values.hkNoCommissionMin ? 0 : Number(values.hkCommissionMinYuan) || 0;
       customFee.hkNoCommissionMin = values.hkNoCommissionMin;
     }
     if (hasUs) {
-      customFee.usCommissionMinYuan = values.usNoCommissionMin
-        ? 0
-        : Number(values.usCommissionMinYuan) || 0;
+      customFee.usCommissionMinYuan = values.usNoCommissionMin ? 0 : Number(values.usCommissionMinYuan) || 0;
       customFee.usNoCommissionMin = values.usNoCommissionMin;
       if (values.usCommissionMode === 'per_share') {
         customFee.usCommissionPerShare = Number(values.usCommissionPerShare) || 0;
@@ -274,18 +258,8 @@ function EtfMarketFeeFields({ market, wanField, minField, noMinField, noMin }: E
         >
           <InputNumber className="full-width-input" min={0} max={30} step={0.01} precision={4} addonBefore="万" />
         </Form.Item>
-        <Form.Item
-          label="最低佣金（元）"
-          name={minField}
-          rules={[{ required: !noMin, message: `请输入${label}最低佣金` }]}
-        >
-          <InputNumber
-            className="full-width-input"
-            min={0}
-            precision={2}
-            disabled={noMin}
-            addonAfter="元/笔"
-          />
+        <Form.Item label="最低佣金（元）" name={minField} rules={[{ required: !noMin, message: `请输入${label}最低佣金` }]}>
+          <InputNumber className="full-width-input" min={0} precision={2} disabled={noMin} addonAfter="元/笔" />
         </Form.Item>
       </div>
       <Form.Item name={noMinField} valuePropName="checked" className="account-fee-switch">
@@ -313,13 +287,7 @@ function HkFeeFields({ noMin }: { noMin: boolean }): React.JSX.Element {
           name="hkCommissionMinYuan"
           rules={[{ required: !noMin, message: '请输入港股最低佣金' }]}
         >
-          <InputNumber
-            className="full-width-input"
-            min={0}
-            precision={2}
-            disabled={noMin}
-            addonAfter="港币/笔"
-          />
+          <InputNumber className="full-width-input" min={0} precision={2} disabled={noMin} addonAfter="港币/笔" />
         </Form.Item>
       </div>
       <Form.Item name="hkNoCommissionMin" valuePropName="checked" className="account-fee-switch">
@@ -329,13 +297,7 @@ function HkFeeFields({ noMin }: { noMin: boolean }): React.JSX.Element {
   );
 }
 
-function UsFeeFields({
-  mode,
-  noMin,
-}: {
-  mode: 'percent' | 'per_share';
-  noMin: boolean;
-}): React.JSX.Element {
+function UsFeeFields({ mode, noMin }: { mode: 'percent' | 'per_share'; noMin: boolean }): React.JSX.Element {
   return (
     <>
       <p className="account-fee-subhead">美股</p>
@@ -362,13 +324,7 @@ function UsFeeFields({
             name="usCommissionMinYuan"
             rules={[{ required: !noMin, message: '请输入美股最低佣金' }]}
           >
-            <InputNumber
-              className="full-width-input"
-              min={0}
-              precision={2}
-              disabled={noMin}
-              addonAfter="美元/笔"
-            />
+            <InputNumber className="full-width-input" min={0} precision={2} disabled={noMin} addonAfter="美元/笔" />
           </Form.Item>
         </div>
       ) : (
@@ -386,13 +342,7 @@ function UsFeeFields({
             name="usCommissionMinYuan"
             rules={[{ required: !noMin, message: '请输入美股最低佣金' }]}
           >
-            <InputNumber
-              className="full-width-input"
-              min={0}
-              precision={2}
-              disabled={noMin}
-              addonAfter="美元/笔"
-            />
+            <InputNumber className="full-width-input" min={0} precision={2} disabled={noMin} addonAfter="美元/笔" />
           </Form.Item>
         </div>
       )}
@@ -439,13 +389,15 @@ export function AccountFormModal({
         alias: getAccountAlias(editing) ?? '',
         broker: editing.broker,
         accountKind: editing.accountKind,
-        marketScope: editing.marketScope.filter((item): item is AccountMarketScope =>
-          item === 'CN_A' || item === 'HK' || item === 'US',
+        marketScope: editing.marketScope.filter(
+          (item): item is AccountMarketScope => item === 'CN_A' || item === 'HK' || item === 'US',
         ),
         currency: editing.currency === 'HKD' || editing.currency === 'USD' ? editing.currency : 'CNY',
-        ...profileToFormValues(profile, editing.accountKind, editing.marketScope.filter((item): item is AccountMarketScope =>
-          item === 'CN_A' || item === 'HK' || item === 'US',
-        )),
+        ...profileToFormValues(
+          profile,
+          editing.accountKind,
+          editing.marketScope.filter((item): item is AccountMarketScope => item === 'CN_A' || item === 'HK' || item === 'US'),
+        ),
       });
       return;
     }
@@ -465,20 +417,14 @@ export function AccountFormModal({
     const profile = editing ? feeProfiles.find((item) => item.id === editing.feeProfileId) : undefined;
     const currentBroker = form.getFieldValue('broker') as AccountBroker | undefined;
     const nextBroker =
-      currentBroker && isBrokerAllowedForAccountKind(currentBroker, kind)
-        ? currentBroker
-        : defaultBrokerForAccountKind(kind);
+      currentBroker && isBrokerAllowedForAccountKind(currentBroker, kind) ? currentBroker : defaultBrokerForAccountKind(kind);
     const marketDefaults = defaultMarketSettingsForAccount(nextBroker, kind);
     form.setFieldsValue({
       accountKind: kind,
       broker: nextBroker,
       marketScope: marketDefaults.marketScope,
       currency: marketDefaults.currency,
-      ...profileToFormValues(
-        kind === editing?.accountKind ? profile : undefined,
-        kind,
-        marketDefaults.marketScope,
-      ),
+      ...profileToFormValues(kind === editing?.accountKind ? profile : undefined, kind, marketDefaults.marketScope),
     });
   };
 
@@ -570,17 +516,13 @@ export function AccountFormModal({
 
         {accountKind === 'securities' ? (
           <>
-            <Form.Item
-              label="可交易市场"
-              name="marketScope"
-              rules={[{ required: true, message: '请至少选择一个市场' }]}
-            >
+            <Form.Item label="可交易市场" name="marketScope" rules={[{ required: true, message: '请至少选择一个市场' }]}>
               <Checkbox.Group
                 options={ACCOUNT_MARKET_SCOPES.map((scope) => ({
                   label: labelForMarketScope(scope),
                   value: scope,
                 }))}
-                onChange={(checked) => handleMarketScopeChange(checked as AccountMarketScope[])}
+                onChange={(checked) => handleMarketScopeChange(checked)}
               />
             </Form.Item>
             <Form.Item label="结算币种" name="currency" rules={[{ required: true }]}>
@@ -592,9 +534,7 @@ export function AccountFormModal({
                 ]}
               />
             </Form.Item>
-            <p className="form-field-hint">
-              港股账户可同时勾选「港股 + 美股」；流水价格按标的报价币种录入，汇总以结算币种展示。
-            </p>
+            <p className="form-field-hint">港股账户可同时勾选「港股 + 美股」；流水价格按标的报价币种录入，汇总以结算币种展示。</p>
           </>
         ) : null}
 
@@ -673,9 +613,7 @@ export function AccountFormModal({
               {hasUs ? <UsFeeFields mode={usCommissionMode} noMin={usNoCommissionMin} /> : null}
 
               <p className="account-fee-note">
-                {hasCnA
-                  ? 'A 股卖出收印花税 0.05%；ETF/LOF 卖出免印花税。沪 A 另收过户费 0.001%（系统固定）。'
-                  : null}
+                {hasCnA ? 'A 股卖出收印花税 0.05%；ETF/LOF 卖出免印花税。沪 A 另收过户费 0.001%（系统固定）。' : null}
                 {hasOffshore
                   ? `${hasCnA ? ' ' : ''}港股卖出印花税约 0.13%；美股卖出含 SEC 规费。实际以券商账单为准。`
                   : hasCnA

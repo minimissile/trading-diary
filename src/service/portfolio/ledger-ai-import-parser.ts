@@ -1,16 +1,14 @@
 import { z } from 'zod';
-import type { SipRecognizedPlanMode } from '../../shared/sip/import-hints';
-import type { SipAiPlanHints } from '../../shared/sip/import-types';
 import type {
   LedgerAiExtractedRecord,
+  LedgerAiRecordKind,
   LedgerAiTradeChannel,
+  LedgerAiTradeSide,
 } from '../../shared/portfolio/ledger-import-types';
+import type { SipRecognizedPlanMode } from '../../shared/sip/import-hints';
+import type { SipAiPlanHints } from '../../shared/sip/import-types';
 import { hasPlanHints, parsePlanHints } from '../sip/sip-ai-import-parser';
-import {
-  inferTradeChannelFromText,
-  mergeRecognizedTradeChannel,
-  parseTradeChannel,
-} from './ledger-import-instrument';
+import { inferTradeChannelFromText, parseTradeChannel } from './ledger-import-instrument';
 
 const planModeSchema = z.enum(['fixed', 'smart', 'unknown']);
 const screenshotTypeSchema = z.enum(['trade_history', 'sip_history', 'position_summary', 'mixed', 'unknown']);
@@ -93,7 +91,7 @@ export interface ParsedLedgerAiImportResponse {
 }
 
 function coerceNullableString(value: unknown): string | null {
-  if (value === null || value === undefined) return null;
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
   const text = String(value).trim();
   return text ? text : null;
 }
@@ -101,7 +99,8 @@ function coerceNullableString(value: unknown): string | null {
 function coerceNullableNumber(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  const cleaned = String(value).replace(/[,，\s￥¥元]/gu, '').trim();
+  if (typeof value !== 'string') return null;
+  const cleaned = value.replace(/[,，\s￥¥元]/gu, '').trim();
   if (!cleaned) return null;
   const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : null;
@@ -117,7 +116,7 @@ function normalizeFundFees(fees: number | null, amount: number | null): number |
 
 function parseSide(raw: unknown, rawType: string | null): LedgerAiTradeSide | null {
   if (raw === 'buy' || raw === 'sell') return raw;
-  const text = `${String(raw ?? '')} ${rawType ?? ''}`;
+  const text = `${coerceNullableString(raw) ?? ''} ${rawType ?? ''}`;
   if (/卖|赎回|减仓|平仓/u.test(text)) return 'sell';
   if (/买|申购|建仓|定投|加仓/u.test(text)) return 'buy';
   return null;
@@ -125,7 +124,7 @@ function parseSide(raw: unknown, rawType: string | null): LedgerAiTradeSide | nu
 
 function parseRecordKind(raw: unknown, rawType: string | null, side: LedgerAiTradeSide | null): LedgerAiRecordKind {
   if (raw === 'trade' || raw === 'sip_deduction' || raw === 'dividend' || raw === 'skip') return raw;
-  const text = `${String(raw ?? '')} ${rawType ?? ''}`;
+  const text = `${coerceNullableString(raw) ?? ''} ${rawType ?? ''}`;
   if (/分红|红利|派息|送股|除权/u.test(text)) return 'dividend';
   if (/定投|扣款|定期/u.test(text)) return 'sip_deduction';
   if (side === 'buy' || side === 'sell') return 'trade';
@@ -163,8 +162,7 @@ function normalizeRawRecord(
   const quantity = coerceNullableNumber(raw.confirmShares ?? raw.shares ?? raw.quantity);
   const fees = normalizeFundFees(coerceNullableNumber(raw.fees ?? raw.commission ?? raw.serviceFee), amount);
   const tradeChannel = parseTradeChannel(raw.tradeChannel);
-  const hasConfirmFields =
-    confirmAt !== null || confirmAmount !== null || price !== null || quantity !== null;
+  const hasConfirmFields = confirmAt !== null || confirmAmount !== null || price !== null || quantity !== null;
   const tradeAt = purchaseTime ?? tradeDate ?? (hasConfirmFields ? null : confirmAt);
 
   const baseFields = {
@@ -191,14 +189,7 @@ function normalizeRawRecord(
     return { ...baseFields, side: null, recordKind: 'dividend' };
   }
 
-  if (
-    amount === null &&
-    tradeAt === null &&
-    price === null &&
-    quantity === null &&
-    !symbol &&
-    !instrumentName
-  ) {
+  if (amount === null && tradeAt === null && price === null && quantity === null && !symbol && !instrumentName) {
     return null;
   }
 
@@ -217,14 +208,7 @@ function collectRawRecords(payload: z.infer<typeof aiResponseSchema>): z.infer<t
 
 export function hasPartialLedgerRecord(record: LedgerAiExtractedRecord): boolean {
   if (record.recordKind === 'dividend' || record.recordKind === 'skip') return false;
-  return Boolean(
-    record.symbol ||
-      record.instrumentName ||
-      record.tradeAt ||
-      record.price ||
-      record.quantity ||
-      record.amount,
-  );
+  return Boolean(record.symbol || record.instrumentName || record.tradeAt || record.price || record.quantity || record.amount);
 }
 
 /** 解析 AI 截图识别 JSON。 */
@@ -249,8 +233,8 @@ export function parseLedgerAiImportResponse(
       [
         parsed.tradeChannelLabel ?? '',
         ...(parsed.warnings ?? []),
-        ...collectRawRecords(parsed).map((record) =>
-          `${record.rawType ?? ''} ${record.type ?? ''} ${record.instrumentName ?? record.name ?? ''}`,
+        ...collectRawRecords(parsed).map(
+          (record) => `${record.rawType ?? ''} ${record.type ?? ''} ${record.instrumentName ?? record.name ?? ''}`,
         ),
       ].join(' '),
     );
@@ -283,10 +267,7 @@ export function parseLedgerAiImportResponse(
 }
 
 /** 无有效记录时的用户提示。 */
-export function buildLedgerAiEmptyRecordsError(input: {
-  warnings: string[];
-  screenshotType: LedgerAiScreenshotType;
-}): string {
+export function buildLedgerAiEmptyRecordsError(input: { warnings: string[]; screenshotType: LedgerAiScreenshotType }): string {
   const { warnings, screenshotType } = input;
 
   if (screenshotType === 'position_summary') {
@@ -302,9 +283,7 @@ export function buildLedgerAiEmptyRecordsError(input: {
 
 /** 多图合并：同一标的+方向+相邻申请/确认日合并，保留字段更完整的一条。 */
 export function mergeLedgerExtractedRecords(records: LedgerAiExtractedRecord[]): LedgerAiExtractedRecord[] {
-  const importable = records.filter(
-    (record) => record.recordKind === 'trade' || record.recordKind === 'sip_deduction',
-  );
+  const importable = records.filter((record) => record.recordKind === 'trade' || record.recordKind === 'sip_deduction');
   const clusters: LedgerAiExtractedRecord[][] = [];
 
   for (const record of importable) {
@@ -394,10 +373,7 @@ function pickRicherTradeAt(left: string | null, right: string | null): string | 
   return left.includes(':') ? left : right;
 }
 
-function mergeRecordFields(
-  primary: LedgerAiExtractedRecord,
-  secondary: LedgerAiExtractedRecord,
-): LedgerAiExtractedRecord {
+function mergeRecordFields(primary: LedgerAiExtractedRecord, secondary: LedgerAiExtractedRecord): LedgerAiExtractedRecord {
   const pick = <T>(left: T | null, right: T | null): T | null => left ?? right;
   const amount = primary.amountIsNetConfirmed
     ? primary.amount

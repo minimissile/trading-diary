@@ -85,10 +85,12 @@ export function resolveDividendEligibleQuantity(
   event: Pick<DividendEvent, 'exDividendDate' | 'recordDate'>,
   kind: InstrumentKind,
 ): number {
+  if (!event.exDividendDate && !event.recordDate) return 0;
+  const exDate = event.exDividendDate ?? event.recordDate!;
   if (kind === 'otc_fund') {
-    return snapshotQuantityAt(ledger, recordDateFromExDate(event.exDividendDate));
+    return snapshotQuantityAt(ledger, recordDateFromExDate(exDate));
   }
-  const recordDate = event.recordDate ?? recordDateFromExDate(event.exDividendDate);
+  const recordDate = event.recordDate ?? recordDateFromExDate(exDate);
   return snapshotQuantityAt(ledger, recordDate);
 }
 

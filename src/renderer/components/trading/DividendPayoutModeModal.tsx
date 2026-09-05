@@ -16,7 +16,11 @@ interface DividendPayoutModeModalProps {
 /**
  * 切换单条分红记录的分红方式，并可同步更新标的默认方式。
  */
-export function DividendPayoutModeModal({
+export function DividendPayoutModeModal(props: DividendPayoutModeModalProps): React.JSX.Element {
+  return props.open ? <DividendPayoutModeModalContent key={props.record?.id} {...props} /> : <></>;
+}
+
+function DividendPayoutModeModalContent({
   open,
   record,
   listAccountId,
@@ -25,17 +29,26 @@ export function DividendPayoutModeModal({
   onSaved,
 }: DividendPayoutModeModalProps): React.JSX.Element {
   const { message } = App.useApp();
-  const [payoutMode, setPayoutMode] = useState<DividendPayoutMode>('cash');
+  const [payoutMode, setPayoutMode] = useState<DividendPayoutMode>(record?.payoutMode ?? 'cash');
   const [setDefault, setSetDefault] = useState(true);
   const [defaultMode, setDefaultMode] = useState<DividendPayoutMode | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open || !record) return;
-    setPayoutMode(record.payoutMode);
-    setSetDefault(true);
-    void window.desktop.portfolio.getDividendPayoutDefault(record.accountId, record.symbol).then(setDefaultMode);
-  }, [open, record]);
+    let active = true;
+    void window.desktop.portfolio
+      .getDividendPayoutDefault(record.accountId, record.symbol)
+      .then((mode) => {
+        if (active) setDefaultMode(mode);
+      })
+      .catch(() => {
+        if (active) void message.error('默认分红方式读取失败，请关闭后重试');
+      });
+    return () => {
+      active = false;
+    };
+  }, [message, open, record]);
 
   const save = async (): Promise<void> => {
     if (!record) return;

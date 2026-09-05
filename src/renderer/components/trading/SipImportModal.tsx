@@ -2,21 +2,21 @@ import { CheckCircleOutlined, CloseCircleOutlined, EditOutlined, PictureOutlined
 import { Alert, App, Button, Input, Modal, Segmented, Select, Space, Steps, Table, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { FundSipPlanView } from '../../../shared/sip/types';
 import type {
   SipAiExtractedRecord,
   SipAiRecognizeResult,
   SipColumnMapping,
   SipCsvField,
+  SipCsvParseResult,
   SipImportCommitResult,
   SipImportInput,
   SipImportPreviewResult,
   SipImportPreviewRow,
-  SipCsvParseResult,
 } from '../../../shared/sip/import-types';
+import type { FundSipPlanView } from '../../../shared/sip/types';
+import { ValueDisplay, formatDateTime } from '../../lib/trading-format';
 import { AccountSelect } from './AccountSelect';
 import { EditableDecimalInput } from './EditableDecimalInput';
-import { formatDateTime, ValueDisplay } from '../../lib/trading-format';
 
 const FIELD_LABELS: Record<SipCsvField, string> = {
   symbol: '标的代码',
@@ -43,13 +43,7 @@ interface SipImportModalProps {
 /**
  * 定投历史导入弹窗，支持 CSV 与 AI 截图识别。
  */
-export function SipImportModal({
-  open,
-  defaultAccountId,
-  plans,
-  onClose,
-  onSaved,
-}: SipImportModalProps): React.JSX.Element {
+export function SipImportModal({ open, defaultAccountId, plans, onClose, onSaved }: SipImportModalProps): React.JSX.Element {
   const { message } = App.useApp();
   const [mode, setMode] = useState<ImportMode>('ai');
   const [step, setStep] = useState<ImportStep>(0);
@@ -179,9 +173,7 @@ export function SipImportModal({
   };
 
   const updateAiRecord = (rowIndex: number, patch: Partial<SipAiExtractedRecord>): void => {
-    setAiRecords((records) =>
-      records.map((record) => (record.rowIndex === rowIndex ? { ...record, ...patch } : record)),
-    );
+    setAiRecords((records) => records.map((record) => (record.rowIndex === rowIndex ? { ...record, ...patch } : record)));
   };
 
   const refreshAiPreview = async (): Promise<void> => {
@@ -431,9 +423,7 @@ export function SipImportModal({
 
       {mode === 'csv' && step === 0 ? (
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <p className="sip-import-hint">
-            支持从券商/基金平台导出的扣款记录 CSV。必填：标的代码、扣款日期、净值、扣款金额。
-          </p>
+          <p className="sip-import-hint">支持从券商/基金平台导出的扣款记录 CSV。必填：标的代码、扣款日期、净值、扣款金额。</p>
           <Button type="primary" icon={<UploadOutlined />} loading={busy} onClick={() => void selectFile()}>
             选择 CSV 文件
           </Button>
@@ -443,7 +433,8 @@ export function SipImportModal({
       {mode === 'ai' && step === 0 ? (
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           <p className="sip-import-hint">
-            请截取 App 内「扣款记录 / 定投记录 / 交易明细」列表（需能看到扣款日期与金额或份额）。若只截计划设置页，将无法识别历史扣款；智能定投历史仍可导入，但不会自动复制策略。
+            请截取 App 内「扣款记录 / 定投记录 /
+            交易明细」列表（需能看到扣款日期与金额或份额）。若只截计划设置页，将无法识别历史扣款；智能定投历史仍可导入，但不会自动复制策略。
           </p>
           <AccountSelect value={accountId} onChange={setAccountId} />
           <Select
@@ -519,11 +510,17 @@ export function SipImportModal({
       {step === 2 && preview ? (
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
           {mode === 'ai' && aiRecognize?.planMode === 'smart' ? (
-            <Alert
-              type="warning"
-              showIcon
-              title="识别为智能定投：历史扣款可导入，本应用不支持复制智能策略"
-            />
+            <Alert type="warning" showIcon title="识别为智能定投：历史扣款可导入，本应用不支持复制智能策略" />
+          ) : null}
+          {mode === 'ai' && aiEnrichments.length > 0 ? (
+            <details className="ui-import-notes">
+              <summary>识别与补全说明（{aiEnrichments.length}）</summary>
+              <ul>
+                {aiEnrichments.map((text, index) => (
+                  <li key={index}>{text}</li>
+                ))}
+              </ul>
+            </details>
           ) : null}
           <p>
             可导入 <strong>{preview.readyCount}</strong> 笔

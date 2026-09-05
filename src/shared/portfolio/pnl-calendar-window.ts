@@ -61,11 +61,8 @@ export function datesInMonth(month: string): string[] {
 }
 
 /** 日历面板锚点日期：窗口首月时对齐 windowStart，避免 value 落在统计窗口之前。 */
-export function resolvePnlCalendarPanelDate(
-  month: string,
-  windowStart: string,
-  _windowEnd: string,
-): string {
+export function resolvePnlCalendarPanelDate(month: string, windowStart: string, _windowEnd: string): string {
+  void _windowEnd; // Kept for the public helper signature.
   const monthStart = `${month}-01`;
   if (monthStart < windowStart && month === windowStart.slice(0, 7)) return windowStart;
   return monthStart;

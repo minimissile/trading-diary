@@ -1,18 +1,15 @@
+import { snapshotTestDatabase } from './database-snapshot';
 import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { AppDatabase } from '../src/service/database/database';
 import { PortfolioService } from '../src/service/portfolio/portfolio-service';
 
-const DB_PATH = '/Users/nuke/Library/Application Support/交易日记/database/app.sqlite';
+const DB_PATH = process.env.TRADING_DIARY_TEST_DB ?? '';
 
 type AssetCategory = 'all' | 'fund' | 'stock';
 type StockSubKind = 'all' | 'stock' | 'listed_fund';
 
-function matchesAssetFilter(
-  position: { kind: string },
-  category: AssetCategory,
-  stockSubKind: StockSubKind,
-): boolean {
+function matchesAssetFilter(position: { kind: string }, category: AssetCategory, stockSubKind: StockSubKind): boolean {
   if (category === 'all') return true;
   if (category === 'fund') return position.kind === 'otc_fund';
   if (position.kind === 'otc_fund') return false;
@@ -23,7 +20,7 @@ function matchesAssetFilter(
 
 describe.skipIf(!existsSync(DB_PATH))('positions tab filter live', () => {
   it('reports fund tab market value mismatch', async () => {
-    const svc = new PortfolioService(new AppDatabase(DB_PATH));
+    const svc = new PortfolioService(new AppDatabase(await snapshotTestDatabase(DB_PATH)));
     const positions = await svc.listPositions(undefined);
 
     const fundTab = positions.filter((p) => matchesAssetFilter(p, 'fund', 'all'));

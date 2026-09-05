@@ -15,6 +15,8 @@ export default tseslint.config(
       'eslint.config.mjs',
       'prettier.config.mjs',
       'scripts/**',
+      '.agents/**',
+      'agent/skills/**',
     ],
   },
   eslint.configs.recommended,

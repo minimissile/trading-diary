@@ -114,12 +114,12 @@ export function SymbolSearchInput({
   return (
     <AutoComplete
       className="symbol-search-input"
-      getPopupContainer={(trigger) => trigger.ownerDocument.body}
+      getPopupContainer={(trigger: HTMLElement) => trigger.ownerDocument.body}
       disabled={disabled}
       options={autoCompleteOptions}
       value={value}
       notFoundContent={loading ? <Spin size="small" /> : '无匹配标的'}
-      onSelect={(symbol, option) => handleSelect(symbol, option as { hit?: MarketSearchHit })}
+      onSelect={(symbol, option) => handleSelect(symbol, option)}
       onBlur={handleBlur}
       onChange={handleChange}
     >

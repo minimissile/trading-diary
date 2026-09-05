@@ -1,3 +1,5 @@
+import type { LedgerImportEnrichmentResult } from './ledger-import-enrichment.types';
+import type { LedgerAiTradeChannel } from '../../shared/portfolio/ledger-import-types';
 import type { LedgerAiExtractedRecord } from '../../shared/portfolio/ledger-import-types';
 import { lookupImportPriceOnDate } from '../market/eastmoney/historical-price-service';
 import { searchInstruments } from '../market/eastmoney/search-service';
@@ -20,14 +22,12 @@ export type { LedgerImportEnrichmentOptions, LedgerImportEnrichmentResult } from
 export async function enrichLedgerExtractedRecords(
   records: LedgerAiExtractedRecord[],
   options: LedgerImportEnrichmentOptions = {},
-): Promise<import('./ledger-import-enrichment.types').LedgerImportEnrichmentResult> {
+): Promise<LedgerImportEnrichmentResult> {
   const tradeChannel = resolveImportTradeChannel(options);
   const recalculateDerivedFields = options.recalculateDerivedFields ?? false;
   const enrichments: string[] = [];
   const nextRecords = await Promise.all(
-    records.map((record) =>
-      enrichRecord(record, enrichments, tradeChannel, recalculateDerivedFields),
-    ),
+    records.map((record) => enrichRecord(record, enrichments, tradeChannel, recalculateDerivedFields)),
   );
   return { records: nextRecords, enrichments };
 }
@@ -35,7 +35,7 @@ export async function enrichLedgerExtractedRecords(
 async function enrichRecord(
   record: LedgerAiExtractedRecord,
   enrichments: string[],
-  defaultTradeChannel: import('../../shared/portfolio/ledger-import-types').LedgerAiTradeChannel,
+  defaultTradeChannel: LedgerAiTradeChannel,
   recalculateDerivedFields: boolean,
 ): Promise<LedgerAiExtractedRecord> {
   if (record.recordKind === 'dividend' || record.recordKind === 'skip') return record;
@@ -61,21 +61,16 @@ async function enrichRecord(
 
   if (isOtcTradeChannel(tradeChannel) && !hasFundConfirmationData(next)) {
     if (!canDeriveFundFromAmount(next)) {
-      enrichments.push(
-        `第 ${next.rowIndex} 行：缺少确认净值/份额，请上传「记录详情」截图（含确认金额、净值、份额）或手动填写`,
-      );
+      enrichments.push(`第 ${next.rowIndex} 行：缺少确认净值/份额，请上传「记录详情」截图（含确认金额、净值、份额）或手动填写`);
       return next;
     }
   }
 
-  const navDateKey = isOtcTradeChannel(tradeChannel)
-    ? resolveFundNavLookupDate(next.tradeAt, next.confirmAt)
-    : dateKey;
+  const navDateKey = isOtcTradeChannel(tradeChannel) ? resolveFundNavLookupDate(next.tradeAt, next.confirmAt) : dateKey;
 
   if (!navDateKey) return next;
 
-  const shouldLookupPrice =
-    next.price === null || (recalculateDerivedFields && next.amount !== null && next.quantity === null);
+  const shouldLookupPrice = next.price === null || (recalculateDerivedFields && next.amount !== null && next.quantity === null);
 
   if (shouldLookupPrice) {
     try {
@@ -87,9 +82,7 @@ async function enrichRecord(
             `第 ${next.rowIndex} 行：已自动填充 ${navDateKey} ${isOtcTradeChannel(tradeChannel) ? '确认净值' : '价格'} ${lookup.nav}`,
           );
         } else {
-          enrichments.push(
-            `第 ${next.rowIndex} 行：未找到 ${navDateKey} 当日价格，已使用 ${lookup.navDate} 净值 ${lookup.nav}`,
-          );
+          enrichments.push(`第 ${next.rowIndex} 行：未找到 ${navDateKey} 当日价格，已使用 ${lookup.navDate} 净值 ${lookup.nav}`);
         }
       }
     } catch (error) {
@@ -100,14 +93,9 @@ async function enrichRecord(
 
   if (next.amount !== null && next.price !== null && next.price > 0 && next.quantity === null) {
     let fees = next.fees;
-    if (
-      fees === null &&
-      isOtcTradeChannel(tradeChannel) &&
-      !next.amountIsNetConfirmed &&
-      next.amount !== null
-    ) {
+    if (fees === null && isOtcTradeChannel(tradeChannel) && !next.amountIsNetConfirmed && next.amount !== null) {
       fees = estimateOtcSubscriptionFee(next.amount);
-      next = { ...next, fees };
+      next.fees = fees;
     }
     const resolvedFees = fees ?? 0;
     const derivedQuantity = isOtcTradeChannel(tradeChannel)
@@ -139,9 +127,7 @@ async function resolveSymbolFromName(name: string): Promise<string | null> {
   if (exact?.symbol) return exact.symbol;
 
   const contains = hits.find(
-    (hit) =>
-      normalizeName(hit.name).includes(normalizedKeyword) ||
-      normalizedKeyword.includes(normalizeName(hit.name)),
+    (hit) => normalizeName(hit.name).includes(normalizedKeyword) || normalizedKeyword.includes(normalizeName(hit.name)),
   );
   return contains?.symbol ?? hits[0]?.symbol ?? null;
 }

@@ -168,7 +168,7 @@ async function fetchEastMoneyKlinePayload(searchParams: KLineSearchParams): Prom
   for (let offset = 0; offset < EASTMONEY_KLINE_ORIGINS.length; offset += KLINE_ORIGIN_BATCH_SIZE) {
     const batch = EASTMONEY_KLINE_ORIGINS.slice(offset, offset + KLINE_ORIGIN_BATCH_SIZE);
     const attempts = batch.map((origin) =>
-      eastMoneyFetchJson<KLineResponse>(eastMoneyKlineUrl(origin, searchParams), {
+      eastMoneyFetchJson<KLineResponse>(eastMoneyKlineUrl(origin, { ...searchParams }), {
         referer: EASTMONEY_QUOTE_REFERER,
       }).then((payload) => {
         if (payload.rc !== 0 || !payload.data?.klines?.length) {
@@ -211,12 +211,11 @@ async function listOtcFundNavBars(
 ): Promise<{ bars: KLineBar[]; hasMoreHistory: boolean }> {
   const rows: FundNavRow[] = [];
   let pageIndex = 1;
-  let hasMorePages = true;
+  const hasMorePages = true;
 
   while (pageIndex <= FUND_NAV_MAX_PAGES) {
     const batch = await fetchFundNavPage(symbol, pageIndex);
     if (batch.length === 0) {
-      hasMorePages = false;
       break;
     }
 

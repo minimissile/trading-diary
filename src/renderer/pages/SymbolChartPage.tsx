@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { App, Alert, Button, Checkbox, Popover, Segmented, Space, Tag } from 'antd';
 import { ArrowLeftOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
+import { Alert, App, Button, Checkbox, Popover, Segmented, Tag } from 'antd';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import { buildChartTradeMarkers } from '../../shared/chart/trade-markers';
 import type { InstrumentKind, KLineAdjust, KLinePeriod } from '../../shared/market/types';
 import type { PortfolioLedgerEntry } from '../../shared/portfolio/types';
-import { buildChartTradeMarkers } from '../../shared/chart/trade-markers';
 import { TradingChart } from '../components/chart/TradingChart';
 import {
   chartMainIndicatorOptions,
@@ -33,6 +33,11 @@ const kindLabels: Record<InstrumentKind, string> = {
  * 持仓标的 K 线页，从持仓中心进入的二级页面。
  */
 export function SymbolChartPage(): React.JSX.Element {
+  const { symbol } = useParams();
+  return <SymbolChartContent key={symbol} />;
+}
+
+function SymbolChartContent(): React.JSX.Element {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const { symbol: symbolParam } = useParams();
@@ -57,6 +62,15 @@ export function SymbolChartPage(): React.JSX.Element {
       const snapshot = await window.desktop.market.getSnapshot(symbol);
       setSymbolName(snapshot.instrument.name);
       setInstrumentKind(snapshot.instrument.kind);
+      if (snapshot.instrument.kind === 'otc_fund') {
+        setPeriod('1d');
+        setAdjust('none');
+        setMainIndicators(['MA']);
+        setSubIndicators(['MACD']);
+      } else {
+        setMainIndicators(['MA', 'BOLL']);
+        setSubIndicators(['VOL', 'MACD']);
+      }
       setChartError(null);
 
       const quote = snapshot.quote;
@@ -89,6 +103,8 @@ export function SymbolChartPage(): React.JSX.Element {
       void navigate(routePaths.positions, { replace: true });
       return;
     }
+    // Loads quote metadata through IPC; state changes occur when the external request resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSymbolMeta();
     void loadTradeMarkers();
   }, [loadSymbolMeta, loadTradeMarkers, navigate, symbol]);
@@ -101,23 +117,6 @@ export function SymbolChartPage(): React.JSX.Element {
     return () => window.removeEventListener('workspace-changed', refresh);
   }, [loadTradeMarkers]);
 
-  useEffect(() => {
-    setChartError(null);
-  }, [symbol, period, adjust, instrumentKind]);
-
-  useEffect(() => {
-    if (instrumentKind === null) return;
-    if (instrumentKind === 'otc_fund') {
-      setPeriod('1d');
-      setAdjust('none');
-      setMainIndicators(['MA']);
-      setSubIndicators(['MACD']);
-      return;
-    }
-    setMainIndicators(['MA', 'BOLL']);
-    setSubIndicators(['VOL', 'MACD']);
-  }, [instrumentKind]);
-
   const periodSegmentOptions = useMemo(
     () =>
       (isOtcFund ? fundChartPeriodOptions : chartPeriodOptions).map((option) => ({
@@ -129,9 +128,10 @@ export function SymbolChartPage(): React.JSX.Element {
 
   const subIndicatorOptions = useMemo(
     () =>
-      (isOtcFund ? chartSubIndicatorOptions.filter((name) => name !== 'VOL') : chartSubIndicatorOptions).map(
-        (name) => ({ label: name, value: name }),
-      ),
+      (isOtcFund ? chartSubIndicatorOptions.filter((name) => name !== 'VOL') : chartSubIndicatorOptions).map((name) => ({
+        label: name,
+        value: name,
+      })),
     [isOtcFund],
   );
 
@@ -154,12 +154,12 @@ export function SymbolChartPage(): React.JSX.Element {
         <Checkbox.Group
           options={chartMainIndicatorOptions.map((name) => ({ label: name, value: name }))}
           value={mainIndicators}
-          onChange={(values) => setMainIndicators(values as ChartMainIndicator[])}
+          onChange={(values) => setMainIndicators(values)}
         />
       </div>
       <div className="symbol-chart-control-row">
         <span className="symbol-chart-control-label">副图</span>
-        <Checkbox.Group options={subIndicatorOptions} value={subIndicators} onChange={(values) => setSubIndicators(values as ChartSubIndicator[])} />
+        <Checkbox.Group options={subIndicatorOptions} value={subIndicators} onChange={(values) => setSubIndicators(values)} />
       </div>
     </div>
   );
@@ -172,7 +172,12 @@ export function SymbolChartPage(): React.JSX.Element {
     <main className="workspace-page symbol-chart-page">
       <header className="symbol-chart-toolbar">
         <div className="symbol-chart-toolbar-left">
-          <Button type="text" className="symbol-chart-back" icon={<ArrowLeftOutlined />} onClick={() => void navigate(routePaths.positions)}>
+          <Button
+            type="text"
+            className="symbol-chart-back"
+            icon={<ArrowLeftOutlined />}
+            onClick={() => void navigate(routePaths.positions)}
+          >
             返回
           </Button>
           <div className="symbol-chart-title-block">
@@ -184,9 +189,25 @@ export function SymbolChartPage(): React.JSX.Element {
         </div>
 
         <div className="symbol-chart-toolbar-right">
-          <Segmented size="small" options={periodSegmentOptions} value={period} onChange={(value) => setPeriod(value as KLinePeriod)} />
+          <Segmented
+            size="small"
+            options={periodSegmentOptions}
+            value={period}
+            onChange={(value) => {
+              setChartError(null);
+              setPeriod(value);
+            }}
+          />
           {!isOtcFund ? (
-            <Segmented size="small" options={adjustOptions} value={adjust} onChange={(value) => setAdjust(value as KLineAdjust)} />
+            <Segmented
+              size="small"
+              options={adjustOptions}
+              value={adjust}
+              onChange={(value) => {
+                setChartError(null);
+                setAdjust(value);
+              }}
+            />
           ) : null}
           <Popover content={indicatorPanel} trigger="click" placement="bottomRight" title="指标">
             <Button size="small" icon={<SettingOutlined />}>

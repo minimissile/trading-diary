@@ -37,6 +37,8 @@ export function AccessLockGate({ children, gateActive }: AccessLockGateProps): R
   }, [gateActive, message]);
 
   useEffect(() => {
+    // Start the external IPC request and expose its pending state in the same lifecycle.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSettings();
   }, [loadSettings]);
 
@@ -65,9 +67,7 @@ export function AccessLockGate({ children, gateActive }: AccessLockGateProps): R
 
   return (
     <>
-      <div className={locked ? 'access-lock-content access-lock-content--locked' : 'access-lock-content'}>
-        {children}
-      </div>
+      <div className={locked ? 'access-lock-content access-lock-content--locked' : 'access-lock-content'}>{children}</div>
 
       {locked ? (
         <div className="access-lock-screen" role="dialog" aria-modal="true" aria-label="访问验证">
